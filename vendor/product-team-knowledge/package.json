@@ -1,0 +1,22 @@
+{
+  "name": "@berriai/product-team-knowledge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "start": "node bin/memory.mjs serve",
+    "setup": "node bin/setup.mjs",
+    "nightly": "node bin/nightly.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.27.1",
+    "fuse.js": "7.5.0",
+    "smol-toml": "1.8.0",
+    "yaml": "2.9.1",
+    "zod": "4.3.6"
+  }
+}

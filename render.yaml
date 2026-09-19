@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: moegent
+    runtime: docker
+    plan: starter
+    region: oregon
+    healthCheckPath: /health
+    numInstances: 1
+    disk:
+      name: moegent-state
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: STATE_DIR
+        value: /data
+      - key: ACCESS_MODE
+        value: public
+      - key: MEMORY_ALLOWED_ACTORS
+        value: moe-berri
+      - key: LITELLM_MODEL
+        value: openai/gpt-5.6-luna
+      - key: MEMORY_EMBEDDING_MODEL
+        value: openai/text-embedding-3-small
+      - key: LITELLM_BASE_URL
+        sync: false
+      - key: LITELLM_API_KEY
+        sync: false
+      - key: GH_TOKEN
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: SLACK_TEAM_ID
+        sync: false
+      - key: SLACK_OWNER_USER_ID
+        sync: false
+      - key: SLACK_APP_ID
+        sync: false
+      - key: SLACK_CLIENT_ID
+        sync: false
+      - key: SLACK_CLIENT_SECRET
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false

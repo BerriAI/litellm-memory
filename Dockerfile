@@ -1,0 +1,21 @@
+FROM node:22-bookworm-slim AS memory
+WORKDIR /memory
+COPY vendor/product-team-knowledge/package*.json ./
+RUN npm ci --omit=dev --ignore-scripts
+
+FROM ghcr.io/astral-sh/uv:0.12.9 AS uv
+FROM python:3.12-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends gh ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=memory /usr/local/bin/node /usr/local/bin/node
+COPY --from=uv /uv /usr/local/bin/uv
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+COPY moegent ./moegent
+COPY static ./static
+COPY vendor/product-team-knowledge ./vendor/product-team-knowledge
+COPY --from=memory /memory/node_modules ./vendor/product-team-knowledge/node_modules
+ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 STATE_DIR=/data PORT=10000
+EXPOSE 10000
+CMD ["sh", "-c", "exec uvicorn moegent.app:app --host 0.0.0.0 --port ${PORT:-10000} --no-access-log"]
