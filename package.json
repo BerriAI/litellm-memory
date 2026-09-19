@@ -1,0 +1,8 @@
+{
+  "name": "moegent-web-vendor",
+  "private": true,
+  "dependencies": {
+    "dompurify": "3.4.15",
+    "marked": "18.0.13"
+  }
+}

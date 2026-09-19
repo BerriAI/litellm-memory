@@ -1,11 +1,11 @@
 import asyncio
 import contextlib
-import html
 import json
 import secrets
 from contextlib import asynccontextmanager
 from typing import Literal
 from urllib.parse import urlsplit
+from uuid import UUID
 
 import httpx
 from authlib.integrations.starlette_client import OAuth
@@ -20,7 +20,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from .access import AccessPolicy, Principal
 from .agent import answer
 from .config import ROOT, Settings
-from .memory import memory_call, memory_server, warm_blob_cache
+from .memory import MemoryNotFound, memory_call, memory_server, warm_blob_cache
 from .slack import Slack
 from .storage import Storage
 from .worker import worker
@@ -34,6 +34,7 @@ class Message(BaseModel):
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1, max_length=16000)
     history: list[Message] = Field(default_factory=list, max_length=16)
+    request_id: UUID | None = None
 
 
 def create_app(settings=None, agent_fn=answer, start_worker=True):
@@ -48,6 +49,8 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
     policy = AccessPolicy(settings)
     store = Storage(settings.state_dir / "moegent.sqlite3")
     slack = Slack(settings, store)
+    running = {}
+    slack.running = running
 
     @asynccontextmanager
     async def lifespan(app):
@@ -61,13 +64,15 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
                         await memory_call(server, "memory_search", {"query": "product priorities", "mode": "hybrid", "limit": 1})
             tasks.append(asyncio.create_task(warm()))
         if start_worker:
-            tasks.append(asyncio.create_task(worker(settings, store, slack, agent_fn)))
+            tasks.append(asyncio.create_task(worker(settings, store, slack, agent_fn, running)))
+            tasks.append(asyncio.create_task(slack.monitor()))
         yield
         for task in tasks:
             task.cancel()
         for task in tasks:
             with contextlib.suppress(asyncio.CancelledError):
                 await task
+        await slack.close()
         await store.close()
 
     app = FastAPI(title="Moegent", lifespan=lifespan)
@@ -104,7 +109,7 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
 
     @app.get("/")
     async def index():
-        return FileResponse(ROOT / "static/index.html")
+        return FileResponse(ROOT / "static/index.html", headers={"Cache-Control": "no-cache"})
 
     @app.get("/api/config")
     async def config(request: Request):
@@ -120,7 +125,8 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
         owner = authorize(request)
         if not body.question.strip():
             raise HTTPException(422, "Enter a question")
-        job_id = await store.enqueue(owner, "web", body.model_dump())
+        job_id = await store.enqueue(owner, "web", body.model_dump(mode="json"),
+                                     f"web:{owner}:{body.request_id}" if body.request_id else None)
         return {"id": job_id, "status": "queued"}
 
     @app.get("/api/jobs/{job_id}")
@@ -129,12 +135,26 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
         record = await store.get_job(job_id)
         if not record or record["owner"] != owner or record["kind"] != "web":
             raise HTTPException(404, "Request not found")
-        return {key: record[key] for key in ["id", "status", "answer", "error"]}
+        return {key: record[key] for key in ["id", "status", "answer", "error", "phase", "partial", "created"]}
+
+    @app.post("/api/jobs/{job_id}/cancel")
+    async def cancel(job_id: str, request: Request):
+        same_origin(request)
+        owner = authorize(request)
+        record = await store.get_job(job_id)
+        if not record or record["owner"] != owner or record["kind"] != "web":
+            raise HTTPException(404, "Request not found")
+        await store.cancel(job_id)
+        if task := running.get(job_id):
+            task.cancel()
+        return {"status": (await store.get_job(job_id))["status"]}
 
     async def call_memory(tool, arguments):
         try:
             async with memory_server(settings) as server:
                 return await memory_call(server, tool, arguments)
+        except MemoryNotFound:
+            raise HTTPException(404, "This memory is unavailable or no longer shared.") from None
         except Exception:
             raise HTTPException(503, "Memory search is temporarily unavailable") from None
 
@@ -142,6 +162,10 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
     async def search(body: dict, request: Request):
         same_origin(request)
         authorize(request)
+        for field in ["created", "updated"]:
+            if body.get(field + "_from") and body.get(field + "_before"):
+                if body[field + "_from"] >= body[field + "_before"]:
+                    raise HTTPException(422, "The end date must be later than the start date.")
         return await call_memory("memory_search", body)
 
     @app.get("/api/memories/{memory_id}")
@@ -149,7 +173,11 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
         authorize(request)
         return await call_memory("memory_read", {"id": memory_id})
 
-    @app.get("/memory/{memory_id}", response_class=HTMLResponse)
+    @app.get("/sources")
+    async def sources_page(request: Request):
+        return await memory_page("", request)
+
+    @app.get("/memory/{memory_id}")
     async def memory_page(memory_id: str, request: Request):
         try:
             authorize(request)
@@ -157,13 +185,7 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
             if exc.status_code == 401:
                 return RedirectResponse("/auth/slack")
             raise
-        data = await call_memory("memory_read", {"id": memory_id})
-        # Escape every source field: memories are untrusted documents.
-        content = html.escape(json.dumps(data, indent=2, ensure_ascii=False))
-        return HTMLResponse('<!doctype html><meta name="viewport" content="width=device-width">'
-                            '<title>Memory · Moegent</title><link rel="stylesheet" href="/static/style.css">'
-                            '<main class="memory-page"><a href="/">← Moegent</a><h1>Source memory</h1>'
-                            f'<pre>{content}</pre></main>')
+        return FileResponse(ROOT / "static/index.html", headers={"Cache-Control": "no-cache"})
 
     @app.post("/slack/events")
     async def events(request: Request):
@@ -233,7 +255,8 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
             raise HTTPException(403, "Only Moe can install this app")
         await store.setting("slack_bot_token", data["access_token"])
         await store.setting("slack_bot_user_id", data["bot_user_id"])
-        return HTMLResponse('<h1>Moegent is connected</h1><p>You can now invite @Moegent to a Slack channel or send it a DM.</p><a href="/">Open Moegent</a>')
+        await store.setting("slack_scopes", data.get("scope", ""))
+        return RedirectResponse("/?slack=connected", status_code=303)
 
     return app
 

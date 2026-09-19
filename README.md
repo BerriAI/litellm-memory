@@ -19,7 +19,7 @@ uv run uvicorn moegent.app:app --host 0.0.0.0 --port 8000
 ```
 
 Open http://localhost:8000. `uv run pytest -q` checks Slack signatures, caller gates, owner-only invitations,
-event retries, job recovery, and browser session isolation. `uv run ruff check moegent tests scripts` checks Python.
+event retries, job recovery, browser session isolation, streaming, cancellation, thread steering, and source links. `uv run ruff check moegent tests scripts` checks Python.
 The vendored memory runtime is from the shared knowledge repository with metadata and semantic search extensions;
 see `vendor/UPSTREAM.md`. It contains implementation code only, not copies of the memories.
 
@@ -34,7 +34,7 @@ available. The first full semantic search can take longer if the index is cold.
 The explorer supports query, mode, scope, kind, creation dates, archive inclusion, and sorting. The underlying
 memory tool also filters actors, source, certainty, status, layers, update dates, and supports pagination.
 Date bounds use UTC, inclusive `from` and exclusive `before`; legacy unknown dates remain unknown.
-GitHub actor is the uploader, not necessarily the speaker. Citations open the full source memory.
+GitHub actor is the uploader, not necessarily the speaker. Citations open readable full memories; an answer’s Sources button shows all cited memories together. Combined source links also work from Slack. The web interface streams answer text, supports Stop/Retry, and saves conversations locally in the browser.
 
 ## Slack and access
 
@@ -56,7 +56,18 @@ URL whose state is signed with `URLSafeTimedSerializer(SESSION_SECRET, salt='sla
 configured Slack team ID. The callback exchanges the code and persists the bot credential on the private disk.
 App configuration access/refresh tokens are provisioning credentials only; they are never deployed to the server.
 Slack signatures and timestamp validation are required even in public mode. Events are durably queued before
-acknowledgment; duplicate event IDs are ignored. Replies appear in the original thread.
+acknowledgment; duplicate Slack message timestamps are ignored even when Slack sends both an app mention and a
+channel-message event. Replies appear in the original thread. The manifest enables Slack’s native Agent view;
+changing scopes requires reinstalling the app. This is separate from the OpenAI Agents SDK tool loop.
+
+A separate feedback loop adds 👀 while a request is queued/running, updates one progress reply, and removes the
+reaction when finished. DMs also use native agent status. Follow-up messages in a Moegent thread work without
+another mention. A newer message from the same asker cancels their unfinished run and starts a new one with the
+updated context; another asker does not cancel their run. Send `stop` in that thread to stop your active request.
+Thread text is fetched through conversations.replies (bounded to 1,000 fetched messages, with the root and up to
+59 recent messages supplied to the model). If Slack history is unavailable, the model is explicitly told it has
+only saved Moegent exchanges. Files and attachments are not downloaded. Unrelated channel conversations are ignored.
+Slack status/reaction failures are best-effort and cannot prevent answer delivery.
 
 ## Render
 

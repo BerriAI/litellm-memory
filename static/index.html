@@ -1,13 +1,90 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f8f7f3"><title>Moegent</title><link rel="stylesheet" href="/static/style.css"><script src="/static/app.js" defer></script></head>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>Moegent</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23292a2d'/%3E%3Ctext x='6' y='23' font-family='Arial' font-size='24' fill='white'%3Em%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/style.css?v=2">
+  <script type="module" src="/static/app.js?v=2"></script>
+</head>
 <body>
-<aside><a class="brand" href="/"><span class="mark">m.</span> Moegent</a><p class="tagline">A little more context.</p><nav><button id="chat-tab" class="active">↗ &nbsp; Ask Moegent</button><button id="explore-tab">⌕ &nbsp; Explore memories</button></nav><div class="sidebar-bottom"><span class="status-dot"></span> Connected to Moe’s memory<p>Built on what we know.<br>Curious about what we don’t.</p><a id="login" href="/auth/slack" hidden>Sign in with Slack ↗</a><button id="logout" hidden>Sign out</button></div></aside>
-<main>
-<header><span id="page-label">YOUR MEMORY, IN CONVERSATION</span><button id="new-chat">New conversation ＋</button></header>
-<section id="chat-view">
-<div id="welcome"><span class="eyebrow">HELLO, I’M MOEGENT</span><h1>Let’s connect<br>the dots<span>.</span></h1><p>Ask about a decision, find a forgotten detail,<br>or pick up where the team left off.</p><div class="suggestions"><button>What is Moegent for?</button><button>What has Moe decided about Moegent?</button><button>What changed in the last seven days?</button></div></div>
-<div id="messages" aria-live="polite"></div>
-<div class="composer-wrap"><form id="chat-form"><textarea id="question" placeholder="Ask anything about Moe’s memories…" rows="2" maxlength="16000" required aria-label="Your question"></textarea><div class="composer-footer"><span>Answers with context. Sources included.</span><button id="send" aria-label="Send question">↑</button></div></form><p id="chat-status" role="status">Moegent can make mistakes. Follow the sources for the full story.</p></div>
-</section>
-<section id="explore-view" hidden><span class="eyebrow">THE KNOWLEDGE BEHIND THE ANSWER</span><h1>Explore memories<span>.</span></h1><p class="muted">Search by meaning, find exact words, or browse by date.</p><form id="search-form"><div class="search-row"><input id="search-query" placeholder="Search memories…" aria-label="Search query"><button class="primary">Search ↗</button></div><div class="filters"><label>Search mode<select id="mode"><option value="hybrid">Meaning + keywords</option><option value="semantic">Semantic</option><option value="fuzzy">Keywords</option></select></label><label>Scope<input id="scope" placeholder="e.g. Auto Router"></label><label>Created from<input id="created-from" type="date"></label><label>Created before<input id="created-before" type="date"></label><label>Sort by<select id="sort"><option value="relevance">Most relevant</option><option value="created_at">Newest created</option><option value="updated_at">Recently updated</option></select></label><label>Kind<select id="kind"><option value="">All kinds</option><option>decision</option><option>learning</option><option>correction</option><option>workflow</option><option>context</option><option>disagreement</option></select></label></div><label class="checkbox"><input id="archive" type="checkbox"> Include archived observations</label></form><p id="search-status" role="status"></p><div id="results"></div><button id="load-more" hidden>Load more ↓</button></section>
-</main></body></html>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="app-header">
+    <a class="brand" href="#chat" aria-label="Moegent home"><span class="logo" aria-hidden="true">m</span>Moegent</a>
+    <nav aria-label="Main navigation">
+      <button id="chat-tab" class="nav-button active" aria-current="page">Chat</button>
+      <button id="memories-tab" class="nav-button">Memories</button>
+    </nav>
+    <div class="header-actions">
+      <button id="history-button" class="button quiet" aria-label="Conversation history">History</button>
+      <button id="new-chat" class="button outline"><span aria-hidden="true">＋</span> New chat</button>
+      <a id="login" class="button outline" href="/auth/slack" hidden>Sign in</a>
+    </div>
+  </header>
+  <div id="connection" class="connection-banner" role="status" hidden></div>
+  <main id="main" tabindex="-1">
+    <section id="chat-view" class="chat-view empty" aria-label="Chat">
+      <div id="welcome" class="welcome"><h1>Ask Moegent</h1></div>
+      <div id="messages" class="messages" role="log" aria-label="Conversation" aria-live="off"></div>
+      <div class="composer-area">
+        <div id="composer-error" class="inline-error" role="alert" hidden></div>
+        <form id="chat-form" class="composer">
+          <label class="sr-only" for="question">Message Moegent</label>
+          <textarea id="question" rows="1" maxlength="16000" placeholder="Ask about Moe’s memories…" autocomplete="off"></textarea>
+          <div class="composer-bottom">
+            <span id="composer-hint" class="keyboard-hint">Enter to send <span>·</span> Shift + Enter for a new line</span>
+            <span id="character-count" class="keyboard-hint" hidden></span>
+            <button id="stop" type="button" class="button outline" hidden><span class="stop-symbol" aria-hidden="true"></span> Stop</button>
+            <button id="send" type="submit" class="button primary" disabled>Send <span aria-hidden="true">↑</span></button>
+          </div>
+        </form>
+        <div id="suggestions" class="suggestions" aria-label="Suggested questions">
+          <button data-question="What has Moe decided about Moegent?">Moegent decisions <span aria-hidden="true">↗</span></button>
+          <button data-question="What changed in Moe’s memories in the last seven days?">Recent changes <span aria-hidden="true">↗</span></button>
+          <button data-question="What has Moe learned about building agents?">Building agents <span aria-hidden="true">↗</span></button>
+        </div>
+      </div>
+      <button id="jump-bottom" class="button outline jump-bottom" hidden>Latest message ↓</button>
+    </section>
+
+    <section id="memories-view" class="memories-view" aria-labelledby="memories-title" hidden>
+      <div class="page-title"><h1 id="memories-title">Memories</h1></div>
+      <form id="search-form" role="search">
+        <div class="search-box"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="search-query" type="search" placeholder="Search memories" aria-label="Search memories" autocomplete="off"><kbd>/</kbd></div>
+        <div class="search-toolbar">
+          <label class="sr-only" for="search-mode">Search mode</label>
+          <select id="search-mode" aria-label="Search mode"><option value="hybrid">Meaning + keywords</option><option value="semantic">Meaning</option><option value="fuzzy">Keywords</option></select>
+          <button id="filters-toggle" type="button" class="button outline" aria-expanded="false" aria-controls="filters">Filters <span id="filter-count" hidden></span></button>
+          <button id="clear-filters" type="button" class="button quiet" hidden>Clear filters</button>
+          <label class="sr-only" for="sort">Sort memories</label>
+          <select id="sort" class="sort" aria-label="Sort memories"><option value="relevance">Most relevant</option><option value="created_at:desc">Newest first</option><option value="created_at:asc">Oldest first</option><option value="updated_at:desc">Recently updated</option></select>
+        </div>
+        <div id="filters" class="filters" hidden>
+          <label>Topic<input id="scope" placeholder="Any topic"></label>
+          <label>Type<select id="kind"><option value="">All types</option><option value="decision">Decisions</option><option value="learning">Learnings</option><option value="correction">Corrections</option><option value="workflow">Workflows</option><option value="context">Context</option><option value="disagreement">Disagreements</option></select></label>
+          <label>Created from<input id="created-from" type="date"></label>
+          <label>Created through<input id="created-through" type="date"></label>
+          <label class="check-label"><input id="archive" type="checkbox"> Include archived memories</label>
+        </div>
+      </form>
+      <div id="search-feedback" role="status" class="search-feedback"></div>
+      <div id="results" class="results" aria-busy="false"></div>
+      <button id="load-more" class="button outline load-more" hidden>Load more</button>
+    </section>
+  </main>
+
+  <dialog id="source-dialog" class="source-dialog" aria-labelledby="source-title">
+    <div class="dialog-top"><span>Source</span><button id="close-source" class="icon-button" aria-label="Close source">×</button></div>
+    <div id="source-body" class="source-body"></div>
+    <div class="dialog-bottom"><button id="ask-source" class="button outline" hidden>Ask about this</button><button id="copy-source" class="button quiet" hidden>Copy link</button></div>
+  </dialog>
+  <dialog id="history-dialog" class="history-dialog" aria-labelledby="history-title">
+    <div class="dialog-top"><h2 id="history-title">History</h2><button id="close-history" class="icon-button" aria-label="Close history">×</button></div>
+    <div id="history-list" class="history-list"></div>
+  </dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <div id="announcement" class="sr-only" aria-live="polite"></div>
+</body>
+</html>

@@ -2,11 +2,13 @@ import asyncio
 import logging
 
 from .agent import answer
+from .progress import reporter
 
 log = logging.getLogger(__name__)
 
 
-async def worker(settings, store, slack, agent_fn=answer):
+async def worker(settings, store, slack, agent_fn=answer, running=None):
+    running = running if running is not None else {}
     while True:
         job = await store.next_job()
         if not job:
@@ -34,20 +36,33 @@ async def worker(settings, store, slack, agent_fn=answer):
                     await store.result(job["id"], status="ignored")
                     continue
                 session = f"{payload['team']}:{payload['channel']}:{payload['thread_ts']}"
-                history = await store.history(session)
+                history = await slack.history(job)
             else:
                 history = payload.get("history", [])
             result = job["answer"]
             if result is None:
-                result = await asyncio.wait_for(
-                    agent_fn(settings, payload["question"], history), timeout=settings.agent_timeout_seconds
-                )
+                async def progress(phase, partial):
+                    await store.progress(job["id"], phase, partial)
+                context_token = reporter.set(progress)
+                try:
+                    task = asyncio.create_task(agent_fn(settings, payload["question"], history))
+                    running[job["id"]] = task
+                    current = await store.get_job(job["id"])
+                    if current["status"] == "cancelled":
+                        task.cancel()
+                    result = await asyncio.wait_for(task, timeout=settings.agent_timeout_seconds)
+                finally:
+                    running.pop(job["id"], None)
+                    reporter.reset(context_token)
                 await store.result(job["id"], answer=result, status="running")
             if is_slack:
-                await slack.post_answer(job, result)
-                await store.remember(session, payload["question"], result)
+                if await slack.post_answer(job, result):
+                    await store.remember(session, payload["question"], result)
             await store.result(job["id"], answer=result)
         except asyncio.CancelledError:
+            current = await store.get_job(job["id"])
+            if current and current["status"] == "cancelled" and not asyncio.current_task().cancelling():
+                continue
             await store.result(job["id"], status="queued")
             raise
         except Exception as exc:
@@ -57,7 +72,9 @@ async def worker(settings, store, slack, agent_fn=answer):
                 await asyncio.sleep(min(job["attempts"] * 2, 6))
                 await store.result(job["id"], status="queued")
             else:
-                error = "I couldn’t complete that request. Please try again in a moment."
+                error = ("This answer took too long. Try a more specific question or ask about one topic at a time."
+                         if isinstance(exc, TimeoutError) else
+                         "Moegent couldn’t reach the model or memory service. Your question is saved here—try again in a moment.")
                 await store.result(job["id"], status="failed", error=error)
                 if job["kind"] == "slack":
                     try:

@@ -11,7 +11,14 @@ from agents.mcp import MCPServerStdio, create_static_tool_filter
 
 from .config import Settings
 
+# Bound subprocess memory use on the 512 MB Render instance.
+MEMORY_SLOTS = asyncio.Semaphore(2)
+
 READ_TOOLS = ["memory_catalog", "memory_search", "memory_read"]
+
+
+class MemoryNotFound(Exception):
+    pass
 
 
 @asynccontextmanager
@@ -28,7 +35,7 @@ async def memory_server(settings: Settings):
     }
     if settings.gh_token:
         env["GH_TOKEN"] = settings.gh_token
-    async with MCPServerStdio(
+    async with MEMORY_SLOTS, MCPServerStdio(
         name="product-team-knowledge",
         params={"command": "node", "args": [str(settings.memory_script), "serve"], "env": env},
         client_session_timeout_seconds=240,
@@ -43,6 +50,8 @@ async def memory_call(server, name: str, args: dict):
         raise ValueError("Only read-only memory tools are exposed")
     result = await server.call_tool(name, args)
     if result.is_error:
+        if any("Memory not found" in getattr(item, "text", "") for item in result.content):
+            raise MemoryNotFound()
         raise RuntimeError("Memory request failed")
     return json.loads(result.content[0].text)
 

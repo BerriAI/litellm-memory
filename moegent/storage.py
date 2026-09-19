@@ -34,6 +34,14 @@ class Storage:
             );
             UPDATE jobs SET status='queued' WHERE status='running';
         """)
+        columns = {row[1] for row in await (await self.db.execute("PRAGMA table_info(jobs)")).fetchall()}
+        for column, default in [("phase", "Queued"), ("partial", "")]:
+            if column not in columns:
+                await self.db.execute(f"ALTER TABLE jobs ADD COLUMN {column} TEXT DEFAULT '{default}'")
+        for column, definition in [("response_ts", "TEXT"), ("indicator_active", "INTEGER DEFAULT 0"),
+                                   ("indicator_done", "INTEGER DEFAULT 0")]:
+            if column not in columns:
+                await self.db.execute(f"ALTER TABLE jobs ADD COLUMN {column} {definition}")
         await self.db.commit()
 
     async def close(self):
@@ -67,11 +75,52 @@ class Storage:
             await self.db.commit()
             return {**dict(row), "payload": json.loads(row["payload"]), "attempts": row["attempts"] + 1}
 
+    async def by_dedupe(self, dedupe):
+        row = await (await self.db.execute("SELECT id FROM jobs WHERE dedupe=?", (dedupe,))).fetchone()
+        return row["id"] if row else None
+
+    async def slack_thread_jobs(self, team, channel, thread):
+        rows = await (await self.db.execute("""
+            SELECT * FROM jobs WHERE kind='slack' AND json_extract(payload,'$.team')=?
+            AND json_extract(payload,'$.channel')=? AND json_extract(payload,'$.thread_ts')=?
+            ORDER BY created
+        """, (team, channel, thread))).fetchall()
+        return [{**dict(row), "payload": json.loads(row["payload"])} for row in rows]
+
+    async def slack_indicators(self):
+        rows = await (await self.db.execute(
+            "SELECT * FROM jobs WHERE kind='slack' AND indicator_done=0 ORDER BY created LIMIT 100"
+        )).fetchall()
+        return [{**dict(row), "payload": json.loads(row["payload"])} for row in rows]
+
+    async def slack_delivery(self, job_id, *, response_ts=None, active=None, done=None):
+        async with self.lock:
+            await self.db.execute("""UPDATE jobs SET response_ts=COALESCE(?,response_ts),
+                indicator_active=COALESCE(?,indicator_active),indicator_done=COALESCE(?,indicator_done)
+                WHERE id=?""", (response_ts, active, done, job_id))
+            await self.db.commit()
+
     async def result(self, job_id, *, answer=None, error=None, status="done"):
         async with self.lock:
             await self.db.execute(
-                "UPDATE jobs SET status=?,answer=COALESCE(?,answer),error=? WHERE id=?",
+                "UPDATE jobs SET status=?,answer=COALESCE(?,answer),error=? WHERE id=? AND status!='cancelled'",
                 (status, answer, error, job_id),
+            )
+            await self.db.commit()
+
+    async def progress(self, job_id, phase, partial=None):
+        async with self.lock:
+            await self.db.execute(
+                "UPDATE jobs SET phase=?,partial=COALESCE(?,partial) WHERE id=? AND status='running'",
+                (phase, partial, job_id),
+            )
+            await self.db.commit()
+
+    async def cancel(self, job_id):
+        async with self.lock:
+            await self.db.execute(
+                "UPDATE jobs SET status='cancelled',phase='Stopped' WHERE id=? AND status IN ('queued','running')",
+                (job_id,),
             )
             await self.db.commit()
 
