@@ -18,8 +18,18 @@ TERMINAL = {"done", "failed", "cancelled", "ignored"}
 
 
 def slack_text(text):
-    text = re.sub(r"\[([^\]]+)\]\((https?://[^\s)]+)\)", r"<\2|\1>", text)
-    return re.sub(r"\*\*([^*]+)\*\*", r"*\1*", text)
+    # Accessible notification fallback. Code spans and fenced examples stay literal.
+    pieces = re.split(r"(```[\s\S]*?```|`[^`\n]+`)", text)
+    for index in range(0, len(pieces), 2):
+        value = re.sub(r"\[([^\]]+)\]\((https?://[^\s)]+)\)", r"<\2|\1>", pieces[index])
+        value = re.sub(r"\*\*([^*]+)\*\*", r"*\1*", value)
+        pieces[index] = re.sub(r"(?m)^#{1,6} (.+)$", r"*\1*", value)
+    return "".join(pieces)
+
+
+def formatted(text):
+    # Slack's native AI Markdown block renders headings, lists, code, links and tables.
+    return {"text": slack_text(text), "blocks": [{"type": "markdown", "text": text}]}
 
 
 class Slack:
@@ -53,9 +63,18 @@ class Slack:
             raise RuntimeError("Slack API: " + str(data.get("error", "unknown_error")))
         return data
 
-    async def optional_api(self, method, payload):
+    async def message_api(self, method, payload):
         try:
             return await self.api(method, payload)
+        except RuntimeError as error:
+            if "invalid_blocks" not in str(error):
+                raise
+            # A workspace without the AI Markdown block can still receive the answer.
+            return await self.api(method, {**payload, "blocks": []})
+
+    async def optional_api(self, method, payload):
+        try:
+            return await self.message_api(method, payload) if method in {"chat.postMessage", "chat.update"} else await self.api(method, payload)
         except Exception:
             # Visual feedback must never prevent delivery of an answer.
             return None
@@ -167,7 +186,9 @@ class Slack:
                 history.append({"role": "assistant" if ours else "user",
                                 "content": text[:3000] if ours else f"<@{message.get('user', 'unknown')}>: {text[:3000]}"})
             if truncated:
-                history.insert(0, {"role": "user", "content": "[Thread context is shortened; some older messages are omitted.]"})
+                notice = ("[Only the first 1,000 thread messages were retrieved; later context may be missing.]" if cursor else
+                          "[Thread context is shortened; some older messages are omitted.]")
+                history.insert(0, {"role": "user", "content": notice})
             return history
         except Exception:
             # Missing new OAuth scopes should degrade gracefully until Slack is reauthorized.
@@ -222,12 +243,12 @@ class Slack:
             if p["channel"].startswith("D"):
                 await self.optional_api("assistant.threads.setStatus", {
                     "channel_id": p["channel"], "thread_ts": p["thread_ts"], "status": status + "…"})
-            text = slack_text(record["partial"][-2800:]) + "\n\n_Working…_" if record["partial"] else f"_{status}…_"
+            text = record["partial"][:11000] + "\n\n_Working…_" if record["partial"] else f"_{status}…_"
             if record["response_ts"]:
-                await self.optional_api("chat.update", {"channel": p["channel"], "ts": record["response_ts"], "text": text})
+                await self.optional_api("chat.update", {"channel": p["channel"], "ts": record["response_ts"], **formatted(text)})
             else:
                 response = await self.optional_api("chat.postMessage", {
-                    "channel": p["channel"], "thread_ts": p["thread_ts"], "text": text,
+                    "channel": p["channel"], "thread_ts": p["thread_ts"], **formatted(text),
                     "unfurl_links": False, "unfurl_media": False,
                     "client_msg_id": str(uuid.uuid5(uuid.NAMESPACE_URL, job_id + ":status")),
                 })
@@ -245,16 +266,15 @@ class Slack:
             ids = list(dict.fromkeys(re.findall(re.escape(self.settings.public_base_url) + r"/memory/([\w-]+)", text)))
             if len(ids) > 1:
                 text += f"\n\n[View all {len(ids)} sources]({self.settings.public_base_url}/sources?{urlencode({'ids': ','.join(ids)})})"
-            text = slack_text(text)
             parts, current = [], ""
             for line in text.splitlines(keepends=True):
-                while len(line) > 3500:
+                while len(line) > 11000:
                     if current:
                         parts.append(current)
                         current = ""
-                    parts.append(line[:3500])
-                    line = line[3500:]
-                if len(current) + len(line) > 3500:
+                    parts.append(line[:11000])
+                    line = line[11000:]
+                if len(current) + len(line) > 11000:
                     parts.append(current)
                     current = ""
                 current += line
@@ -263,11 +283,11 @@ class Slack:
             for index, part in enumerate(parts):
                 if (await self.store.get_job(job["id"]))["status"] == "cancelled":
                     return False
-                args = {"channel": payload["channel"], "text": part, "unfurl_links": False, "unfurl_media": False}
+                args = {"channel": payload["channel"], **formatted(part), "unfurl_links": False, "unfurl_media": False}
                 if index == 0 and record["response_ts"]:
-                    await self.api("chat.update", {**args, "ts": record["response_ts"]})
+                    await self.message_api("chat.update", {**args, "ts": record["response_ts"]})
                 else:
-                    result = await self.api("chat.postMessage", {**args, "thread_ts": payload["thread_ts"],
+                    result = await self.message_api("chat.postMessage", {**args, "thread_ts": payload["thread_ts"],
                         "client_msg_id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{job['id']}:{index}"))})
                     if index == 0 and result.get("ts"):
                         await self.store.slack_delivery(job["id"], response_ts=result["ts"])

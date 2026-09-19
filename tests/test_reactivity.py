@@ -192,3 +192,18 @@ def test_slack_followup_cancels_running_model_and_answers_latest(tmp_path):
         assert cancelled == ['original']
         assert 'Answer to original' not in delivered
         assert 'Answer to new direction' in delivered
+
+
+@pytest.mark.asyncio
+async def test_slack_native_markdown_and_workspace_fallback(tmp_path):
+    from moegent.slack import formatted
+    markdown = '# Heading\n\n**Bold** and [source](https://example.com).\n\n- First\n- Second\n\n```python\nprint("**literal**")\n```'
+    payload = formatted(markdown)
+    assert payload['blocks'] == [{'type': 'markdown', 'text': markdown}]
+    assert '*Bold*' in payload['text'] and '**Bold**' not in payload['text']
+    assert 'print("**literal**")' in payload['text']
+    slack = Slack(config(tmp_path), None)
+    slack.api = AsyncMock(side_effect=[RuntimeError('Slack API: invalid_blocks'), {'ok': True}])
+    assert await slack.message_api('chat.update', {'channel': 'D1', 'ts': '1', **payload}) == {'ok': True}
+    assert slack.api.call_args.args[1]['blocks'] == []
+    assert slack.api.call_args.args[1]['text'] == payload['text']
