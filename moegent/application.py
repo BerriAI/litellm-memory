@@ -15,7 +15,7 @@ import httpx
 from authlib.integrations.starlette_client import OAuth
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel, Field
@@ -32,11 +32,13 @@ from .mcp_api import build_mcp
 from .memory_slack import MemorySlack
 from .model_settings import ModelConfiguration, ModelSettingsService
 from .oauth import install_oauth
+from .observability import configure as configure_telemetry
 from .processing import cleanup_worker, processing_worker
 from .query import answer_work
 from .query_worker import query_worker
 from .setup import DeploymentConfig, install_setup
 from .storage import Storage
+from .transfer import ExportStream
 from .work_views import ViewRequest, WorkViews
 
 
@@ -67,6 +69,17 @@ class SaveModels(BaseModel):
     revision: int = Field(ge=0)
 
 
+class ExportOptions(BaseModel):
+    encrypted: bool = False
+    passphrase: str = Field(default='', max_length=1024, repr=False)
+
+
+class Correction(BaseModel):
+    content: str = Field(min_length=1, max_length=200000)
+    title: str = Field(default='', max_length=300)
+    reason: str = Field(default='', max_length=2000)
+
+
 def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, agent_fn=answer_work):
     settings = settings or Settings()
     settings.state_dir.mkdir(parents=True, exist_ok=True)
@@ -80,11 +93,14 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         settings.session_secret = path.read_text().strip()
     gateway = gateway or Gateway(settings)
     gateway.settings = settings
+    telemetry = configure_telemetry(settings)
+    gateway.telemetry = telemetry
     gateway.root = settings.litellm_base_url.rstrip("/").removesuffix("/v1")
     gateway.http.headers["Authorization"] = "Bearer " + settings.litellm_api_key
     if museum is None and settings.ente_base_url and settings.ente_auth_token:
         museum = Museum(settings.ente_base_url, settings.ente_auth_token, namespace_key=vault.namespace_key())
     archive = Archive(settings.state_dir / "memory.sqlite3", vault, museum, sharing_enabled=settings.sharing_enabled)
+    archive.search_index.budget = settings.search_cache_mb * 1024 * 1024
     store = Storage(settings.state_dir / "moegent.sqlite3", vault)
     model_service = ModelSettingsService(settings, store, gateway, archive)
     views = WorkViews(archive, gateway, deployment)
@@ -96,7 +112,9 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     slack_settings.allowed_slack_users = f"{settings.slack_team_id}:{settings.slack_owner_user_id}"
     slack = MemorySlack(slack_settings, store, archive)
     slack.model_settings = settings
+    archive.check_eligibility = slack.verify_member
     running = {}
+    export_slots = asyncio.Semaphore(2)
     slack.running = running
     mcp, mcp_http = build_mcp(settings, archive, gateway)
 
@@ -158,7 +176,8 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
             return JSONResponse({"detail": "Invalid request size."}, status_code=400)
         if size < 0 or size > 1_000_000:
             return JSONResponse({"detail": "Split this request into smaller captures."}, status_code=413)
-        response = await call_next(request)
+        with telemetry.operation('request'):
+            response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "same-origin"
         response.headers["X-Frame-Options"] = "DENY"
@@ -223,6 +242,8 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         owner = f"{identity['team_id']}:{identity['user_id']}"
         if not await archive.member(owner):
             raise HTTPException(401, "Finish setting up your memory account.")
+        if not await slack.verify_member(owner):
+            raise HTTPException(403, 'This Slack account is no longer eligible.')
         return owner
 
     async def browser_account(request):
@@ -269,7 +290,10 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
                     "name": "litemem"}
         owner = f"{identity['team_id']}:{identity['user_id']}"
         member = await archive.member(owner)
-        return {"signed_in": True, "enrolled": bool(member), "id": owner, "profile": {
+        if member and not await slack.verify_member(owner):
+            member = None
+        departed = await (await archive.db.execute('SELECT id FROM members WHERE id=? AND active=0', (owner,))).fetchone()
+        return {"signed_in": True, "enrolled": bool(member), 'can_rejoin': bool(departed), "id": owner, "profile": {
                     k: identity.get(k, "") for k in ["name", "avatar", "email"]},
                 "sharing_enabled": settings.sharing_enabled, "registration_mode": settings.registration_mode,
                 "capture_enabled": bool(member and member["capture_enabled"]),
@@ -286,10 +310,25 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
             raise HTTPException(503, "Encrypted storage is being configured. Please try again shortly.")
         identity = session_identity(request)
         owner = f"{identity['team_id']}:{identity['user_id']}"
+        if not await slack.verify_member(owner, fresh=True):
+            raise HTTPException(403, 'This Slack account is no longer eligible.')
         await archive.enroll(owner, {k: identity.get(k, "") for k in ["name", "avatar", "email"]})
         people = await archive.people(Reader(owner))
         slack.settings.allowed_slack_users = ",".join(p["id"] for p in people)
         return {"id": owner, "mcp_url": settings.public_base_url.rstrip("/") + "/mcp"}
+
+    @app.post('/api/rejoin')
+    async def rejoin(request: Request):
+        same_origin(request)
+        if request.headers.get('authorization'):
+            raise HTTPException(403, 'Sign in with Slack to restore your account.')
+        identity = session_identity(request)
+        owner = f"{identity['team_id']}:{identity['user_id']}"
+        if not await slack.verify_member(owner, fresh=True):
+            raise HTTPException(403, 'This Slack account is no longer eligible.')
+        await archive.rejoin(owner, {k: identity.get(k, '') for k in ['name', 'avatar', 'email']})
+        slack.settings.allowed_slack_users = ','.join(p['id'] for p in await archive.people(Reader(owner)))
+        return {'status': 'restored', 'capture_enabled': False, 'sharing_restored': False}
 
     @app.get("/api/models")
     async def models(request: Request):
@@ -391,6 +430,10 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         await archive.delete(await browser_account(request), record_id)
         return {"status": "deleted"}
 
+    @app.post('/api/memories/{record_id}/corrections')
+    async def correction(record_id: str, body: Correction, request: Request):
+        return await archive.correct(await browser_account(request), record_id, **body.model_dump())
+
     @app.get("/api/privacy-rules")
     async def rules(request: Request):
         return {"rules": await archive.rules(await account(request))}
@@ -449,7 +492,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         <a href="/">← Back to litemem</a><p class="eyebrow">Connections</p><h1>Record as you work</h1>
         <p>Install the connector once on the computer where you use Codex or Claude Code.
         Sign in with Slack when the browser opens. You don't need an API key or a memory password.</p>
-        <pre class="code-block">uv tool install git+https://github.com/moe-berri/litemem.git
+        <pre class="code-block">uv tool install git+https://github.com/moe-berri/litemem.git@codex/litemem-implementation
 litemem-connector connect {url}</pre>
         <p>The installer adds capture hooks and the litemem MCP, preserving your existing connections.
         Restart your coding tool after installation, then sign in to its litemem MCP when prompted.</p>
@@ -485,13 +528,23 @@ litemem-connector disconnect</pre>
         return {"status": "revoked"}
 
     @app.post("/api/export")
-    async def export(request: Request):
-        owner = await browser_account(request)
-        # Export is an explicit owner action. The response documents that the download is plaintext.
-        records = await archive.records(Reader(owner), owner=owner)
-        data = "\n".join(json.dumps({k: v for k, v in r.items() if k != "embedding"}, ensure_ascii=False) for r in records)
-        return HTMLResponse(data, media_type="application/x-ndjson", headers={
-            "Content-Disposition": 'attachment; filename="my-memory-export.jsonl"', "Cache-Control": "no-store"})
+    async def export(request: Request, body: ExportOptions | None = None):
+        same_origin(request)
+        owner = await account(request)
+        options = body or ExportOptions()
+        async with export_slots:
+            stream = await asyncio.to_thread(ExportStream, options.passphrase, owner) if options.encrypted else None
+        async def records():
+            if stream:
+                yield json.dumps(stream.header) + '\n'
+            async for record in archive.iter_records(Reader(owner), owner=owner):
+                value = {k: v for k, v in record.items() if k not in {'embedding', 'publication_embedding'}}
+                yield stream.line(value) if stream else json.dumps(value, ensure_ascii=False) + '\n'
+            if stream:
+                yield stream.finish()
+        extension = 'litemem' if stream else 'jsonl'
+        return StreamingResponse(records(), media_type='application/octet-stream' if stream else 'application/x-ndjson',
+            headers={'Content-Disposition': f'attachment; filename="my-memory-export.{extension}"', 'Cache-Control': 'no-store'})
 
     @app.post("/api/leave")
     async def leave(request: Request):
@@ -573,7 +626,7 @@ litemem-connector disconnect</pre>
                 request.session["setup_grant"] = setup_grant
             session_identity(request)
             owner = f"{identity['team_id']}:{identity['user_id']}"
-            if museum:
+            if museum and await archive.member(owner):
                 await archive.enroll(owner, {k: identity[k] for k in ["name", "avatar", "email"]})
                 slack.settings.allowed_slack_users = ",".join(p["id"] for p in await archive.people(Reader(owner)))
         except Exception:
@@ -611,6 +664,16 @@ litemem-connector disconnect</pre>
         if envelope.get("type") == "url_verification":
             return {"challenge": envelope["challenge"]}
         if envelope.get("type") == "event_callback" and envelope.get("event_id"):
+            event = envelope.get('event', {})
+            if event.get('type') == 'user_change' and envelope.get('team_id') == settings.slack_team_id:
+                user = event.get('user', {})
+                user_id = user.get('id')
+                if user_id:
+                    owner = settings.slack_team_id + ':' + user_id
+                    slack.member_checks.pop(owner, None)
+                    if not slack.eligible(user, user_id) and await archive.member(owner):
+                        await archive.leave(owner)
+                return {'ok': True}
             await slack.event(envelope)
         return {"ok": True}
 

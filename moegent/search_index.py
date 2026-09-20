@@ -52,7 +52,7 @@ class Partition:
 
 
 class SearchIndex:
-    def __init__(self, archive, budget=64 * 1024 * 1024):
+    def __init__(self, archive, budget=128 * 1024 * 1024):
         self.archive, self.budget, self.used = archive, budget, 0
         self.cache = OrderedDict()
         self.builds = 0

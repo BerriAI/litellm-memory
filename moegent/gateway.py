@@ -13,6 +13,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from .config import Settings
+from .observability import Telemetry
 
 
 class GatewayError(RuntimeError):
@@ -52,6 +53,7 @@ class Gateway:
         self._models_until = 0.0
         self._catalog_lock = asyncio.Lock()
         self._jev_slots = asyncio.Semaphore(settings.jev_concurrency)
+        self.telemetry = Telemetry()
 
     async def close(self):
         await self.http.aclose()
@@ -67,6 +69,7 @@ class Gateway:
         """An independent client freezes credentials/model roles for an in-flight job."""
         frozen = Gateway(self.settings.model_copy(update=overrides), self.transport)
         frozen._jev_slots = self._jev_slots
+        frozen.telemetry = self.telemetry
         if not {"litellm_base_url", "litellm_api_key"}.intersection(overrides):
             frozen._models, frozen._models_until = self._models, self._models_until
         return frozen
@@ -171,48 +174,51 @@ class Gateway:
                     "message": "The gateway did not return a valid Jev response. Check its TypeSafe integration."}
 
     async def classify(self, state: str, questions: dict[str, str], *, model=None) -> JevResult:
-        if not questions:
-            return JevResult(model=self.settings.jev_model, answers={})
-        # Paths are relative to the same gateway; configuration cannot select a provider host.
-        path = self.settings.jev_path
-        if not path.startswith("/") or path.startswith("//") or "://" in path:
-            raise ValueError("Jev must use a path on the configured LiteLLM gateway.")
-        body = {"model": model or self.settings.jev_model, "state": state, "no-log": True,
-                "questions": {key: {"type": "noul", "instructions": question}
-                              for key, question in questions.items()}}
-        async with self._jev_slots:
-            response = await self.http.post(self.root + path, json=body)
-        if not response.is_success:
-            raise GatewayError("Jev classification", response.status_code)
-        result = JevResult.model_validate(response.json())
-        if set(result.answers) != set(questions):
-            raise GatewayError("complete Jev classification")
-        return result
+        with self.telemetry.operation('classification'):
+            if not questions:
+                return JevResult(model=self.settings.jev_model, answers={})
+            # Paths are relative to the same gateway; configuration cannot select a provider host.
+            path = self.settings.jev_path
+            if not path.startswith("/") or path.startswith("//") or "://" in path:
+                raise ValueError("Jev must use a path on the configured LiteLLM gateway.")
+            body = {"model": model or self.settings.jev_model, "state": state, "no-log": True,
+                    "questions": {key: {"type": "noul", "instructions": question}
+                                  for key, question in questions.items()}}
+            async with self._jev_slots:
+                response = await self.http.post(self.root + path, json=body)
+            if not response.is_success:
+                raise GatewayError("Jev classification", response.status_code)
+            result = JevResult.model_validate(response.json())
+            if set(result.answers) != set(questions):
+                raise GatewayError("complete Jev classification")
+            return result
 
     async def embeddings(self, texts: list[str], *, model=None) -> list[list[float]]:
-        response = await self.http.post(self.root + "/v1/embeddings", json={
-            "model": model or self.settings.memory_embedding_model, "input": texts, "no-log": True,
-        })
-        if not response.is_success:
-            raise GatewayError("embeddings", response.status_code)
-        try:
-            data = sorted(response.json()["data"], key=lambda row: row["index"])
-            vectors = [row["embedding"] for row in data]
-            if ([row["index"] for row in data] != list(range(len(texts))) or not vectors
-                    or not vectors[0] or any(len(v) != len(vectors[0]) for v in vectors)
-                    or any(isinstance(n, bool) or not isinstance(n, (float, int)) or not math.isfinite(n)
-                           for v in vectors for n in v)):
-                raise ValueError()
-        except (KeyError, TypeError, ValueError):
-            raise GatewayError("complete finite embeddings", 502) from None
-        return vectors
+        with self.telemetry.operation('embedding'):
+            response = await self.http.post(self.root + "/v1/embeddings", json={
+                "model": model or self.settings.memory_embedding_model, "input": texts, "no-log": True,
+            })
+            if not response.is_success:
+                raise GatewayError("embeddings", response.status_code)
+            try:
+                data = sorted(response.json()["data"], key=lambda row: row["index"])
+                vectors = [row["embedding"] for row in data]
+                if ([row["index"] for row in data] != list(range(len(texts))) or not vectors
+                        or not vectors[0] or any(len(v) != len(vectors[0]) for v in vectors)
+                        or any(isinstance(n, bool) or not isinstance(n, (float, int)) or not math.isfinite(n)
+                               for v in vectors for n in v)):
+                    raise ValueError()
+            except (KeyError, TypeError, ValueError):
+                raise GatewayError("complete finite embeddings", 502) from None
+            return vectors
 
     async def generate(self, messages: list[dict], *, model: str | None = None, json_output=False):
-        body = {"model": model or self.settings.background_model or self.settings.litellm_model,
-                "messages": messages, "no-log": True}
-        if json_output:
-            body["response_format"] = {"type": "json_object"}
-        response = await self.http.post(self.root + "/v1/chat/completions", json=body)
-        if not response.is_success:
-            raise GatewayError("generation", response.status_code)
-        return response.json()["choices"][0]["message"]["content"]
+        with self.telemetry.operation('generation'):
+            body = {"model": model or self.settings.background_model or self.settings.litellm_model,
+                    "messages": messages, "no-log": True}
+            if json_output:
+                body["response_format"] = {"type": "json_object"}
+            response = await self.http.post(self.root + "/v1/chat/completions", json=body)
+            if not response.is_success:
+                raise GatewayError("generation", response.status_code)
+            return response.json()["choices"][0]["message"]["content"]

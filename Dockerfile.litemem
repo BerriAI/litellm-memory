@@ -10,6 +10,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 COPY moegent ./moegent
 COPY static ./static
+COPY LICENSE THIRD_PARTY_NOTICES.md ./
 COPY --from=ente /museum /opt/ente/museum
 COPY --from=ente /configurations /opt/ente/configurations
 COPY --from=ente /migrations /opt/ente/migrations

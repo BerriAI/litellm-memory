@@ -33,9 +33,25 @@ jobs:
           docker compose restart litemem
           docker compose up --wait --wait-timeout 180 -d
           docker compose exec -T litemem python - < tests/smoke_bundle.py
+      - name: Back up consistent app and Ente state
+        run: |
+          umask 077
+          docker compose stop litemem
+          docker compose exec -T postgres pg_dump -U litemem -d litemem -Fc > /tmp/litemem-ente.dump
+          docker compose run --rm --no-deps -T litemem sh -c 'tar -cf - -C /data .' > /tmp/litemem-state.tar
+      - name: Restore into clean volumes and verify data and tombstones
+        run: |
+          docker compose -p litemem-restored build litemem
+          docker compose -p litemem-restored up -d --wait postgres
+          docker compose -p litemem-restored exec -T postgres pg_restore -U litemem -d litemem < /tmp/litemem-ente.dump
+          docker compose -p litemem-restored run --rm --no-deps -T litemem sh -c 'tar -xf - -C /data' < /tmp/litemem-state.tar
+          docker compose -p litemem-restored up -d --wait --wait-timeout 180
+          docker compose -p litemem-restored exec -T litemem python - < tests/smoke_bundle.py
       - name: Show content-free service status
         if: always()
         run: docker compose ps
       - name: Remove disposable CI resources
         if: always()
-        run: docker compose down -v
+        run: |
+          docker compose down -v
+          docker compose -p litemem-restored down -v

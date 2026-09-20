@@ -35,7 +35,7 @@ def slack_manifest(base_url):
                          "scopes": {"bot": BOT_SCOPES}},
         "settings": {"event_subscriptions": {"request_url": base_url + "/slack/events",
                       "bot_events": ["app_mention", "message.im", "message.mpim", "message.channels", "message.groups",
-                                     "member_joined_channel", "member_left_channel"]},
+                                     "member_joined_channel", "member_left_channel", "user_change"]},
                      "org_deploy_enabled": False, "socket_mode_enabled": False, "token_rotation_enabled": False},
     }
 

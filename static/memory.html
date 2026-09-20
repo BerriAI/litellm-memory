@@ -270,8 +270,8 @@
       </section>
       <section id="setup" class="auth-card" hidden>
         <p class="eyebrow">Welcome to litemem</p>
-        <h1>Your memory starts here.</h1>
-        <p>
+        <h1 id="member-setup-title">Your memory starts here.</h1>
+        <p id="member-setup-description">
           Your work is private by default. Your personal agent can organize and
           answer questions about it. Sign-in and connections use Slack; there’s
           no separate key to remember.
@@ -683,7 +683,8 @@
                   >Download your records and original evidence as a readable
                   JSONL file.</small
                 ></span
-              ><button id="export-data" class="button secondary">Export</button>
+              ><div class="export-actions"><button id="encrypted-export" class="button secondary">Encrypted export</button>
+              <button id="export-data" class="button quiet small">Readable JSONL</button></div>
             </div>
             <div class="setting-row">
               <span
@@ -749,6 +750,16 @@
             ><span data-icon="lock"></span> Private</span
           ><button class="button primary">Save memory</button>
         </div>
+      </form>
+    </dialog>
+    <dialog id="export-dialog" class="capture-dialog">
+      <div class="dialog-top"><h2>Protect your export</h2><button id="close-export" class="icon-button" aria-label="Close export">×</button></div>
+      <p>This passphrase protects the downloaded file. Keep it separately; you will need it to restore the export.</p>
+      <form id="encrypted-export-form">
+        <label>Export passphrase<input id="export-passphrase" type="password" minlength="12" maxlength="1024" autocomplete="new-password" required></label>
+        <label>Confirm passphrase<input id="export-passphrase-confirm" type="password" minlength="12" maxlength="1024" autocomplete="new-password" required></label>
+        <p id="export-status" role="status"></p>
+        <button class="button primary">Download encrypted export</button>
       </form>
     </dialog>
     <div id="toast" class="toast" role="status" hidden></div>

@@ -1,5 +1,7 @@
 """Slack adapter with private DM / company-public channel boundaries."""
 
+import time
+
 from .archive import Reader
 from .slack import Slack
 
@@ -9,6 +11,40 @@ class MemorySlack(Slack):
         super().__init__(settings, store)
         self.archive = archive
         self.model_settings = settings
+        self.member_checks = {}
+
+    def eligible(self, user, user_id):
+        return bool(user.get('id') == user_id and not user.get('deleted') and not user.get('is_bot')
+                    and not user.get('is_restricted') and not user.get('is_ultra_restricted')
+                    and user.get('team_id') == self.settings.slack_team_id
+                    and user.get('profile', {}).get('email', '').casefold().rsplit('@', 1)[-1]
+                    == self.settings.allowed_email_domain.casefold())
+
+    async def verify_member(self, owner, *, fresh=False):
+        team, user_id = owner.split(':', 1)
+        if team != self.settings.slack_team_id:
+            return False
+        if not await self.token():
+            # Before Slack installation, no real OIDC member can sign in. This
+            # also lets isolated API fixtures run without external credentials.
+            if self.settings.slack_client_id:
+                raise PermissionError('Reconnect the workspace Slack app before continuing.')
+            return True
+        if not fresh and self.member_checks.get(owner, 0) > time.monotonic():
+            return True
+        try:
+            user = (await self.api('users.info', {'user': user_id})).get('user', {})
+        except Exception:
+            raise PermissionError('Slack membership could not be verified. Please try again shortly.') from None
+        if not self.eligible(user, user_id):
+            self.member_checks.pop(owner, None)
+            if await self.archive.member(owner):
+                await self.archive.leave(owner)
+            return False
+        if len(self.member_checks) > 10000:
+            self.member_checks = {k: v for k, v in self.member_checks.items() if v > time.monotonic()}
+        self.member_checks[owner] = time.monotonic() + 300
+        return True
 
     async def prepare_payload(self, payload):
         return {**payload, "model": self.model_settings.slack_model or self.model_settings.litellm_model,
@@ -19,6 +55,8 @@ class MemorySlack(Slack):
         if not await self.archive.member(owner):
             return False
         if self.settings.registration_mode == "owner_only" and payload["user"] != self.settings.slack_owner_user_id:
+            return False
+        if not await self.verify_member(owner, fresh=True):
             return False
         return await super().permitted(payload)
 
@@ -42,10 +80,7 @@ class MemorySlack(Slack):
                 if user_id == await self.bot_id():
                     continue
                 user = (await self.api("users.info", {"user": user_id})).get("user", {})
-                if (user.get("deleted") or user.get("is_restricted") or user.get("is_ultra_restricted")
-                        or user.get("team_id") != self.settings.slack_team_id
-                        or user.get("profile", {}).get("email", "").casefold().rsplit("@", 1)[-1]
-                        != self.settings.allowed_email_domain.casefold()
+                if (not self.eligible(user, user_id)
                         or not await self.archive.member(f"{payload['team']}:{user_id}")):
                     raise PermissionError("Open the dashboard for this question.")
             cursor = page.get("response_metadata", {}).get("next_cursor", "")

@@ -1,47 +1,43 @@
+# Render provisions the application and its encrypted Ente data store together.
+# Museum runs privately beside the web process, managed by moegent.boot.
 services:
   - type: web
     name: litemem
     runtime: docker
-    plan: starter
+    dockerfilePath: ./Dockerfile.litemem
+    dockerContext: .
+    plan: standard
     region: oregon
-    healthCheckPath: /health
     numInstances: 1
+    autoDeployTrigger: off
+    healthCheckPath: /health
     disk:
       name: litemem-state
       mountPath: /data
-      sizeGB: 1
+      sizeGB: 5
     envVars:
       - key: STATE_DIR
         value: /data
-      - key: ACCESS_MODE
-        value: allowlist
-      - key: ALLOWED_SLACK_USERS
-        sync: false
-      - key: MEMORY_ALLOWED_ACTORS
-        value: moe-berri
-      - key: LITELLM_MODEL
-        value: gpt-5.6-luna-priority
-      - key: MEMORY_EMBEDDING_MODEL
-        value: gemini/gemini-embedding-001
-      - key: LITELLM_BASE_URL
-        sync: false
-      - key: LITELLM_API_KEY
-        sync: false
-      - key: GH_TOKEN
-        sync: false
+      - key: PORT
+        value: "10000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: litemem-ente
+          property: connectionString
       - key: SESSION_SECRET
         generateValue: true
-      - key: PUBLIC_BASE_URL
-        sync: false
-      - key: SLACK_TEAM_ID
-        sync: false
-      - key: SLACK_OWNER_USER_ID
-        sync: false
-      - key: SLACK_APP_ID
-        sync: false
-      - key: SLACK_CLIENT_ID
-        sync: false
-      - key: SLACK_CLIENT_SECRET
-        sync: false
-      - key: SLACK_SIGNING_SECRET
-        sync: false
+      - key: SETUP_CODE
+        generateValue: true
+      - key: REGISTRATION_MODE
+        value: domain
+      - key: SHARING_ENABLED
+        value: "false"
+databases:
+  - name: litemem-ente
+    plan: basic-256mb
+    region: oregon
+    databaseName: litemem
+    user: litemem
+    postgresMajorVersion: "17"
+    diskSizeGB: 1
+    ipAllowList: []

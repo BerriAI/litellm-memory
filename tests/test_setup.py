@@ -76,6 +76,10 @@ def test_setup_finishes_only_with_verified_installer_models_and_real_storage_rou
         verified_owner(client)
         assert client.post('/api/setup/finish', json={}).status_code == 409
         client.portal.call(app.state.store.setting, 'slack_bot_token', 'TEST-BOT-TOKEN')
+        async def slack_api(method, payload):
+            assert method == 'users.info'
+            return {'user': {'id': 'OWNER', 'team_id': 'T', 'profile': {'email': 'owner@berri.ai'}}}
+        app.state.slack.api = slack_api
         response = client.post('/api/setup/finish', json={'timezone': 'America/Los_Angeles'})
         assert response.status_code == 200, response.text
         assert app.state.deployment.complete

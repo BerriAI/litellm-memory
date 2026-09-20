@@ -442,9 +442,38 @@ async function openMemory(id) {
     );
     body.append(details);
   }
+  for (const revision of m.revisions || []) {
+    const newer = revision.previous_id === id;
+    const link = el("button", newer ? "Read later correction" : "Read original entry", "button quiet small");
+    link.onclick = () => openMemory(newer ? revision.record_id : revision.previous_id).catch(e => toast(explain(e)));
+    body.append(link);
+  }
   const actions = $("source-actions");
   actions.replaceChildren();
   if (m.owner === state.me.id) {
+    const correct = el("button", "Add correction", "button secondary");
+    correct.onclick = () => {
+      const form = el("form", undefined, "correction-form");
+      const label = el("label", "What should this say now?");
+      const input = el("textarea"); input.required = true; input.maxLength = 200000; input.rows = 5;
+      label.append(input);
+      const explanation = el("p", "The original stays searchable. This adds a private, dated correction and withdraws the original from sharing.", "fine-print");
+      const submit = el("button", "Save correction", "button primary");
+      const cancel = el("button", "Cancel", "button quiet"); cancel.type = "button";
+      cancel.onclick = () => { form.remove(); correct.disabled = false; };
+      form.append(label, explanation, submit, cancel);
+      correct.disabled = true; body.append(form); input.focus();
+      form.onsubmit = event => {
+        event.preventDefault();
+        busy(submit, async () => {
+          try {
+            const saved = await api(`/api/memories/${encodeURIComponent(id)}/corrections`, {content:input.value});
+            await openMemory(saved.id); await loadFeed(); toast("Private correction added. Original evidence preserved.");
+          } catch (error) { toast(explain(error)); }
+        });
+      };
+    };
+    actions.append(correct);
     if (state.me.sharing_enabled) {
       const share = el(
         "button",
@@ -802,6 +831,11 @@ async function initialize() {
     }
     show("welcome", false);
     if (!state.me.enrolled) {
+      if (state.me.can_rejoin) {
+        $("member-setup-title").textContent = "Welcome back.";
+        $("member-setup-description").textContent = "Restore your private history. Previous connections stay revoked, sharing stays off, and recording stays paused until you enable it.";
+        $("finish-signup").textContent = "Restore my account";
+      }
       show("setup");
       return;
     }
@@ -955,7 +989,7 @@ $("capture-form").onsubmit = async (e) => {
 $("finish-signup").onclick = () =>
   busy($("finish-signup"), async () => {
     try {
-      await api("/api/signup", {});
+      await api(state.me.can_rejoin ? "/api/rejoin" : "/api/signup", {});
       show("setup", false);
       await initialize();
     } catch (e) {
@@ -1110,6 +1144,28 @@ $("export-data").onclick = () =>
       toast(explain(e));
     }
   });
+$("encrypted-export").onclick = () => $("export-dialog").showModal();
+$("close-export").onclick = () => $("export-dialog").close();
+$("export-dialog").onclose = () => { $("encrypted-export-form").reset(); $("export-status").textContent = ""; };
+$("encrypted-export-form").onsubmit = async event => {
+  event.preventDefault();
+  if ($("export-passphrase").value !== $("export-passphrase-confirm").value) {
+    $("export-status").textContent = "The passphrases do not match."; return;
+  }
+  await busy(event.submitter, async () => {
+    $("export-status").textContent = "Preparing your encrypted export…";
+    try {
+      const response = await fetch("/api/export", {method:"POST", credentials:"same-origin",
+        headers:{"Content-Type":"application/json"}, body:JSON.stringify({encrypted:true,passphrase:$("export-passphrase").value})});
+      if (!response.ok) throw new Error("Export could not be completed. Try again.");
+      const url = URL.createObjectURL(await response.blob());
+      const link = el("a"); link.href = url; link.download = "my-memory-export.litemem"; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      $("export-dialog").close();
+      toast("Encrypted export downloaded. Keep its passphrase separately.");
+    } catch (error) { $("export-status").textContent = explain(error); }
+  });
+};
 $("leave-workspace").onclick = async () => {
   if (
     !confirm(

@@ -91,6 +91,9 @@ class Archive:
                 PRIMARY KEY(record_id,digest,criterion,version)
             );
             CREATE TABLE IF NOT EXISTS archive_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS record_relations (
+                record_id TEXT PRIMARY KEY, previous_id TEXT NOT NULL, owner TEXT NOT NULL, kind TEXT NOT NULL
+            );
             UPDATE records SET status='pending' WHERE status='processing';
         """)
         columns = {r[1] for r in await (await self.db.execute("PRAGMA table_info(records)")).fetchall()}
@@ -162,6 +165,8 @@ class Archive:
         """, (hashlib.sha256(token.encode()).hexdigest(), time.time()))).fetchone()
         if not row:
             return None
+        if hasattr(self, 'check_eligibility') and not await self.check_eligibility(row['owner']):
+            return None
         await self.db.execute("UPDATE api_tokens SET last_used=? WHERE id=?", (time.time(), row["id"]))
         await self.db.commit()
         return row["owner"]
@@ -213,7 +218,19 @@ class Archive:
                 (id,owner,source_hash,content_hash,payload,source_payload,status,historical,created,updated)
                 VALUES(?,?,?,?,?,?,'storing',?,?,?)""", (record_id, owner, source_hash, digest, json.dumps(blob), json.dumps(blob),
                                              int(body.historical), stamp, stamp))
-            await self.db.execute("UPDATE records SET intent='auto' WHERE id=?", (record_id,))
+            # Corrections stay private even when future automatic sharing is on.
+            # Record the link with the intake so crash recovery and portable
+            # imports rebuild it without changing any original source bytes.
+            previous_id = body.metadata.get('supersedes') if body.source == 'correction' else None
+            if isinstance(previous_id, str) and len(previous_id) == 64 and all(c in '0123456789abcdef' for c in previous_id):
+                await self.db.execute('INSERT INTO record_relations VALUES(?,?,?,?)',
+                                      (record_id, previous_id, owner, 'correction'))
+                await self.db.execute("UPDATE records SET visibility='private',intent='private' WHERE id=? AND owner=?",
+                                      (previous_id, owner))
+                await self.db.execute('UPDATE members SET policy_version=policy_version+1 WHERE id=?', (owner,))
+                self.search_index.evict_owner(owner)
+            elif body.source != 'correction':
+                await self.db.execute("UPDATE records SET intent='auto' WHERE id=?", (record_id,))
             await self.db.commit()
         # Commit the encrypted intake before network I/O. Both object IDs and
         # ciphertext survive a crash; background recovery retries the same bytes.
@@ -264,6 +281,12 @@ class Archive:
         if not row or not await self.allowed(reader, row):
             raise LookupError("Memory not found")
         payload = await self.visible_payload(reader, row)
+        if reader.owner == row['owner'] and reader.audience == 'owner':
+            related = await (await self.db.execute('''SELECT l.record_id,l.previous_id,l.kind FROM record_relations l
+                JOIN records a ON a.id=l.record_id AND a.owner=l.owner AND a.deleted=0
+                JOIN records b ON b.id=l.previous_id AND b.owner=l.owner AND b.deleted=0
+                WHERE l.owner=? AND (l.record_id=? OR l.previous_id=?)''', (reader.owner, record_id, record_id))).fetchall()
+            payload = {**payload, 'revisions': [dict(r) for r in related]}
         return {**payload, "visibility": row["visibility"], "status": row["status"],
                 "historical": bool(row["historical"]), "error": row["error"]}
 
@@ -415,6 +438,19 @@ class Archive:
         # Denial is committed before remote deletion. Failures remain durably
         # queued for cleanup, including a publication created before a crash.
         await self.purge_record(record_id)
+
+    async def correct(self, owner, record_id, content, title='', reason=''):
+        original = await self.read(Reader(owner), record_id)
+        if original['owner'] != owner:
+            raise PermissionError('Only the author can add a correction to this memory.')
+        if not content.strip():
+            raise ValueError('Describe the correction.')
+        # This is new evidence with a new timestamp. It never rewrites the old
+        # source bytes or silently makes the replacement public.
+        saved = await self.capture(owner, WorkInput(source_id='correction:' + str(uuid.uuid4()),
+            content=content, title=title or ('Correction: ' + original['title'])[:300], source='correction',
+            occurred_at=now(), metadata={'supersedes': record_id, 'reason': reason, 'role': 'user'}))
+        return saved
 
     async def purge_record(self, record_id):
         row = await self.row(record_id)
@@ -568,6 +604,22 @@ class Archive:
             await self.db.execute("UPDATE records SET visibility='private' WHERE owner=?", (owner,))
             await self.db.commit()
             self.search_index.evict_owner(owner)
+
+    async def rejoin(self, owner, profile):
+        async with self.owner_lock(owner):
+            row = await (await self.db.execute('SELECT * FROM members WHERE id=? AND active=0', (owner,))).fetchone()
+            if not row:
+                raise ValueError('There is no departed account to restore.')
+            previous = self.vault.open_operational(row['profile'])
+            sharing = previous.get('sharing', {})
+            sharing.update(auto_share=False, future_since=None)
+            sharing.setdefault('allowed_types', ['progress', 'decision', 'finding', 'blocker', 'plan'])
+            previous.update(profile, sharing=sharing)
+            await self.db.execute('''UPDATE members SET active=1,agent_enabled=1,capture_enabled=0,
+                policy_version=policy_version+1,profile=? WHERE id=?''', (self.vault.seal_operational(previous), owner))
+            await self.db.execute("UPDATE records SET visibility='private',intent='private',work_lease='' WHERE owner=?", (owner,))
+            await self.db.execute("UPDATE records SET status='pending' WHERE owner=? AND status='processing'", (owner,))
+            await self.db.commit()
 
     async def policy_stamp(self, reader):
         # Scope includes owners of every possibly visible record, so revoking a shared

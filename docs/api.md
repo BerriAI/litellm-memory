@@ -1,0 +1,75 @@
+# API and data contracts
+
+The web app, Slack adapter and remote MCP share one API/backend. The current API is documented by the installation's FastAPI OpenAPI schema. Authenticated requests accept a same-origin Slack browser session or a personal bearer credential where noted. All mutating browser requests are checked for cross-origin access; browser-only account/admin operations reject bearer tokens.
+
+## Main endpoints
+
+| Method / path | Purpose |
+| --- | --- |
+| `GET /api/me` | Browser identity, enrollment and settings summary. |
+| `GET /api/models` | Authorized chat model choices from the LiteLLM gateway. |
+| `POST /api/memories` | Idempotent private source capture. |
+| `POST /api/memories/search` | Authorized feed, keyword or hybrid retrieval. |
+| `GET /api/memories/{id}` | Allowed source evidence; originals are owner-only. |
+| `GET /api/memories/{id}/sharing-preview` | Browser-only preview of the separate summary. |
+| `PUT /api/memories/{id}/visibility` | Browser-only sharing intent; processing checks still apply. |
+| `DELETE /api/memories/{id}` | Browser-only denial/tombstone followed by retryable purge. |
+| `POST /api/memories/{id}/corrections` | Browser-only, private dated correction; preserves original evidence and withdraws the old publication. |
+| `GET /api/people` | Enrolled Slack profiles, without others' private activity counts. |
+| `POST /api/people/{owner}/overview` | Current/daily/project overview and coverage. |
+| `POST /api/chat` | Queue an explicit memory query; returns a job ID. |
+| `GET /api/jobs/{id}` | Authorized query progress/result. |
+| `POST /api/jobs/{id}/cancel` | Cancel an owned query. |
+| `/api/privacy-rules` | Owner-managed private-topic criteria. |
+| `/api/sharing-preferences` | Allowed types and opt-in future auto-sharing. |
+| `/api/connections` | View/revoke owned clients; browser-only creation. |
+| `POST /api/export` | Owned readable JSONL or passphrase-encrypted download; browser or personal bearer. |
+| `POST /api/leave` | Browser-only departure and revocation. |
+| `POST /api/rejoin` | Slack browser identity restores its departed account, with capture/sharing paused and old tokens still revoked. |
+| `/api/admin/models` | Admin model configuration, catalogs and capability checks. |
+| `PUT /api/admin/sharing` | Admin workspace sharing switch. |
+
+Request bodies are limited to 1 MB, captures to 200,000 characters / 300 KB encoded, and queries to 16,000 characters. Burst limits return `429` with `Retry-After`. Validation errors do not echo submitted content or upstream payloads.
+
+## Capture
+
+```json
+{
+  "source_id": "my-tool:session-1:message-4",
+  "source": "my-tool",
+  "session_id": "session-1",
+  "content": "We decided to keep setup on one page. The Slack callback returns to it.",
+  "title": "Keep setup together",
+  "occurred_at": "2026-09-20T12:00:00Z",
+  "metadata": {"role": "user", "project": "litemem"},
+  "historical": false
+}
+```
+
+The authenticated owner is assigned server-side. Repeating the same source/content is safe; changing the content requires a new revision ID. A receipt can be `storing` (encrypted durable intake awaiting Ente) or `pending` (stored, awaiting processing). `ready` means derived processing completed. Pause/revocation returns an access error. Deleted source IDs remain tombstoned and cannot be restored by replay.
+
+Dates are original work dates, not import times. Unknown dates remain null. The importer records original bytes/digests and provenance separately. Capturing an assistant message does not certify its claims.
+
+## Search and queries
+
+Search accepts `query`, `owner`, `visibility`, `kind`, `source`, `created_from`, `created_before`, `mode`, `offset`, and `limit`. Date bounds are inclusive `from`, exclusive `before`; undated sources are omitted from date-filtered results. Hybrid search reports keyword fallback when embeddings are unavailable/incompatible. Metadata participates in keyword retrieval. Scope filters constrain permitted material; they never grant access.
+
+Chat accepts a question, optional gateway model, optional person scope, audience (`owner`/`public`), and a previous owned job ID. The server loads history; clients cannot supply an arbitrary privileged transcript. Changing scope/audience requires a fresh conversation. Policy changes invalidate stale results.
+
+Final memory citation links must reference sources read in the same authorized run (or checked source manifests from an overview). Invented links fail the answer with a retry message. This validates source identity and access; it does not automatically prove that every generated sentence faithfully summarizes its source.
+
+## Export and corrections
+
+`POST /api/export` without a body returns readable JSONL. For a protected download, send `{"encrypted":true,"passphrase":"at least twelve characters"}`. The passphrase applies only to the file and is not saved or used for sign-in. Restore with `litemem-transfer restore my-memory-export.litemem`; the CLI verifies the complete authenticated stream and original identity before any upload. Original source IDs, content, dates and metadata are preserved, imports remain private, and existing deletion tombstones prevent replay.
+
+Corrections accept `content`, optional `title` and `reason`. They create new dated evidence with a `supersedes` reference; original bytes remain unchanged. The original's publication is withdrawn immediately. Owner reads include available revision links. Export/restore rebuilds links when retaining the same Slack identity; cross-identity migration preserves the original provenance IDs but does not translate revision links.
+
+## Remote MCP
+
+Connect to `https://YOUR_INSTALLATION/mcp`. Discovery is available at `/.well-known/oauth-protected-resource/mcp` and `/.well-known/oauth-authorization-server`. OAuth supports public-client registration, authorization code + S256 PKCE, one-hour access tokens, 30-day rotating refresh tokens and revocation. Redirects must be HTTPS or loopback; callback/resource/client binding is checked.
+
+Tools: `record_work`, `search_memories`, `read_memory`, `ask_memories`, `capture_status`, `pause_capture`. Tools cannot publish records or change privacy policies. Recording and status checks do not automatically invoke memory search.
+
+## Retry rules
+
+Retry network errors, `429` after its indicated delay, and temporary `5xx` using the same source ID. Do not retry a validation failure with changed content under the same ID. Reauthenticate a revoked/expired connection; refreshing a consumed OAuth refresh token revokes that connection. Never treat a failed capture as proof that work was stored remotely—inspect the returned receipt and processing/storage status.

@@ -1,103 +1,88 @@
 # litemem
 
-A LiteLLM Labs product. Query your work memories on the web or through **@litemem** in Slack.
+**Your team's work, with a memory.** A [LiteLLM Labs](https://github.com/BerriAI) product, built with [Ente](https://github.com/ente-io/ente) and [LiteLLM](https://github.com/BerriAI/litellm).
 
-This repository is evolving from the original personal assistant into an encrypted work-memory service built with Ente and LiteLLM. The instructions below currently describe the existing running assistant; the new service is still being integrated.
+litemem records the work people do with AI and makes it easy to ask about later. Connect Codex or Claude Code, browse your private activity, share selected summaries with your company, and ask questions in the web app or through **@litemem** in Slack.
 
-The [product and implementation specification](docs/product-implementation-spec.md) is the authoritative build plan. It covers simple deployment/setup, LiteLLM model discovery and required Jev checks, the combined memory service and agent, historical migration, privacy, acceptance tests, and verified implementation status.
+This is a work archive you query deliberately. It does not search old memories or inject context into every coding turn.
 
-OpenAI Agents SDK for Python runs the tool loop. All chat and embedding inference goes through LiteLLM;
-the default routes are `gpt-5.6-luna-priority` and `gemini/gemini-embedding-001`. FastAPI serves the chat,
-memory explorer, Slack events, and optional Slack sign-in. The model receives only read-only memory tools
-plus a public-page reader; an optional LiteLLM search tool can be configured with `LITELLM_SEARCH_TOOL`.
+> **Release status:** the implementation is on `codex/litemem-implementation`. Deployment verification is in progress. The existing hosted assistant has not been switched to this application. See the [release checklist](docs/release-checklist.md) for verified behavior and remaining gates.
 
-## Run locally
+## What it does
 
-Install Python 3.12+, Node 20+, GitHub CLI, and uv. Copy `.env.example` to `.env` and fill in credentials.
-For local memory reads, signing in with `gh auth login` also works when `GH_TOKEN` is absent.
+- A chronological activity feed, Slack profiles, private lock indicators, and an **Ask** interface with citations.
+- Continuous capture with an encrypted local outbox; optional historical backfills preserve source text, original dates and metadata.
+- Plain-language work updates, current-work views, and daily catch-ups with source links and coverage information.
+- Private by default. Members can preview a shared summary, choose shareable types, and keep topics private. Company-public never means internet-public.
+- The same authorized query agent through the web, Slack, API and remote MCP. Shared Slack conversations use only company-public evidence safe for the conversation's participants.
+- All inference through **your LiteLLM gateway**. Model pickers use its `/v1/models`; agent, Slack, background, embedding and classification models are configurable.
+- TypeSafe **Jev** classifies source chunks in parallel. Results are cached per source/criterion/version. Changing a filter does not rerun completed classification.
+
+## Deploy
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/moe-berri/litemem/tree/codex/litemem-implementation)
+
+The Blueprint provisions the web app, a persistent volume and PostgreSQL. Ente Museum runs privately alongside the app and is provisioned automatically. Review Render's charges before creating the deployment; durable hosting is not a free-tier promise. This repository currently requires GitHub access. Once published, others can fork and deploy it with their own infrastructure and gateway.
+
+**On any Docker host:**
 
 ```sh
-uv sync
-npm ci --prefix vendor/product-team-knowledge
-uv run uvicorn moegent.app:app --host 0.0.0.0 --port 8000
+git clone --branch codex/litemem-implementation https://github.com/moe-berri/litemem.git
+cd litemem
+./scripts/self-host.sh
 ```
 
-Open http://localhost:8000. `uv run pytest -q` checks Slack signatures, caller gates, owner-only invitations,
-event retries, job recovery, browser session isolation, streaming, cancellation, thread steering, and source links. `uv run ruff check moegent tests scripts` checks Python.
-The vendored memory runtime is from the shared knowledge repository with metadata and semantic search extensions;
-see `vendor/UPSTREAM.md`. It contains implementation code only, not copies of the memories.
+Open the address shown by your deployment. Setup stays on one page:
 
-## Search
+1. Claim the installation using its deployment setup code.
+2. Connect your **LiteLLM URL and API key**. litemem discovers models, suggests defaults, and checks Jev through the gateway.
+3. Connect Slack and finish with your verified company identity. Slack returns you to the same setup page.
 
-The memory source remains `BerriAI/product-team-knowledge` on GitHub. Every search checks its latest revision.
-Keyword search uses Fuse.js. Semantic search embeds chunks and compares cosine similarity locally; hybrid search
-combines both rankings. Vectors are cached by text hash and model/version on disk, so changed records are embedded
-incrementally. There is no vector database. Startup warms the cache in the background while health checks remain
-available. The first full semantic search can take longer if the index is cold.
+Members then use **Sign in with Slack**. They do not handle encryption keys, recovery phrases or a separate litemem password. Eligibility is restricted to the configured Slack workspace and exact verified email domain; `berri.ai` is the initial default and self-hosters choose their own domain.
 
-The explorer supports query, mode, scope, kind, creation dates, archive inclusion, and sorting. The underlying
-memory tool also filters actors, source, certainty, status, layers, update dates, and supports pagination.
-Date bounds use UTC, inclusive `from` and exclusive `before`; legacy unknown dates remain unknown.
-GitHub actor is the uploader, not necessarily the speaker. Citations open readable full memories; an answer’s Sources button shows all cited memories together. Combined source links also work from Slack. The web interface streams answer text, supports Stop/Retry, and saves conversations locally in the browser.
+**Jev is required.** If your gateway does not support it, setup explains the missing capability and retains your inputs. Enable the [LiteLLM TypeSafe integration](https://docs.litellm.ai/docs/pass_through/typesafe) on the gateway. litemem never asks members for a TypeSafe key or bypasses the gateway.
 
-## Slack and access
+Read [self-hosting](docs/self-hosting.md) for HTTPS, backups, updates, external Ente and configuration.
 
-The Render blueprint uses `ACCESS_MODE=allowlist`. Set `ALLOWED_SLACK_USERS=T123:U123,T123:U456`
-to exact workspace/member pairs. The same gate protects web chat, sources, search, and Slack requests.
-The deployed allowlist is Moe, Tin, Krrish, and Ishaan. Only Moe can activate channels.
+## Connect your tools
 
-Web pages redirect to Slack sign-in automatically and return to the requested source or page afterward.
-The workspace hint reuses Slack’s existing session and consent where available. A first visit may need consent.
-Sign out from the History dialog to clear the local session and conversation history.
-`ACCESS_MODE=public` is still available as an explicit configuration choice.
-Slack events provide verified workspace/user IDs; web users sign in through Slack OIDC. The same server policy
-guards chat, job access, search, and memory reads. A deployment-level provenance boundary restricts every caller to captures by `MEMORY_ALLOWED_ACTORS=moe-berri`. Consolidated notes are included only when all original sources belong to Moe. Mixed or unknown provenance is excluded. Search filters and direct reads cannot bypass this boundary. Per-caller memory scopes are not implemented yet.
+Open **Connections → Set up continuous capture** in litemem. On the computer running your coding tools:
 
-Only `SLACK_OWNER_USER_ID` in `SLACK_TEAM_ID` can activate channel access. Slack does not prevent someone else
-from clicking Invite. litemem verifies the bot's `member_joined_channel.inviter`, persists approval, and leaves
-when the inviter is anyone else or missing. Until approved, it does not answer there. Channels it cannot leave
-(such as a workspace's general channel) remain disabled. Removing the bot revokes approval. Old membership events
-cannot override newer ones. After a lost database, remove and re-invite the bot as the owner to enroll it again.
-When an invitation record is missing for a group DM, litemem checks Slack’s conversation metadata and
-enrolls it only if Moe created it and the bot is a member. Explicit denials or removals take precedence.
-Group-DM metadata/history require `mpim:read` and `mpim:history`; thread follow-ups use `message.mpim`.
-This check is independent of the public/allowlist caller policy.
+```sh
+uv tool install 'git+https://github.com/moe-berri/litemem.git@codex/litemem-implementation'
+litemem-connector connect https://your-litemem.example
+```
 
-Generate an app manifest with `uv run python scripts/slack_manifest.py https://YOUR-APP.onrender.com`.
-Configure the generated scopes, event subscriptions, and both redirect URLs. Install as the owner using an OAuth
-URL whose state is signed with `URLSafeTimedSerializer(SESSION_SECRET, salt='slack-install')` and contains the
-configured Slack team ID. The callback exchanges the code and persists the bot credential on the private disk.
-App configuration access/refresh tokens are provisioning credentials only; they are never deployed to the server.
-Slack signatures and timestamp validation are required even in public mode. Events are durably queued before
-acknowledgment; duplicate Slack message timestamps are ignored even when Slack sends both an app mention and a
-channel-message event. Replies appear in the original thread. The manifest enables Slack’s native Agent view;
-changing scopes requires reinstalling the app. This is separate from the OpenAI Agents SDK tool loop.
+Sign in with Slack in the browser. The connector preserves existing host settings and memory connections. Restart your coding tool, then authenticate its litemem MCP when prompted. Use `--host codex` or `--host claude` to configure only one.
 
-A separate feedback loop adds 👀 while a request is queued/running, updates one progress reply, and removes the
-reaction when finished. DMs also use native agent status. Follow-up messages in a litemem thread work without
-another mention. A newer message from the same asker cancels their unfinished run and starts a new one with the
-updated context; another asker does not cancel their run. Send `stop` in that thread to stop your active request.
-Thread text is fetched through conversations.replies (bounded to 1,000 fetched messages, with the root and up to
-59 recent messages supplied to the model). If Slack history is unavailable, the model is explicitly told it has
-only saved litemem exchanges. Files and attachments are not downloaded. Unrelated channel conversations are ignored.
-Slack status/reaction failures are best-effort and cannot prevent answer delivery.
+The connector records visible user and assistant text. It excludes system messages, tool-result dumps and hidden reasoning. Local capture requires a compatible host with transcript hooks; remote MCP alone cannot observe conversations. The website and Slack work without installing the connector.
 
-## Render
+[Connector guide](docs/connectors.md) · [API and data formats](docs/api.md)
 
-`render.yaml` describes one paid Starter Docker web service and a 1 GB persistent disk. Keep `STATE_DIR=/data`.
-The disk holds queued jobs, approved channel IDs, the installed bot token, and embedding/blob caches. Run one app
-worker/instance; SQLite and the in-process job runner are intentionally sized for this small deployment.
-The source memory repository and LiteLLM remain available when the laptop is off.
+## How privacy works
 
-Set the environment variables in `.env.example` as Render secrets (or a secret file named `litemem.env`).
-Never include `.env` in the image or source control. Set `PUBLIC_BASE_URL` to the Render URL before Slack setup.
-`/health` is the health check. Render restarts may briefly interrupt access; queued jobs resume from disk.
-Slack delivery retries reuse stable message IDs, although network failures cannot guarantee exactly-once delivery.
-Per-memory access control, multi-instance workers, and general task execution are future work.
+litemem encrypts persisted records with Ente-compatible libsodium encryption and stores ciphertext in Ente Museum. Each member has a separate wrapped key. Original evidence, derived records, public summaries, profiles, jobs and configuration are encrypted at rest; search indexes live in bounded process memory.
 
-Eyes reactions are added before model work starts. Failed reaction calls retry with backoff and respect
-Slack’s rate-limit delay; cleanup is marked complete only after removal succeeds or the reaction is already absent.
+**The hosted application is a trusted processor.** It can decrypt authorized work to search it and call the LiteLLM gateway. A person controlling the runtime and its keys could also do that. This is not Ente Photos' zero-knowledge client model, and we do not claim protection against a malicious deployment operator.
 
-The agent posts a short, request-specific plan using its progress tool before substantive research.
-Credit/quota exhaustion is reported as a problem with the configured route and is not retried.
-A failing route does not imply that every route or the gateway key is out of credits.
+Normal administrator interfaces cannot inspect someone else's private records. API authorization is checked before decryption and again before delivering agent output. Publishing shares a separate summary, while the original evidence stays private. Requests ask LiteLLM to suppress content logging, and agent tracing is disabled; the gateway and model provider still need appropriate retention settings.
+
+Read the [security and privacy model](docs/security.md) before operating an installation.
+
+## Develop
+
+```sh
+uv sync --frozen
+uv run pytest -q
+uv run ruff check .
+```
+
+The new app is `moegent.application:app`; the portable launcher is `python -m moegent.boot`. The Python package retains its original internal name to make migration easier. `moegent.app:app`, the original `Dockerfile`, and the vendored knowledge runtime are legacy migration paths, not dependencies of the new memory service.
+
+[Architecture](docs/architecture.md) · [Product specification](docs/product-implementation-spec.md) · [Release checklist](docs/release-checklist.md)
+
+## Open source
+
+litemem is licensed under **AGPL-3.0**. The bundled Ente Museum executable is unmodified and also AGPL-3.0; see [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md). The self-hosted core needs no proprietary litemem control plane. Hosting and model inference may have costs.
+
+Code belongs here; personal histories, credentials, deployment state and database exports do not. Keep those out of Git, even in a private fork.

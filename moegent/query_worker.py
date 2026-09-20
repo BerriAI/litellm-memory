@@ -4,7 +4,7 @@ import logging
 from .archive import Reader
 from .errors import explain_error
 from .progress import reporter
-from .query import answer_work
+from .query import CitationError, answer_work
 
 log = logging.getLogger(__name__)
 
@@ -73,7 +73,9 @@ async def query_worker(settings, store, slack, archive, gateway, running, agent_
         except Exception as exc:
             log.warning("Query failed (%s)", type(exc).__name__)
             error = ("Access changed or this conversation cannot use those memories. Open the dashboard to continue."
-                     if isinstance(exc, PermissionError) else explain_error(exc).message)
+                     if isinstance(exc, PermissionError) else
+                     "The answer's source links could not be verified. Please retry the question."
+                     if isinstance(exc, CitationError) else explain_error(exc).message)
             await store.result(job["id"], status="failed", error=error)
             if is_slack:
                 try:

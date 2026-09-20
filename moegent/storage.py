@@ -156,6 +156,8 @@ class Storage:
                 "UPDATE jobs SET status=?,answer=COALESCE(?,answer),error=? WHERE id=? AND status!='cancelled'",
                 (status, self.seal(answer), self.seal(error), job_id),
             )
+            if status == 'failed':
+                await self.db.execute("UPDATE jobs SET partial=? WHERE id=?", (self.seal(''), job_id))
             await self.db.commit()
 
     async def progress(self, job_id, phase, partial=None):
