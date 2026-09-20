@@ -7,11 +7,16 @@ from pathlib import Path
 import aiosqlite
 
 
+class QueueFull(RuntimeError):
+    pass
+
+
 class Storage:
     def __init__(self, path: Path, vault=None):
         self.path = path
         self.vault = vault
         self.lock = asyncio.Lock()
+        self.max_pending_per_owner, self.max_pending = 4, 100
 
     def seal(self, value):
         return self.vault.seal_operational(value) if self.vault and value is not None else value
@@ -97,6 +102,14 @@ class Storage:
     async def enqueue(self, owner, kind, payload, dedupe=None):
         job_id = str(uuid.uuid4())
         async with self.lock:
+            if dedupe and (existing := await self.by_dedupe(dedupe)):
+                return existing
+            if kind in {'web', 'slack'}:
+                counts = await (await self.db.execute('''SELECT count(*) AS total,
+                    sum(CASE WHEN owner=? THEN 1 ELSE 0 END) AS owned FROM jobs
+                    WHERE status IN ('queued','running') AND kind IN ('web','slack')''', (owner,))).fetchone()
+                if counts['total'] >= self.max_pending or (counts['owned'] or 0) >= self.max_pending_per_owner:
+                    raise QueueFull('There are too many pending questions. Wait for an answer or stop an earlier request.')
             await self.db.execute(
                 """INSERT OR IGNORE INTO jobs(id,dedupe,owner,kind,payload,created,slack_team,slack_channel,slack_thread)
                 VALUES(?,?,?,?,?,?,?,?,?)""",

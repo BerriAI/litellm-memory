@@ -70,15 +70,16 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
       "verify-slack-identity",
       status.slack_installed && !status.identity_verified,
     );
-    $("slack-badge").textContent = status.identity_verified
+    const slackReady = status.slack_installed && status.identity_verified;
+    $("slack-badge").textContent = slackReady
       ? "Connected"
       : status.slack_installed
         ? "Verify your account"
         : status.slack_configured
           ? "Ready to install"
           : "Not connected";
-    $("slack-badge").classList.toggle("ready", status.identity_verified);
-    show("setup-finish", status.models_checked && status.identity_verified);
+    $("slack-badge").classList.toggle("ready", slackReady);
+    show("setup-finish", status.models_checked && slackReady);
     $("storage-status").textContent = status.storage_configured
       ? "Encrypted storage will be checked before you enter."
       : "Waiting for encrypted storage. Your setup progress is saved.";

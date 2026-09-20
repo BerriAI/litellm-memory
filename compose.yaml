@@ -13,6 +13,8 @@ services:
       ALLOWED_EMAIL_DOMAIN: ${ALLOWED_EMAIL_DOMAIN:-berri.ai}
       REGISTRATION_MODE: domain
       SHARING_ENABLED: "false"
+      SEARCH_CACHE_MB: ${SEARCH_CACHE_MB:-128}
+      RECOVERY_MODE: ${RECOVERY_MODE:-false}
     volumes:
       - litemem-state:/data
     depends_on:

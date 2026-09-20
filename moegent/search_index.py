@@ -33,7 +33,9 @@ class Partition:
             metadata = json.dumps(data.get('metadata', {}))
             self.index.execute('INSERT INTO work VALUES(?,?,?,?)', (row['id'], data['title'], text, metadata))
             if data.get('embedding'):
-                self.vectors[row['id']] = (data.get('embedding_model'), array('f', data['embedding']))
+                vector = array('f', data['embedding'])
+                self.vectors[row['id']] = (data.get('embedding_model'), vector,
+                                           math.sqrt(math.sumprod(vector, vector)) or 1)
             result = {k: v for k, v in data.items() if k not in {
                 'original', 'embedding', 'publication_embedding', 'content', 'privacy_blocked', 'publication_digest'}}
             result.update(visibility=row['visibility'], status=row['status'], historical=bool(row['historical']),
@@ -91,7 +93,7 @@ class SearchIndex:
         cursor = await self.archive.db.execute('''SELECT r.id,r.owner,r.updated,r.status,r.visibility,
             m.policy_version,substr(r.id,1,2) AS shard FROM records r JOIN members m ON m.id=r.owner
             WHERE r.deleted=0 AND m.active=1 AND m.team=? AND (? IS NULL OR r.owner=?)
-            AND ((r.owner=? AND ?='owner') OR (r.visibility='public' AND r.publication IS NOT NULL AND ?=1))
+            AND ((r.owner=? AND ?='owner') OR (?=1 AND r.visibility='public' AND r.publication IS NOT NULL))
             ORDER BY r.owner,shard,r.id''', (reader.team, owner, owner, reader.owner, reader.audience,
                                             int(self.archive.sharing_enabled)))
         group, fingerprint_rows, batch = None, [], 0
@@ -153,7 +155,7 @@ class SearchIndex:
         expression = ' OR '.join('"' + t.replace('"', '""') + '"' for t in terms)
         lexical, semantic, recent = [], [], []
         total, used_vectors = 0, False
-        norm = math.sqrt(sum(v * v for v in vector)) if vector else 0
+        norm = math.sqrt(math.sumprod(vector, vector)) if vector else 0
 
         def keep(heap, score, record_id, document, maximum):
             item = (score, record_id, document)
@@ -184,12 +186,11 @@ class SearchIndex:
                             if record_id in allowed:
                                 keep(lexical, -score, record_id, allowed[record_id], 200)
                     if vector and norm:
-                        for record_id, (model, embedding) in partition.vectors.items():
+                        for record_id, (model, embedding, magnitude) in partition.vectors.items():
                             if record_id not in allowed or model != embedding_model or len(embedding) != len(vector):
                                 continue
                             used_vectors = True
-                            cosine = sum(a * b for a, b in zip(vector, embedding, strict=True)) / (
-                                norm * (math.sqrt(sum(v * v for v in embedding)) or 1))
+                            cosine = math.sumprod(vector, embedding) / (norm * magnitude)
                             keep(semantic, cosine, record_id, allowed[record_id], 100)
             finally:
                 if not cached:

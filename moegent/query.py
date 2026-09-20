@@ -13,6 +13,7 @@ from agents import Agent, ModelSettings, OpenAIChatCompletionsModel, RunConfig, 
 from .archive import Reader
 from .observability import Telemetry
 from .progress import report
+from .storage import QueueFull
 from .work_views import ViewRequest
 
 
@@ -39,8 +40,21 @@ def validate_citations(answer, sources, public_base_url):
 
 
 async def answer_work(settings, archive, gateway, reader: Reader, question, history=None, model=None, scope=None):
-    with getattr(gateway, 'telemetry', Telemetry()).operation('query'):
-        return await _answer_work(settings, archive, gateway, reader, question, history, model, scope)
+    if not question.strip() or len(question) > 16000:
+        raise ValueError('Enter a question of at most 16,000 characters.')
+    waiting = archive.query_waiting
+    if (waiting.get(reader.owner, 0) >= settings.max_pending_queries_per_member
+            or sum(waiting.values()) >= settings.max_pending_queries):
+        raise QueueFull('There are too many pending questions. Try again shortly.')
+    waiting[reader.owner] = waiting.get(reader.owner, 0) + 1
+    try:
+        async with asyncio.timeout(settings.agent_timeout_seconds), archive.query_slots:
+            with getattr(gateway, 'telemetry', Telemetry()).operation('query'):
+                return await _answer_work(settings, archive, gateway, reader, question, history, model, scope)
+    finally:
+        waiting[reader.owner] -= 1
+        if not waiting[reader.owner]:
+            del waiting[reader.owner]
 
 
 async def _answer_work(settings, archive, gateway, reader: Reader, question, history=None, model=None, scope=None):

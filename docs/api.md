@@ -28,8 +28,13 @@ The web app, Slack adapter and remote MCP share one API/backend. The current API
 | `POST /api/rejoin` | Slack browser identity restores its departed account, with capture/sharing paused and old tokens still revoked. |
 | `/api/admin/models` | Admin model configuration, catalogs and capability checks. |
 | `PUT /api/admin/sharing` | Admin workspace sharing switch. |
+| `GET /api/admin/connection` | Admin gateway address/status, never its secret. |
+| `PUT /api/admin/connection/key` | Validate and rotate the existing gateway's key. |
+| `POST /api/admin/transfer` | Domain-mode admin transfers settings authority to an eligible enrolled teammate. |
 
 Request bodies are limited to 1 MB, captures to 200,000 characters / 300 KB encoded, and queries to 16,000 characters. Burst limits return `429` with `Retry-After`. Validation errors do not echo submitted content or upstream payloads.
+
+Pending question quotas are atomic and survive restarts: defaults are four per person and 100 installation-wide. An idempotent retry returns the original job even when the quota is full. All agent interfaces share a two-run execution limit; cancellation releases its slot. Historical classification has its own worker pool and Jev concurrency limit.
 
 ## Capture
 

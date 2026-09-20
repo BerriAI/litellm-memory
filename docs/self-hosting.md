@@ -6,6 +6,8 @@ The supported starter topology is one litemem web container with a durable `/dat
 
 One app replica is intentional: SQLite and process-local job coordination require a single writer deployment. Do not scale this image to multiple replicas or attach its volume to competing app processes. Larger teams should size the instance from measured workloads; see the release checklist for current performance evidence.
 
+The Render Blueprint sets `SEARCH_CACHE_MB=512`; Docker's portable default is 128 MB. This is a maximum index budget, not a startup allocation. Reserve memory for Python, Ente, SQLite and concurrent requests as well. A 30,000-record/10-person synthetic fixture used about 502 MB for the Python process with two queries; 100,000 owned records needed a 1,024 MB cache to avoid repeated rebuilds. At that size, warm retrieval measured about five seconds and cold retrieval about 54 seconds. These are current operating limits, not an instant-search promise for arbitrary archive size. Use [the benchmark and results](release-checklist.md#performance-measurements) before a large rollout.
+
 ## Render
 
 The root `render.yaml` and `Dockerfile.litemem` provision the complete starter topology. Click the README deploy button, review the services and pricing, then deploy. Keep the generated `SESSION_SECRET` and `SETUP_CODE` in Render's secret environment. The app discovers its public URL from `RENDER_EXTERNAL_URL`.
@@ -49,8 +51,16 @@ Most configuration is completed in the app and stored encrypted. Deployment envi
 | `OBSERVABILITY_EXPORT` | `none` (default), `otlp`, or `logfire`. |
 | `OTLP_TRACES_ENDPOINT` | Your OTLP HTTP trace collector, only with `otlp`. |
 | `LOGFIRE_TOKEN` | Optional Logfire cloud credential, only with `logfire`. |
+| `SEARCH_CACHE_MB` | Bounded in-memory search index budget, 128 MB by default; size from the measurements below. |
+| `MAX_PENDING_QUERIES_PER_MEMBER` | Maximum queued/running questions per person, 4 by default. |
+| `MAX_PENDING_QUERIES` | Maximum pending questions installation-wide, 100 by default. Two agent runs execute at once across interfaces. |
+| `RECOVERY_MODE` | Set `true` before first boot of an installation restore: disables workers and all HTTP interfaces except liveness. |
 
 Once saved in the web app, encrypted deployment settings take precedence over their initial environment defaults. Model changes are validated through LiteLLM and versioned. Slack/background inherit the default agent when not overridden. Embedding changes requeue indexing; reads continue using keywords until compatible vectors are available.
+
+In **Settings → Models → LiteLLM connection**, an administrator can rotate the existing gateway's key. All configured roles and Jev must pass with the new key before it replaces the old one. The key is never returned to the browser. Changing to a different gateway is an installation migration; it is not a silent change to the meaning of existing model routes.
+
+Domain-mode workspaces can transfer administration to another enrolled, currently eligible Slack member from Settings. This transfers workspace configuration authority, without granting access to private memories. The owner-only pilot disables this control.
 
 ## External Ente
 
@@ -62,7 +72,29 @@ The app's root key and member-key envelopes must be backed up independently of E
 
 Back up **both** `/data` and the Museum PostgreSQL database. The app's root key, encrypted deployment configuration, encrypted SQLite databases and member-key envelopes are required to recover. A database-only backup is incomplete. Keep backups encrypted with your infrastructure's backup encryption and restrict operator access.
 
-For a consistent starter backup, stop the litemem service, back up its volume and PostgreSQL, then restart it. A restore must use matching application and Ente snapshots, preserve the root key and deployment secrets, and run on an isolated hostname with Slack callbacks/capture disconnected until verified. Preserve deletion tombstones; never restore an old snapshot over a live instance and assume revoked records remain revoked. The tested restore procedure is a release gate, not an assumed property of having backups.
+For a consistent starter backup, stop the litemem service, back up its volume and PostgreSQL, then restart it. A restore must use matching application and Ente snapshots, preserve the root key and deployment secrets, and run on an isolated hostname with `RECOVERY_MODE=true` until verified. This prevents queued Slack/model work from restarting. Preserve deletion tombstones; never restore an old snapshot over a live instance and assume revoked records remain revoked. The clean-volume restore is tested in [CI](https://github.com/moe-berri/litemem/actions/runs/35532804507).
+
+For Compose, with a protected backup directory prepared:
+
+```sh
+umask 077
+docker compose --env-file .env.selfhost stop litemem
+docker compose --env-file .env.selfhost exec -T postgres pg_dump -U litemem -d litemem -Fc > /private/backup/ente.dump
+docker compose --env-file .env.selfhost run --rm --no-deps -T litemem sh -c 'tar -cf - -C /data .' > /private/backup/state.tar
+docker compose --env-file .env.selfhost up -d --wait
+```
+
+Encrypt the resulting backup files using your backup system. The tar includes root keys and is not protected merely because records inside SQLite are encrypted. Restore into a **new project/volumes**, with the original release checked out and a private environment file configured for the new database, isolated URL and `RECOVERY_MODE=true`:
+
+```sh
+docker compose --env-file .env.restore -p litemem-restore build litemem
+docker compose --env-file .env.restore -p litemem-restore up -d --wait postgres
+docker compose --env-file .env.restore -p litemem-restore exec -T postgres pg_restore -U litemem -d litemem < /private/backup/ente.dump
+docker compose --env-file .env.restore -p litemem-restore run --rm --no-deps -T litemem sh -c 'tar -xf - -C /data' < /private/backup/state.tar
+docker compose --env-file .env.restore -p litemem-restore up -d --wait
+```
+
+Use a separate host or a different host port so the restored service does not compete with the live service. `/health` must report `recovery`. Verify both databases, key availability, known evidence and deletion tombstones through a private operator shell; reconcile changes since the backup before cutover. Only then set `RECOVERY_MODE=false`, recreate the service and restore callbacks/capture. The disposable synthetic proof in `tests/smoke_bundle.py` is for CI, not a script to run against real users' databases.
 
 Pin the code/image revision you deploy. Back up before updating, read migration notes, build the new image and recreate only the app. Never run `docker compose down -v` against an installation you want to keep: `-v` deletes its volumes. Changing the gateway key or rotating the root encryption key are different operations; do not replace a root key to rotate an API credential.
 
@@ -71,3 +103,14 @@ Pin the code/image revision you deploy. Back up before updating, read migration 
 `GET /health` is a liveness check. Setup runs a real encrypted Ente round trip before activation. Connections shows revoked/active clients, and the connector's `status` reports offline backlog. Settings shows pending/failed processing and allows retries. A working health endpoint alone does not prove Jev, Slack or model access.
 
 Operational tracing is off by default. Optional Logfire or OTLP spans record operation names, timing and success/failure, never source text, prompts, completions, tokens, exception text or stack variables. No cloud telemetry backend is required. Do not add unrestricted HTTP/model auto-instrumentation around the app.
+
+## Personal portability
+
+Members can download an encrypted export or readable JSONL under **Settings → Your data**. The encrypted file has its own passphrase, independent of Slack sign-in. It contains original evidence and metadata. With the connector signed into the destination account, use:
+
+```sh
+litemem-transfer export my-memory-export.litemem
+litemem-transfer restore my-memory-export.litemem
+```
+
+Passwords are entered interactively, never command-line arguments. Restore verifies the complete authenticated file before uploading, resumes safely by original source identity, keeps imports private and respects destination deletion tombstones. A different Slack identity requires an explicit `--allow-owner-remap`; review attribution before using it. If capture is paused, restore also remains paused until the member resumes it.

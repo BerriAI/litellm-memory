@@ -51,6 +51,8 @@ class Archive:
         self.search_index = SearchIndex(self)
         self.lock = asyncio.Lock()
         self.owner_locks: dict[str, asyncio.Lock] = {}
+        self.query_slots = asyncio.Semaphore(2)
+        self.query_waiting: dict[str, int] = {}
 
     def owner_lock(self, owner):
         return self.owner_locks.setdefault(owner, asyncio.Lock())
@@ -82,6 +84,8 @@ class Archive:
             );
             CREATE INDEX IF NOT EXISTS records_owner ON records(owner,deleted,created);
             CREATE INDEX IF NOT EXISTS records_pending ON records(status,next_attempt,historical,created);
+            CREATE INDEX IF NOT EXISTS records_search_metadata
+                ON records(owner,deleted,visibility,status,id,updated,content_hash);
             CREATE TABLE IF NOT EXISTS privacy_rules (
                 id TEXT PRIMARY KEY, owner TEXT NOT NULL, version TEXT NOT NULL,
                 payload TEXT NOT NULL, active INTEGER DEFAULT 1, created REAL NOT NULL

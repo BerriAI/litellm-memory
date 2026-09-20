@@ -37,7 +37,7 @@ from .processing import cleanup_worker, processing_worker
 from .query import answer_work
 from .query_worker import query_worker
 from .setup import DeploymentConfig, install_setup
-from .storage import Storage
+from .storage import QueueFull, Storage
 from .transfer import ExportStream
 from .work_views import ViewRequest, WorkViews
 
@@ -49,6 +49,14 @@ class Question(BaseModel):
     audience: Literal["owner", "public"] = "owner"
     previous_job_id: UUID | None = None
     request_id: UUID | None = None
+
+
+class GatewayKey(BaseModel):
+    api_key: str = Field(min_length=1, max_length=8000, repr=False)
+
+
+class AdminTransfer(BaseModel):
+    owner: str = Field(min_length=3, max_length=200)
 
 
 class Search(BaseModel):
@@ -128,7 +136,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
             Reader(f"{settings.slack_team_id}:{settings.slack_owner_user_id}")))
         tasks = []
         async with mcp_http.router.lifespan_context(mcp_http):
-            if start_workers:
+            if start_workers and not settings.recovery_mode:
                 tasks += [asyncio.create_task(query_worker(settings, store, slack, archive, gateway, running, agent_fn))
                           for _ in range(2)]
                 tasks.append(asyncio.create_task(slack.monitor()))
@@ -158,6 +166,8 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     app.state.slack, app.state.settings = slack, settings
     app.state.model_service = model_service
     app.state.deployment = deployment
+    store.max_pending_per_owner = settings.max_pending_queries_per_member
+    store.max_pending = settings.max_pending_queries
     app.state.oauth_lock = asyncio.Lock()
     app.add_middleware(SessionMiddleware, secret_key=settings.session_secret,
                        session_cookie="litellm_memory_session", same_site="none" if settings.secure_cookies else "lax",
@@ -170,6 +180,9 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
 
     @app.middleware("http")
     async def security_headers(request, call_next):
+        if settings.recovery_mode and request.url.path != '/health':
+            return JSONResponse({'detail': 'This restored installation is paused for verification.'}, status_code=503,
+                                headers={'Cache-Control': 'no-store', 'Retry-After': '300'})
         try:
             size = int(request.headers.get("content-length", "0") or 0)
         except ValueError:
@@ -184,8 +197,9 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; "
             "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://slack.com")
-        if not request.url.path.startswith("/static/"):
-            response.headers["Cache-Control"] = "no-store"
+        # Revalidate modules after deployment; a cached setup module must not
+        # keep rendering old readiness conditions alongside a newer backend.
+        response.headers["Cache-Control"] = "no-cache" if request.url.path.startswith('/static/') else "no-store"
         return response
 
     @app.exception_handler(ValueError)
@@ -197,6 +211,10 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     @app.exception_handler(RequestValidationError)
     async def invalid_body(request, exc):
         return JSONResponse({"detail": "Check the required fields and their allowed lengths/types."}, status_code=422)
+
+    @app.exception_handler(QueueFull)
+    async def queue_full(request, exc):
+        return JSONResponse({'detail': str(exc)}, status_code=429, headers={'Retry-After': '30'})
 
     @app.exception_handler(PermissionError)
     async def forbidden(request, exc):
@@ -273,7 +291,8 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "name": "litemem", "storage": "ente" if museum else "unconfigured"}
+        return {"status": "recovery" if settings.recovery_mode else "ok", "name": "litemem",
+                "storage": "ente" if museum else "unconfigured"}
 
     @app.get("/")
     @app.get("/memory/{memory_id}")
@@ -345,6 +364,50 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         data["catalogs"] = {kind: [m.model_dump() for m in await gateway.models(kind=kind)]
                             for kind in ["chat", "embedding", "generation"]}
         return data
+
+    @app.get('/api/admin/connection')
+    async def gateway_connection(request: Request):
+        await admin_account(request)
+        return {'base_url': settings.litellm_base_url, 'key_configured': bool(settings.litellm_api_key)}
+
+    @app.put('/api/admin/connection/key')
+    async def rotate_gateway_key(body: GatewayKey, request: Request):
+        await admin_account(request)
+        # Key rotation preserves the gateway and configured model IDs. Every
+        # role is checked with the candidate before replacing a working key.
+        async with deployment.lock, model_service.lock:
+            config = await model_service.current()
+            candidate_settings = settings.model_copy(update={'litellm_api_key': body.api_key})
+            async with Gateway(candidate_settings, gateway.transport) as candidate:
+                await candidate.catalog(refresh=True)
+                for model, kind in {(config.agent_model, 'chat'),
+                                    (config.slack_model or config.agent_model, 'chat'),
+                                    (config.background_model or config.agent_model, 'generation'),
+                                    (config.embedding_model, 'embedding')}:
+                    await candidate.validate_model(model, kind)
+                    await candidate.probe_model(model, kind)
+                jev = await candidate.probe_jev(config.classifier_model)
+                if jev['status'] != 'ready':
+                    raise ValueError(jev['message'])
+            deployment.save(config={'litellm_api_key': body.api_key}, jev=jev)
+            gateway.http.headers['Authorization'] = 'Bearer ' + body.api_key
+            gateway._models, gateway._models_until = None, 0
+        return {'status': 'updated'}
+
+    @app.post('/api/admin/transfer')
+    async def transfer_admin(body: AdminTransfer, request: Request):
+        await admin_account(request)
+        if settings.registration_mode == 'owner_only':
+            raise HTTPException(409, 'Administrator transfer is unavailable during an owner-only pilot.')
+        target = await archive.member(body.owner)
+        if not target or target['team'] != settings.slack_team_id:
+            raise HTTPException(404, 'Choose an enrolled person in this workspace.')
+        if not await slack.verify_member(body.owner, fresh=True):
+            raise HTTPException(403, 'That Slack account is no longer eligible.')
+        async with deployment.lock:
+            await admin_account(request)
+            deployment.save(config={'slack_owner_user_id': body.owner.split(':', 1)[1]})
+        return {'status': 'transferred'}
 
     @app.put('/api/admin/sharing')
     async def workspace_sharing(request: Request):

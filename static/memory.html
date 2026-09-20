@@ -10,7 +10,7 @@
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='16' width='64' height='64' fill='%232b302b'/%3E%3Cpath d='M22 15v34h23' fill='none' stroke='%23faf9f6' stroke-width='7'/%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="/static/memory.css" />
-    <script type="module" src="/static/memory.js"></script>
+    <script type="module" src="/static/memory.js?v=2"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -673,6 +673,24 @@
             <button id="reload-models" class="button quiet small">
               Refresh available models
             </button>
+            <details class="advanced">
+              <summary>LiteLLM connection</summary>
+              <p id="current-gateway-url" class="fine-print"></p>
+              <form id="rotate-gateway-form">
+                <label>New LiteLLM key<input id="replacement-gateway-key" type="password" autocomplete="off" required maxlength="8000"></label>
+                <p class="fine-print">Every configured model and Jev are checked before the current key is replaced.</p>
+                <button class="button secondary">Check &amp; replace key</button>
+                <p id="gateway-rotation-status" role="status"></p>
+              </form>
+            </details>
+            <details class="advanced" id="admin-transfer-panel" hidden>
+              <summary>Transfer workspace administration</summary>
+              <form id="admin-transfer-form">
+                <label>New administrator<select id="next-admin" required></select></label>
+                <p class="fine-print">Only workspace settings move. Each person's private memory stays with them.</p>
+                <button class="button secondary">Transfer administration</button>
+              </form>
+            </details>
           </div>
           <div class="settings-group">
             <h2>Your data</h2>
@@ -680,8 +698,8 @@
               <span
                 ><strong>Export your memories</strong
                 ><small
-                  >Download your records and original evidence as a readable
-                  JSONL file.</small
+                  >Download your records and original evidence. Choose an encrypted
+                  backup or readable JSONL.</small
                 ></span
               ><div class="export-actions"><button id="encrypted-export" class="button secondary">Encrypted export</button>
               <button id="export-data" class="button quiet small">Readable JSONL</button></div>

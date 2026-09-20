@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     jev_concurrency: int = Field(default=8, ge=1, le=64)
     model_catalog_ttl: int = Field(default=300, ge=0)
     search_cache_mb: int = Field(default=128, ge=16, le=2048)
+    recovery_mode: bool = False
     registration_mode: Literal["owner_only", "domain"] = "domain"
     allowed_email_domain: str = "berri.ai"
     sharing_enabled: bool = False
@@ -50,6 +51,8 @@ class Settings(BaseSettings):
     slack_bot_token: str = ""
     slack_bot_user_id: str = ""
     max_agent_turns: int = Field(default=18, ge=1)
+    max_pending_queries_per_member: int = Field(default=4, ge=1, le=100)
+    max_pending_queries: int = Field(default=100, ge=1, le=10000)
     observability_export: Literal['none', 'otlp', 'logfire'] = 'none'
     logfire_token: str = ''
     otlp_traces_endpoint: str = ''

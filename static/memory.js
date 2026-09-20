@@ -1,4 +1,4 @@
-import { initializeSetup } from "./setup.js";
+import { initializeSetup } from "./setup.js?v=2";
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
 
@@ -759,6 +759,14 @@ async function loadRules() {
 async function loadModelSettings(refresh = false) {
   if (!state.me.is_admin) return;
   show("model-settings");
+  api("/api/admin/connection").then(connection => {
+    $("current-gateway-url").textContent = connection.base_url;
+  }).catch(error => { $("current-gateway-url").textContent = explain(error); });
+  const candidates = state.people.filter(person => person.id !== state.me.id);
+  show("admin-transfer-panel", state.me.registration_mode !== "owner_only" && candidates.length > 0);
+  $("next-admin").replaceChildren(...candidates.map(person => {
+    const option = el("option", person.name); option.value = person.id; return option;
+  }));
   $("model-settings-status").textContent = "Loading available models…";
   try {
     const config = await api(
@@ -1184,4 +1192,26 @@ $("leave-workspace").onclick = async () => {
 };
 $("sign-out").onclick = signOut;
 $("menu-sign-out").onclick = signOut;
+$("rotate-gateway-form").onsubmit = event => {
+  event.preventDefault();
+  busy(event.currentTarget.querySelector("button"), async () => {
+    $("gateway-rotation-status").textContent = "Checking your models and Jev…";
+    try {
+      await api("/api/admin/connection/key", {api_key:$("replacement-gateway-key").value}, "PUT");
+      $("replacement-gateway-key").value = "";
+      $("gateway-rotation-status").textContent = "Key updated. Your model choices are unchanged.";
+    } catch (error) { $("gateway-rotation-status").textContent = explain(error); }
+  });
+};
+$("admin-transfer-form").onsubmit = event => {
+  event.preventDefault();
+  const select = $("next-admin");
+  if (!select.value || !confirm(`Transfer workspace settings to ${select.selectedOptions[0].textContent}? You will no longer be the administrator.`)) return;
+  busy(event.currentTarget.querySelector("button"), async () => {
+    try {
+      await api("/api/admin/transfer", {owner:select.value});
+      location.reload();
+    } catch (error) { toast(explain(error)); }
+  });
+};
 initialize();

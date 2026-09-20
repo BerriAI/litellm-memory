@@ -146,13 +146,19 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
     async def status(request: Request):
         result = {"required": not deployment.complete, "claimed": deployment.authorized(request)}
         if result["claimed"]:
+            identity = request.session.get('identity', {})
+            verified = bool(identity.get('team_id') == settings.slack_team_id
+                            and identity.get('user_id') == settings.slack_owner_user_id
+                            and identity.get('email_verified') is True
+                            and identity.get('email', '').casefold().rsplit('@', 1)[-1]
+                            == settings.allowed_email_domain.casefold())
             result.update(base_url=settings.litellm_base_url if settings.litellm_api_key else "",
                           gateway_connected=bool(deployment.values.get("gateway_checked")),
                           models_checked=bool(model_service.configuration),
                           jev=deployment.values.get("jev"), storage_configured=bool(archive.museum),
                           slack_configured=bool(settings.slack_client_id),
                           slack_installed=bool(await store.setting("slack_bot_token") or settings.slack_bot_token),
-                          workspace=settings.slack_team_id, identity_verified=bool(request.session.get("identity")),
+                          workspace=settings.slack_team_id, identity_verified=verified,
                           allowed_email_domain=settings.allowed_email_domain,
                           timezone=deployment.values.get("timezone", "UTC"))
         return result
@@ -271,6 +277,9 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
         if (not model_service.configuration or not archive.museum
                 or not (await store.setting("slack_bot_token") or settings.slack_bot_token)):
             raise HTTPException(409, "Connect and check the models and encrypted storage first.")
+        owner = f"{identity['team_id']}:{identity['user_id']}"
+        if not await slack.verify_member(owner, fresh=True):
+            raise HTTPException(403, 'The installer must be a current eligible Slack member.')
         jev = await gateway.probe_jev()
         if jev["status"] != "ready":
             raise HTTPException(409, jev["message"])
@@ -298,7 +307,6 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
                 raise HTTPException(503, "Encrypted storage could not verify its saved data. Try again.")
         finally:
             await archive.museum.delete(probe_id)
-        owner = f"{identity['team_id']}:{identity['user_id']}"
         await archive.enroll(owner, {k: identity.get(k, "") for k in ["name", "avatar", "email"]})
         deployment.save(config={"allowed_email_domain": body.allowed_email_domain.casefold()}, complete=True,
                         timezone=body.timezone, jev=jev, claim_digest="", claim_expires=0)

@@ -553,7 +553,7 @@ Completion requires the full application deployed at the existing Render URL, ac
 
 A renamed repo, deployed branding, running Museum container, broad spec, mocked test suite or unconnected frontend is not full-product completion. The old MCP remains until separately authorized cutover, even after the new product is ready.
 
-## 23. Implementation status at specification handoff
+## 23. Implementation checkpoint — September 20, 2026
 
 The following is a factual checkpoint, separate from the target behavior above:
 
@@ -561,15 +561,16 @@ The following is a factual checkpoint, separate from the target behavior above:
 | --- | --- |
 | Repository/branding | Private repo is `moe-berri/litemem`. Branding commit `d57174f` renamed the existing website and Slack app/bot. Existing URL remains `https://moegent.onrender.com`. |
 | Live entry point | The existing assistant is running. The complete new memory application has not been deployed. |
-| Local backend | New archive, encryption, Museum adapter, gateway, processing, query, OAuth/MCP and Slack-adapter code exists, with unfinished integration. |
-| Checks | The working tree previously passed 35 tests and Ruff. These are existing/component checks, not this specification's full acceptance suite. |
-| Ente infrastructure | Dedicated Museum and Postgres resources are provisioned. Production account/bootstrap hardening and a verified live encrypted memory round trip remain. |
-| Jev | Gateway adapter exists. Actual Jev inference and endpoint-specific no-log behavior still need proof; discovery errors alone are not a reliable enablement test. |
-| Web product | HTML/CSS draft exists. Full behavior, the revised single-surface setup and browser validation remain. |
-| Capture/import/views | Complete client setup, actual historical backfill, daily/current views and lifecycle operations remain. |
+| Backend | Encrypted intake/originals/publications, authorization, gateway model roles, cached parallel classification, processing leases, search, query agent and shared web/Slack/MCP APIs are implemented. |
+| Checks | Linux CI passed 83 tests plus Docker restart and clean-volume restore. Subsequent lifecycle/capacity changes have expanded the local suite; current exact evidence lives in the release checklist. These checks do not substitute for the real pilot acceptance run. |
+| Ente infrastructure | The dedicated Render Museum passed ciphertext write/read/decrypt/delete after registration/bootstrap hardening. Portable CI also proves auto-provisioning, persistent member keys, exact evidence and deletion tombstones after a full app+Postgres restore. |
+| Jev | The typed adapter and required setup check are implemented. The actual gateway's typed route returns 404 and its current key cannot configure routes. Enablement and endpoint-specific no-log behavior remain external release gates. |
+| Web product | Functional feed, People, Ask, privacy controls, lock indicators, model settings and one-page progressive setup are implemented. Browser checks used isolated synthetic records; corrections and retained setup progress were verified. |
+| Capture/import/views | Capture adapters, encrypted outbox, OAuth/MCP, merge-preserving installers, import preview, daily/current/project views, corrections, export/restore and account lifecycle are implemented. Actual owned-host OAuth/capture and approved historical import remain. |
+| Retrieval | Bounded RAM FTS/vector partitions over encrypted originals; covering metadata index. Benchmarks include 100,000 owned records and 30,000 multi-person records with concurrent queries. Cache sizing and slow cold retrieval are documented limitations. |
 | Existing memory system | Original repository and configured MCP remain intact. No cutover, new teammate enrollment or publication has occurred. |
 
-The key unresolved engineering proofs are Ente interoperability/bootstrap, the actual gateway's Jev/no-log behavior, host-specific continuous capture/OAuth compatibility, bounded encrypted retrieval and a real restore. Each has an implementation package and acceptance gate above; none should be concealed by a confident product description.
+The remaining rollout proofs are the actual gateway's Jev/no-log behavior, real host capture/OAuth, Slack scopes and owned-account audience behavior, approved history reconciliation, answer-quality evaluation and the integrated owner-only deployment. [The release checklist](release-checklist.md) is the evidence ledger; this specification remains the intended behavior and release contract.
 
 ## 24. Requirement precedence and future edits
 

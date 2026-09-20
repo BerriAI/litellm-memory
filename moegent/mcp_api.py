@@ -57,6 +57,8 @@ def build_mcp(settings, archive, gateway):
     async def search_memories(query: str, person: str | None = None, from_date: str | None = None,
                               before_date: str | None = None) -> dict:
         """Search only when the user asks about their memories or recorded work. Returns allowed sources."""
+        if len(query) > 2000:
+            raise ValueError('Use at most 2,000 characters for a search.')
         reader = Reader(await owner())
         vector = None
         if query.strip():
