@@ -4,7 +4,7 @@ import sys
 
 SCOPES = ["app_mentions:read", "chat:write", "channels:read", "channels:manage",
           "groups:read", "groups:write", "im:history", "im:read", "reactions:write",
-          "channels:history", "groups:history", "assistant:write"]
+          "channels:history", "groups:history", "mpim:read", "mpim:history", "assistant:write"]
 
 
 def manifest(base_url):
@@ -20,7 +20,7 @@ def manifest(base_url):
         "oauth_config": {"redirect_urls": [base_url + "/slack/install/callback", base_url + "/auth/slack/callback"],
                          "scopes": {"bot": SCOPES}},
         "settings": {"event_subscriptions": {"request_url": base_url + "/slack/events",
-                      "bot_events": ["app_mention", "message.im", "message.channels", "message.groups",
+                      "bot_events": ["app_mention", "message.im", "message.mpim", "message.channels", "message.groups",
                                      "member_joined_channel", "member_left_channel"]},
                      "org_deploy_enabled": False, "socket_mode_enabled": False, "token_rotation_enabled": False},
     }

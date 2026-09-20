@@ -134,10 +134,13 @@ class Storage:
             await self.db.commit()
 
     async def channel_allowed(self, team, channel):
+        return bool(await self.channel_approval(team, channel))
+
+    async def channel_approval(self, team, channel):
         row = await (await self.db.execute(
             "SELECT approved FROM channels WHERE team=? AND channel=?", (team, channel)
         )).fetchone()
-        return bool(row and row["approved"])
+        return bool(row["approved"]) if row else None
 
     async def setting(self, key, value=None):
         if value is not None:

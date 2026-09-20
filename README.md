@@ -54,6 +54,9 @@ from clicking Invite. Moegent verifies the bot's `member_joined_channel.inviter`
 when the inviter is anyone else or missing. Until approved, it does not answer there. Channels it cannot leave
 (such as a workspace's general channel) remain disabled. Removing the bot revokes approval. Old membership events
 cannot override newer ones. After a lost database, remove and re-invite the bot as the owner to enroll it again.
+When an invitation record is missing for a group DM, Moegent checks Slack’s conversation metadata and
+enrolls it only if Moe created it and the bot is a member. Explicit denials or removals take precedence.
+Group-DM metadata/history require `mpim:read` and `mpim:history`; thread follow-ups use `message.mpim`.
 This check is independent of the public/allowlist caller policy.
 
 Generate an app manifest with `uv run python scripts/slack_manifest.py https://YOUR-APP.onrender.com`.
@@ -87,3 +90,6 @@ Never include `.env` in the image or source control. Set `PUBLIC_BASE_URL` to th
 `/health` is the health check. Render restarts may briefly interrupt access; queued jobs resume from disk.
 Slack delivery retries reuse stable message IDs, although network failures cannot guarantee exactly-once delivery.
 Per-memory access control, multi-instance workers, and general task execution are future work.
+
+Eyes reactions are added before model work starts. Failed reaction calls retry with backoff and respect
+Slack’s rate-limit delay; cleanup is marked complete only after removal succeeds or the reaction is already absent.

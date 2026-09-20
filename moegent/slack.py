@@ -17,6 +17,13 @@ log = logging.getLogger(__name__)
 TERMINAL = {"done", "failed", "cancelled", "ignored"}
 
 
+class SlackAPIError(RuntimeError):
+    def __init__(self, code, retry_after=0):
+        self.code = code if re.fullmatch(r"[a-z_]{1,80}", str(code)) else "unknown_error"
+        self.retry_after = retry_after
+        super().__init__("Slack API: " + self.code)
+
+
 def slack_text(text):
     # Accessible notification fallback. Code spans and fenced examples stay literal.
     pieces = re.split(r"(```[\s\S]*?```|`[^`\n]+`)", text)
@@ -40,6 +47,9 @@ class Slack:
         self.delivery_locks = defaultdict(asyncio.Lock)
         self.last_update = {}
         self.last_display = {}
+        self.conversation_cache = {}
+        self.conversation_locks = defaultdict(asyncio.Lock)
+        self.reaction_retry = {}
 
     async def token(self):
         return await self.store.setting("slack_bot_token") or self.settings.slack_bot_token
@@ -53,14 +63,20 @@ class Slack:
             raise RuntimeError("Slack is not installed yet")
         async with httpx.AsyncClient(timeout=20) as client:
             kwargs = {"headers": {"Authorization": f"Bearer {token}"}}
-            if method == "conversations.replies":
+            if method in {"conversations.replies", "conversations.info"}:
                 response = await client.get(f"https://slack.com/api/{method}", params=payload, **kwargs)
             else:
                 response = await client.post(f"https://slack.com/api/{method}", json=payload, **kwargs)
+        if response.status_code == 429:
+            try:
+                retry_after = min(3600, max(1, float(response.headers.get("retry-after", "30"))))
+            except ValueError:
+                retry_after = 30
+            raise SlackAPIError("ratelimited", retry_after)
         response.raise_for_status()
         data = response.json()
         if not data.get("ok"):
-            raise RuntimeError("Slack API: " + str(data.get("error", "unknown_error")))
+            raise SlackAPIError(data.get("error", "unknown_error"))
         return data
 
     async def message_api(self, method, payload):
@@ -85,9 +101,54 @@ class Slack:
             AccessPolicy(self.settings).authorize(principal)
         except HTTPException:
             return False
-        return payload["channel"].startswith("D") or await self.store.channel_allowed(
-            payload["team"], payload["channel"]
-        )
+        if payload["channel"].startswith("D") or payload.get("channel_type") == "im":
+            return True
+        approved = await self.store.channel_approval(payload["team"], payload["channel"])
+        if approved is not None:
+            return approved
+        # Group DMs can have C-prefixed IDs and do not reliably emit a bot invitation event.
+        # Slack's actual conversation metadata, never the ID prefix, proves this is an MPIM
+        # created by Moe. Explicit removals/denials above must never be overridden.
+        info = await self.conversation_info(payload["channel"])
+        if (info.get("is_mpim") and info.get("is_member")
+                and info.get("creator") == self.settings.slack_owner_user_id
+                and info.get("created")):
+            await self.store.channel_event(payload["team"], payload["channel"], True, info["created"])
+            return await self.store.channel_allowed(payload["team"], payload["channel"])
+        return False
+
+    async def conversation_info(self, channel):
+        async with self.conversation_locks[channel]:
+            cached = self.conversation_cache.get(channel)
+            if cached and time.monotonic() < cached[0]:
+                return cached[1]
+            try:
+                info = (await self.api("conversations.info", {"channel": channel}))["channel"]
+            except Exception as exc:
+                log.warning("Slack conversation lookup failed (%s)",
+                            exc.code if isinstance(exc, SlackAPIError) else type(exc).__name__)
+                info = {}
+            self.conversation_cache[channel] = (time.monotonic() + 30, info)
+            return info
+
+    async def reaction(self, job_id, payload, active):
+        key = (job_id, active)
+        deadline, attempts = self.reaction_retry.get(key, (0, 0))
+        if time.monotonic() < deadline:
+            return False
+        method = "reactions.add" if active else "reactions.remove"
+        try:
+            await self.api(method, payload)
+        except Exception as exc:
+            code = exc.code if isinstance(exc, SlackAPIError) else type(exc).__name__
+            completed = {"already_reacted"} if active else {"no_reaction", "message_not_found", "channel_not_found"}
+            if code not in completed:
+                delay = max(min(30, 2 ** min(attempts + 1, 5)), getattr(exc, "retry_after", 0))
+                self.reaction_retry[key] = (time.monotonic() + delay, attempts + 1)
+                log.warning("Slack %s failed (%s); retrying in %.0fs", method, code, delay)
+                return False
+        self.reaction_retry.pop(key, None)
+        return True
 
     async def event(self, envelope):
         # Serialize duplicate deliveries and steering changes, with only local DB work before ACK.
@@ -148,7 +209,8 @@ class Slack:
             if task := self.running.get(job["id"]):
                 task.cancel()
         payload = {"team": team, "channel": channel, "user": event["user"], "thread_ts": thread,
-                   "message_ts": event["ts"], "question": text[:16000], "prior_questions": prior[-8:]}
+                   "channel_type": event.get("channel_type"), "message_ts": event["ts"],
+                   "question": text[:16000], "prior_questions": prior[-8:]}
         job_id = await self.store.enqueue(principal.identity, "slack", payload, dedupe)
         if text.lower().strip(".!") in {"stop", "cancel", "stop please", "please stop"}:
             await self.store.cancel(job_id)
@@ -219,20 +281,22 @@ class Slack:
                 return
             reaction = {"channel": p["channel"], "timestamp": p.get("message_ts", p["thread_ts"]), "name": "eyes"}
             if terminal:
-                if record["indicator_active"]:
-                    await self.optional_api("reactions.remove", reaction)
-                    if p["channel"].startswith("D"):
-                        await self.optional_api("assistant.threads.setStatus", {
-                            "channel_id": p["channel"], "thread_ts": p["thread_ts"], "status": ""})
+                # Clean up even after an add timeout: Slack may have accepted that request.
+                if record["status"] != "ignored" and not await self.reaction(job_id, reaction, False):
+                    return
+                if record["indicator_active"] and p["channel"].startswith("D"):
+                    await self.optional_api("assistant.threads.setStatus", {
+                        "channel_id": p["channel"], "thread_ts": p["thread_ts"], "status": ""})
                 if record["status"] == "cancelled" and record["response_ts"]:
                     await self.optional_api("chat.update", {"channel": p["channel"], "ts": record["response_ts"], "text": "Stopped."})
-                await self.store.slack_delivery(job_id, done=1)
+                await self.store.slack_delivery(job_id, active=0, done=1)
+                self.reaction_retry.pop((job_id, True), None)
                 self.last_update.pop(job_id, None)
                 self.last_display.pop(job_id, None)
                 return
             if not record["indicator_active"]:
-                await self.optional_api("reactions.add", reaction)
-                await self.store.slack_delivery(job_id, active=1)
+                if await self.reaction(job_id, reaction, True):
+                    await self.store.slack_delivery(job_id, active=1)
             now = time.monotonic()
             if now - self.last_update.get(job_id, 0) < 2.5:
                 return

@@ -35,6 +35,10 @@ async def worker(settings, store, slack, agent_fn=answer, running=None):
                 else:
                     await store.result(job["id"], status="ignored")
                     continue
+                try:
+                    await slack.indicator(job["id"])
+                except Exception as exc:
+                    log.warning("Initial Slack feedback failed (%s)", type(exc).__name__)
                 session = f"{payload['team']}:{payload['channel']}:{payload['thread_ts']}"
                 history = await slack.history(job)
             else:
