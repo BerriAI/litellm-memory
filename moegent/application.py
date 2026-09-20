@@ -30,6 +30,7 @@ from .gateway import Gateway, GatewayError
 from .guards import RequestGuard
 from .mcp_api import build_mcp
 from .memory_slack import MemorySlack
+from .migration import Invitation, Packet, ReceiveRequest, Transfers, origin
 from .model_settings import ModelConfiguration, ModelSettingsService
 from .oauth import install_oauth
 from .observability import configure as configure_telemetry
@@ -108,6 +109,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     if museum is None and settings.ente_base_url and settings.ente_auth_token:
         museum = Museum(settings.ente_base_url, settings.ente_auth_token, namespace_key=vault.namespace_key())
     archive = Archive(settings.state_dir / "memory.sqlite3", vault, museum, sharing_enabled=settings.sharing_enabled)
+    transfers = Transfers(settings, archive)
     archive.search_index.budget = settings.search_cache_mb * 1024 * 1024
     store = Storage(settings.state_dir / "moegent.sqlite3", vault)
     model_service = ModelSettingsService(settings, store, gateway, archive)
@@ -130,6 +132,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     async def lifespan(app):
         await store.open()
         await archive.open()
+        await transfers.open()
         await views.open()
         await model_service.load()
         slack.settings.allowed_slack_users = ",".join(p["id"] for p in await archive.people(
@@ -142,6 +145,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
                 tasks.append(asyncio.create_task(slack.monitor()))
                 tasks.append(asyncio.create_task(slack.reconcile_members()))
                 if museum:
+                    tasks.append(asyncio.create_task(transfers.worker()))
                     tasks.append(asyncio.create_task(cleanup_worker(archive)))
                     tasks.append(asyncio.create_task(views.worker()))
                     # Separate worker pools keep historical imports from occupying live capacity.
@@ -160,10 +164,12 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
                 if museum and hasattr(museum, "close"):
                     await museum.close()
                 await archive.close()
+                await transfers.close()
                 await store.close()
 
     app = FastAPI(title="litemem API", version="1.0.0", lifespan=lifespan)
     app.state.archive, app.state.store, app.state.gateway = archive, store, gateway
+    app.state.transfers = transfers
     app.state.slack, app.state.settings = slack, settings
     app.state.model_service = model_service
     app.state.deployment = deployment
@@ -198,6 +204,15 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; "
             "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://slack.com")
+        if request.url.path == '/transfer/send':
+            # Only the transfer page can connect to its one approved receiving
+            # origin. The main application's CSP remains self-only.
+            try:
+                destination = origin(request.query_params.get('destination', ''))
+                response.headers['Content-Security-Policy'] = response.headers['Content-Security-Policy'].replace(
+                    "connect-src 'self';", f"connect-src 'self' {destination};")
+            except ValueError:
+                pass
         # Revalidate modules after deployment; a cached setup module must not
         # keep rendering old readiness conditions alongside a newer backend.
         response.headers["Cache-Control"] = "no-cache" if request.url.path.startswith('/static/') else "no-store"
@@ -288,7 +303,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         parts = urlsplit(path)
         if parts.scheme or parts.netloc:
             return "/"
-        return path if parts.path in {"/", "/oauth/authorize"} or parts.path.startswith("/memory/") else "/"
+        return path if parts.path in {"/", "/oauth/authorize", "/transfer/receive", "/transfer/send"} or parts.path.startswith("/memory/") else "/"
 
     @app.get("/health")
     async def health():
@@ -613,6 +628,80 @@ litemem-connector disconnect</pre>
         extension = 'litemem' if stream else 'jsonl'
         return StreamingResponse(records(), media_type='application/octet-stream' if stream else 'application/x-ndjson',
             headers={'Content-Disposition': f'attachment; filename="my-memory-export.{extension}"', 'Cache-Control': 'no-store'})
+
+    @app.get('/transfer/receive')
+    async def transfer_page():
+        return FileResponse(ROOT / 'static/transfer.html')
+
+    @app.get('/transfer/send')
+    async def transfer_send_page():
+        return FileResponse(ROOT / 'static/transfer-send.html')
+
+    @app.get('/api/transfers')
+    async def recent_transfers(request: Request):
+        return {'transfers': await transfers.recent(await browser_account(request))}
+
+    @app.post('/api/transfers/receive')
+    async def receive_transfer(body: ReceiveRequest, request: Request):
+        return await transfers.receive(await browser_account(request), body.source)
+
+    @app.post('/api/transfers/send')
+    async def send_transfer(body: Invitation, request: Request):
+        return await transfers.outgoing(await browser_account(request), body)
+
+    @app.get('/api/transfers/{identity}')
+    async def transfer_status(identity: UUID, request: Request):
+        return await transfers.status(identity, await browser_account(request))
+
+    @app.get('/api/transfers/{identity}/packets/{index}')
+    async def transfer_packet(identity: UUID, index: int, request: Request):
+        return await transfers.send_packet(identity, await browser_account(request), index)
+
+    @app.get('/api/transfers/{identity}/outgoing')
+    async def transfer_context(identity: UUID, request: Request):
+        return await transfers.outgoing_context(identity, await browser_account(request))
+
+    @app.post('/api/transfers/{identity}/packets')
+    async def transfer_upload(identity: UUID, body: Packet, request: Request):
+        return await transfers.accept(identity, await browser_account(request), body)
+
+    @app.post('/api/transfers/{identity}/finish', status_code=202)
+    async def transfer_finish(identity: UUID, request: Request):
+        return await transfers.start_import(identity, await browser_account(request))
+
+    @app.delete('/api/transfers/{identity}')
+    async def transfer_cancel(identity: UUID, request: Request):
+        return await transfers.cancel(identity, await browser_account(request))
+
+    @app.api_route('/api/transfer-inbox/{identity}', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+    async def transfer_inbox(identity: UUID, request: Request):
+        token = request.headers.get('authorization', '')
+        if request.method != 'OPTIONS' and not token.startswith('Bearer '):
+            raise HTTPException(403, 'A receiving grant is required.')
+        row = await transfers.inbox(identity, request.headers.get('origin'),
+                                    None if request.method == 'OPTIONS' else token[7:])
+        cors = {'Access-Control-Allow-Origin': row['payload']['invitation']['source'], 'Vary': 'Origin',
+                'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Cache-Control': 'no-store'}
+        if request.method == 'OPTIONS':
+            return JSONResponse({}, headers=cors)
+        try:
+            if request.method == 'GET':
+                result = transfers.public(row)
+            elif request.method == 'DELETE':
+                result = await transfers.cancel(identity, row['owner'])
+            else:
+                body = await request.json()
+                if body.get('action') == 'packet':
+                    result = await transfers.accept(identity, row['owner'], Packet.model_validate(body.get('packet')))
+                elif body.get('action') == 'finish':
+                    result = await transfers.start_import(identity, row['owner'])
+                else:
+                    raise ValueError('Choose a supported transfer action.')
+            return JSONResponse(result, headers=cors)
+        except (ValueError, KeyError, TypeError, AttributeError):
+            return JSONResponse({'detail': 'Transfer verification failed. Reconnect from the source and retry.'},
+                                status_code=400, headers=cors)
 
     @app.post("/api/leave")
     async def leave(request: Request):

@@ -6,11 +6,13 @@ import uuid
 
 import httpx
 import yaml
+from nacl.public import PublicKey, SealedBox
 
 from moegent.archive import Archive, Reader, WorkInput
 from moegent.config import Settings
-from moegent.crypto import KeyVault, decrypt_blob, encrypt_blob, new_key
+from moegent.crypto import KeyVault, b64, decrypt_blob, encode, encrypt_blob, new_key, unb64
 from moegent.ente import Museum
+from moegent.migration import Packet, Transfers
 from moegent.setup import DeploymentConfig
 
 
@@ -61,6 +63,28 @@ async def main():
                 pass
             else:
                 raise AssertionError('Deleted source was resurrected')
+            # A paused browser transfer's encrypted queue and recipient key must
+            # survive the same container restart and clean-volume restore.
+            transfers = Transfers(settings, archive)
+            await transfers.open()
+            try:
+                marker = settings.state_dir / 'ci-transfer-grant'
+                if not marker.exists():
+                    invitation = await transfers.receive('CI:OWNER', 'https://ci-source.example')
+                    marker.write_text(invitation['id'])
+                    value = {'version': 1, 'grant': invitation['id'], 'source': invitation['source'],
+                             'destination': invitation['destination'], 'owner': 'CI:OWNER', 'index': 0,
+                             'kind': 'records', 'records': [{'owner': 'CI:OWNER', 'original': {
+                                 'source_id': 'ci-transfer', 'content': 'DISPOSABLE_TRANSFER_CANARY'}}]}
+                    ciphertext = b64(SealedBox(PublicKey(unb64(invitation['public_key']))).encrypt(encode(value)))
+                    await transfers.accept(invitation['id'], 'CI:OWNER', Packet(index=0, ciphertext=ciphertext))
+                row = await transfers.get(marker.read_text(), 'CI:OWNER')
+                staged = await (await transfers.db.execute('SELECT ciphertext FROM transfer_chunks WHERE transfer_id=?',
+                                                          (row['id'],))).fetchone()
+                assert 'DISPOSABLE_TRANSFER_CANARY' not in staged[0]
+                assert transfers.decode(row, staged[0], 0)['records'][0]['original']['content'] == 'DISPOSABLE_TRANSFER_CANARY'
+            finally:
+                await transfers.close()
         finally:
             await archive.close()
     finally:
@@ -74,7 +98,7 @@ async def main():
         assert (await client.post('/api/setup/claim', json={'code': code})).status_code == 200
         assert (await client.get('/api/setup/status')).json()['claimed'] is True
         assert (await client.get('/api/models')).status_code == 401
-    print('PASS: storage round trip, closed registration, durable member keys/evidence/tombstones, and setup access control.')
+    print('PASS: storage round trip, closed registration, durable evidence/tombstones/transfer queue, and setup access control.')
 
 
 if __name__ == '__main__':

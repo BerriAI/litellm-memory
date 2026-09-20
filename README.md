@@ -17,6 +17,7 @@ This is a work archive you query deliberately. It does not search old memories o
 - The same authorized query agent through the web, Slack, API and remote MCP. Shared Slack conversations use only company-public evidence safe for the conversation's participants.
 - All inference through **your LiteLLM gateway**. Model pickers use its `/v1/models`; agent, Slack, background, embedding and classification models are configurable.
 - TypeSafe **Jev** classifies source chunks in parallel. Results are cached per source/criterion/version. Changing a filter does not rerun completed classification.
+- Move your own history between installations with an encrypted browser transfer and the same Slack sign-in. No transfer password or copied key; the destination imports privately.
 
 ## Deploy
 
@@ -57,7 +58,7 @@ Sign in with Slack in the browser. The connector preserves existing host setting
 
 The connector records visible user and assistant text. It excludes system messages, tool-result dumps and hidden reasoning. Local capture requires a compatible host with transcript hooks; remote MCP alone cannot observe conversations. The website and Slack work without installing the connector.
 
-[Connector guide](docs/connectors.md) · [API and data formats](docs/api.md)
+[Member guide](docs/member-guide.md) · [Connector guide](docs/connectors.md) · [API and data formats](docs/api.md)
 
 ## How privacy works
 

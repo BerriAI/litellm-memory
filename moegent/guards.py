@@ -22,7 +22,10 @@ class RequestGuard:
             '/oauth/register': (12, 3600), '/oauth/token': (120, 60), '/api/setup/claim': (20, 900),
             '/api/chat': (30, 60), '/api/memories': (360, 60), '/api/memories/search': (120, 60),
             '/api/export': (6, 300), '/api/rejoin': (6, 300),
+            '/api/transfers/receive': (6, 300), '/api/transfers/send': (6, 300),
         }.get(path)
+        if path.startswith('/api/transfer-inbox/'):
+            rule = (360, 60)
         if rule and scope['method'] not in {'GET', 'HEAD', 'OPTIONS'}:
             current = time.monotonic()
             if current - self.last_sweep > 60:

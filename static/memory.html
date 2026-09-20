@@ -695,6 +695,11 @@
           <div class="settings-group">
             <h2>Your data</h2>
             <div class="setting-row">
+              <span><strong>Copy to another litemem</strong><small>Transfer your history securely. Sign in with Slack on both installations; no export password needed.</small></span>
+              <button id="transfer-data" class="button secondary">Transfer history</button>
+            </div>
+            <p class="fine-print"><a href="/transfer/receive">View recent imports</a></p>
+            <div class="setting-row">
               <span
                 ><strong>Export your memories</strong
                 ><small
@@ -779,6 +784,15 @@
         <p id="export-status" role="status"></p>
         <button class="button primary">Download encrypted export</button>
       </form>
+    </dialog>
+    <dialog id="transfer-dialog" class="capture-dialog">
+      <div class="dialog-top"><h2>Copy your history</h2><button id="close-transfer" class="icon-button" aria-label="Close transfer">×</button></div>
+      <p>Sign in to the destination with your same Slack account. You’ll return here to confirm before any history moves.</p>
+      <form id="transfer-connect">
+        <label>Destination address<input id="transfer-url" type="url" maxlength="2000" placeholder="https://memory.example.com" required></label>
+        <button id="transfer-connect-button" class="button secondary">Connect destination</button>
+      </form>
+      <p id="transfer-status" role="status"></p>
     </dialog>
     <div id="toast" class="toast" role="status" hidden></div>
     <div id="announce" class="sr-only" aria-live="polite"></div>

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Receive history · litemem</title>
+    <link rel="stylesheet" href="/static/memory.css">
+    <script type="module" src="/static/migration.js?v=1"></script>
+  </head>
+  <body data-transfer-receiver>
+    <main class="auth-card">
+      <a href="/">← Back to litemem</a><p class="eyebrow">Your data</p>
+      <h1>Receive your history</h1>
+      <p>Copy your history here, with its original evidence and dates. Everything arrives privately.</p>
+      <p id="receive-identity" class="muted"></p>
+      <p><strong id="receive-source"></strong></p>
+      <p id="receive-status" role="status">Checking your Slack sign-in…</p>
+      <a id="receive-login" class="button primary" href="/auth/slack" hidden>Continue with Slack</a>
+      <button id="receive-approve" class="button primary" hidden>Receive history from this source</button>
+      <button id="receive-cancel" class="button quiet" hidden>Cancel transfer</button>
+      <div id="receive-recent"></div>
+      <p class="fine-print">Protected during transfer. No export password needed. Your source history is preserved.</p>
+    </main>
+  </body>
+</html>

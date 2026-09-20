@@ -1,9 +1,11 @@
 import { initializeSetup } from "./setup.js?v=2";
+import { initializeTransfer } from "./migration.js?v=1";
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
 
 // Private content lives in this tab's memory only, never local/session storage.
 const $ = (id) => document.getElementById(id);
+initializeTransfer();
 const state = {
   me: null,
   people: [],

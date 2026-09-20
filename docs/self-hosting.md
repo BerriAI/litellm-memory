@@ -106,7 +106,13 @@ Operational tracing is off by default. Optional Logfire or OTLP spans record ope
 
 ## Personal portability
 
-Members can download an encrypted export or readable JSONL under **Settings → Your data**. The encrypted file has its own passphrase, independent of Slack sign-in. It contains original evidence and metadata. With the connector signed into the destination account, use:
+The normal path is **Settings → Your data → Transfer history**. Members enter the destination's HTTPS origin, sign in with the same Slack account there, and approve both ends in one browser tab. No file password or manually copied key is needed. The destination verifies the encrypted transfer before importing private historical records. It preserves source identities, original text, dates and metadata; derived summaries, classification and embeddings are rebuilt with the destination's configured models. It never copies sharing grants or auto-publishes history. [Member walkthrough](member-guide.md#move-or-download-your-history).
+
+Uploads must arrive within 30 minutes. Processing then runs durably for up to 24 hours and resumes after restart; paused recording or unavailable membership/storage checks defer it. Settings links to recent imports. Keep the entire persistent app directory in backups, including `transfers.sqlite3`; recovery mode keeps its worker stopped. Completion/cancellation removes temporary ciphertext and receiving key material. Existing deletions/conflicts are excluded, and interrupted replay deduplicates by original source identity.
+
+Limits are two active transfers per member, 100,000 records and 512 MB of staged ciphertext per transfer, and 1 GB of staging per installation. Budget free disk space for SQLite WAL and both staging and the resulting archive. Larger archives, changed Slack identities or offline destinations use the file/CLI path below. Source copies are retained; moving history is not an installation shutdown or deletion procedure.
+
+Members can also download an encrypted export or readable JSONL. The optional encrypted file has its own passphrase, independent of Slack sign-in. It contains original evidence and metadata. With the connector signed into the destination account, use:
 
 ```sh
 litemem-transfer export my-memory-export.litemem
