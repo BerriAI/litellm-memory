@@ -12,7 +12,7 @@ litemem-connector connect https://your-litemem.example --host codex
 # Or --host claude; omit --host to configure both.
 ```
 
-The browser opens Slack sign-in and a litemem consent screen. OAuth credentials are stored encrypted in a private local directory. The setup adds the remote MCP URL and capture hooks without removing other MCPs or hooks. Private backups are made before host configuration changes. Restart the host and complete its own MCP authentication prompt.
+The browser opens Slack sign-in and a litemem consent screen. OAuth credentials are stored encrypted in a private local directory. The setup adds the remote MCP URL and capture hooks without removing other MCPs or hooks. Private backups are made before host configuration changes. Restart the host and complete its own MCP authentication prompt. In Codex, open `/hooks` and review/trust the litemem capture hooks; Codex skips untrusted hooks. Review them again after an update changes their commands.
 
 Supported installation locations are `~/.codex/config.toml`, `~/.codex/hooks.json`, `~/.claude/settings.json` and `~/.claude.json`. Symlink-managed host configurations need manual integration. The initial connector supports macOS/Linux and Python 3.12+. Windows support has not been verified.
 
@@ -32,7 +32,7 @@ litemem-connector disconnect
 
 A 100 MB queue limit stops new buffering without deleting old queued records. `status` shows queued/needs-attention counts, timestamps and connection state. Local buffering is encrypted, but the same OS account has access to its local wrapping key; this is not protection against a compromised computer. The directory is bound to one installation and Slack identity so reconnecting as another person cannot upload the old person's buffered work.
 
-Paused hooks advance past visible work without recording it. Disconnect removes only litemem's managed hooks/MCP entry, revokes its capture credential when online and pauses the local queue. If offline, revoke the connection in the dashboard too. Queued encrypted work is retained locally, not uploaded to a replacement identity.
+Live capture starts with text timestamped after connection or the latest resume. Paused hooks advance past visible work without recording it. The timestamp boundary also excludes paused text when no hook ran during the pause or a transcript is discovered later. Undated live messages are skipped with a coverage warning because the connector cannot establish when they were written; an explicit historical backfill can import them. Previously buffered work stays queued and can sync after resume. Disconnect removes only litemem's managed hooks/MCP entry, revokes its capture credential when online and pauses the local queue. If offline, revoke the connection in the dashboard too. Queued encrypted work is retained locally, not uploaded to a replacement identity.
 
 ## Historical backfill
 
@@ -43,7 +43,7 @@ litemem-connector backfill ~/.codex/sessions --host codex
 litemem-connector backfill ~/.claude/projects --host claude
 ```
 
-Work is attributed to its transcript role and original session/date. Historical imports remain private. Import uses the same source identity and encrypted queue as live capture, so replay is idempotent. It does not infer that an assistant's statement is verified completion. Unknown dates remain unknown.
+Work is attributed to its transcript role and original session/date. Historical imports remain private. Import uses the same source identity and encrypted queue as live capture, so replay is idempotent. Its separate cursor permits explicitly importing text previously skipped by live capture. Resume the connector before starting a backfill. It does not infer that an assistant's statement is verified completion. Unknown dates remain unknown.
 
 For the older product-team knowledge repository, the read-only preview/import adapter is:
 

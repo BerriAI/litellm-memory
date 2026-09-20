@@ -5,6 +5,34 @@ on:
 permissions:
   contents: read
 jobs:
+  host-capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [codex, claude]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.9"
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: uv sync --frozen
+      - name: Install pinned host CLI
+        run: |
+          if [ '${{ matrix.host }}' = codex ]; then
+            npm install -g @openai/codex@0.155.1
+          else
+            npm install -g @anthropic-ai/claude-code@2.1.278
+          fi
+      - name: Verify actual hooks and visible transcript capture
+        env:
+          LITEMEM_DISPOSABLE_HOST_TEST: "1"
+        run: uv run python tests/smoke_hosts.py '${{ matrix.host }}'
   tests:
     runs-on: ubuntu-latest
     steps:

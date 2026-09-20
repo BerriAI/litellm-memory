@@ -22,7 +22,7 @@ def test_transcript_capture_is_incremental_encrypted_and_replay_safe(tmp_path):
     local = LocalCapture(tmp_path / 'state')
     try:
         assert local.capture(transcript, 'codex', 'file-session', historical=True) == 4
-        assert local.capture(transcript, 'codex', 'original-session') == 0
+        assert local.capture(transcript, 'codex', 'original-session') == 4
         assert local.status()['queued'] == 1
         queued = local.db.execute('SELECT payload FROM outbox').fetchone()[0]
         assert secret not in queued
@@ -152,5 +152,55 @@ def test_capture_transactions_rollback_cursor_when_encrypt_fails(tmp_path, monke
     try:
         local.capture(transcript, 'codex', 'session')
         assert local.status()['queued'] == 1
+    finally:
+        local.close()
+
+
+def test_resume_skips_pause_without_hooks_and_preexisting_sessions(tmp_path, monkeypatch):
+    local = LocalCapture(tmp_path / 'state')
+    started = 1_000_000_000
+    monkeypatch.setattr('moegent.connector.time.time', lambda: started)
+
+    def dated(content, seconds):
+        from datetime import UTC, datetime
+        value = row(content)
+        value['timestamp'] = datetime.fromtimestamp(seconds, UTC).isoformat() if seconds else None
+        return json.dumps(value) + '\n'
+
+    transcript = tmp_path / 'active.jsonl'
+    transcript.write_text(dated('old session text', started - 10))
+    try:
+        local.set_paused(False)
+        local.db.commit()
+        with transcript.open('a') as file:
+            file.write(dated('before pause', started + 10))
+        local.capture(transcript, 'codex', 'one')
+        local.set_paused(True)
+        local.db.commit()
+        with transcript.open('a') as file:
+            file.write(dated('paused without a hook', started + 20))
+        monkeypatch.setattr('moegent.connector.time.time', lambda: started + 30)
+        local.set_paused(False)
+        local.db.commit()
+        # Resume must not depend on having received a hook while paused.
+        with transcript.open('a') as file:
+            file.write(dated('after resume', started + 40))
+        local.capture(transcript, 'codex', 'one')
+        other = tmp_path / 'newly-discovered.jsonl'
+        other.write_text(dated('also paused', started + 20) + dated('undated', None))
+        local.capture(other, 'codex', 'two')
+        captured = [local.vault.open_operational(r[0])['content']
+                    for r in local.db.execute('SELECT payload FROM outbox')]
+        assert captured == ['before pause', 'after resume']
+        assert local.status()['coverage_warning'] == 'undated_live_message_skipped'
+        # A reconnect while active keeps the boundary and any unread backlog.
+        local.set_paused(False)
+        assert local.get('capture_since') == started + 30
+        local.db.commit()
+        # An explicitly requested historical import still accepts old
+        # or undated text without changing originals or manufacturing dates.
+        local.capture(other, 'codex', 'two', historical=True)
+        assert local.status()['queued'] == 4
+        assert local.capture(other, 'codex', 'two', historical=True) == 0
     finally:
         local.close()

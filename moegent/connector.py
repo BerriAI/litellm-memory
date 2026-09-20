@@ -76,6 +76,14 @@ class LocalCapture:
     def set(self, key, value):
         self.db.execute("INSERT OR REPLACE INTO state VALUES(?,?)", (key, self.vault.seal_operational(value)))
 
+    def set_paused(self, paused):
+        # A timestamp boundary also covers transcripts first discovered after a
+        # pause, and pauses during which the host never invoked another hook.
+        # Re-authenticating an active connection must not discard its backlog.
+        if not paused and (self.get("paused", False) or self.get("capture_since") is None):
+            self.set("capture_since", time.time())
+        self.set("paused", paused)
+
     def enqueue(self, record):
         record_id = digest(record["source_id"])
         if self.db.execute("SELECT 1 FROM receipts WHERE id=?", (record_id,)).fetchone():
@@ -92,7 +100,9 @@ class LocalCapture:
             return 0
         # Cursors, paths and payloads are encrypted. One transaction owns a
         # cursor advance and its queued records, so interruption cannot lose work.
-        cursor_key = "cursor:" + digest(str(path.resolve()) + ":" + host)
+        # Historical replay needs its own cursor: live capture may have skipped
+        # pre-connection or paused text which the owner later elects to import.
+        cursor_key = "cursor:" + digest(str(path.resolve()) + ":" + host + (":historical" if historical else ""))
         self.db.execute("BEGIN IMMEDIATE")
         try:
             if self.db.execute("SELECT coalesce(sum(length(payload)),0) FROM outbox").fetchone()[0] >= MAX_OUTBOX_BYTES:
@@ -104,11 +114,13 @@ class LocalCapture:
             if stat.st_size < cursor["offset"] or stat.st_ino != cursor["inode"]:
                 cursor = {"offset": 0, "generation": cursor["generation"] + 1, "inode": stat.st_ino}
             if self.get("paused", False):
-                cursor["offset"] = stat.st_size
-                self.set(cursor_key, cursor)
+                if not historical:
+                    cursor["offset"] = stat.st_size
+                    self.set(cursor_key, cursor)
                 self.db.commit()
                 return 0
             session_id = cursor.get("session_id", session_id)
+            capture_since = self.get("capture_since") if not historical else None
             count, inspected = 0, 0
             with path.open("rb") as transcript:
                 transcript.seek(cursor["offset"])
@@ -135,6 +147,16 @@ class LocalCapture:
                     message = visible_message(item, host)
                     if message:
                         role, content, timestamp, message_id = message
+                        if capture_since is not None and (
+                            not timestamp or datetime.fromisoformat(timestamp).timestamp() < capture_since
+                        ):
+                            # Undated rows cannot establish that they were written
+                            # after capture was enabled. Explicit backfill can
+                            # still import them with their original unknown date.
+                            if not timestamp:
+                                self.set("coverage_warning", "undated_live_message_skipped")
+                            cursor["offset"] = transcript.tell()
+                            continue
                         # A message UUID survives transcript relocation/replay;
                         # fallback offsets distinguish identical repeated messages.
                         identity = message_id or f"{cursor['generation']}:{offset}:{digest(content)}"
@@ -212,6 +234,7 @@ class LocalCapture:
 
     def status(self):
         return {"status": self.get("status", "not_connected"), "paused": self.get("paused", False),
+                "coverage_warning": self.get("coverage_warning"),
                 "last_capture": self.get("last_capture"), "last_sync": self.get("last_sync"),
                 "queued": self.db.execute("SELECT count(*) FROM outbox WHERE status='pending'").fetchone()[0],
                 "needs_attention": self.db.execute("SELECT count(*) FROM outbox WHERE status='needs_attention'").fetchone()[0]}
@@ -310,7 +333,7 @@ def login(local, url, *, opener=webbrowser.open):
         local.set("connection", {"url": url, "owner": owner, "client_id": client_id, **token,
                                  "expires_at": time.time() + token["expires_in"]})
         local.set("status", "connected")
-        local.set("paused", False)
+        local.set_paused(False)
         local.db.commit()
 
 
@@ -403,6 +426,8 @@ def main():
             local.set("hosts", hosts)
             local.db.commit()
             print("Connected. Restart your coding tool to load its hooks and sign in to the litemem MCP when prompted.")
+            if "codex" in hosts:
+                print("In Codex, open /hooks and review/trust the litemem capture hooks before recording starts.")
             print("New visible conversation text will be recorded privately. Use backfill to import earlier sessions.")
         elif args.command == "hook":
             # Hooks must not fail the user's coding turn or leak a transcript in an error.
@@ -424,7 +449,7 @@ def main():
         elif args.command == "status":
             print(json.dumps(local.status(), indent=2))
         elif args.command in {"pause", "resume"}:
-            local.set("paused", args.command == "pause")
+            local.set_paused(args.command == "pause")
             local.db.commit()
             print("Capture paused." if args.command == "pause" else "Capture resumed.")
         elif args.command == "backfill":
