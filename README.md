@@ -45,7 +45,7 @@ Open the address shown by your deployment. Setup stays on one page:
 
 Members then use **Sign in with Slack**. They do not handle encryption keys, recovery phrases or a separate litemem password. Eligibility is restricted to the configured Slack workspace and exact verified email domain; `berri.ai` is the initial default and self-hosters choose their own domain.
 
-**Jev is required.** If your gateway does not support it, setup explains the missing capability and retains your inputs. Enable the [LiteLLM TypeSafe integration](https://docs.litellm.ai/docs/pass_through/typesafe) on the gateway. litemem never asks members for a TypeSafe key or bypasses the gateway.
+**Jev is required.** Built-in support starts in LiteLLM **v1.103.0-rc**. Use a gateway release with the [TypeSafe integration](https://docs.litellm.ai/docs/pass_through/typesafe), and configure `TYPESAFE_API_KEY` on that gateway. Setup explains missing capabilities and retains your inputs. litemem never asks members for a TypeSafe key or bypasses the gateway. See [gateway setup](docs/self-hosting.md#connect-typesafe-jev-through-litellm).
 
 Read [self-hosting](docs/self-hosting.md) for HTTPS, backups, updates, external Ente and configuration.
 

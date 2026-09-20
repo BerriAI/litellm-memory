@@ -5,6 +5,7 @@ Never return model_info's provider parameters or credentials to a client.
 
 import asyncio
 import math
+import re
 import time
 from typing import Literal
 
@@ -167,11 +168,34 @@ class Gateway:
         except GatewayError as exc:
             status = {401: "invalid_key", 403: "access_denied", 404: "not_enabled", 429: "rate_limited"}.get(
                 exc.status, "unavailable")
+            if exc.status == 404:
+                version = await self.reported_version()
+                reported = f" This gateway reports LiteLLM {version}." if version else ""
+                return {"status": status, "required": True, "gateway_version": version,
+                        "message": (
+                            "The gateway returned HTTP 404 for TypeSafe Jev." + reported +
+                            " Built-in Jev support starts in LiteLLM v1.103.0-rc."
+                            " Use a release with Jev support, configure TYPESAFE_API_KEY on the gateway,"
+                            " and check that its TypeSafe route is accessible to your LiteLLM key.")}
             return {"status": status, "required": True, "message": (
                 "litemem needs TypeSafe Jev. Enable it on your LiteLLM gateway and allow this key to use it.")}
         except (httpx.HTTPError, ValueError, KeyError, TypeError):
             return {"status": "unavailable", "required": True,
                     "message": "The gateway did not return a valid Jev response. Check its TypeSafe integration."}
+
+    async def reported_version(self) -> str | None:
+        """Best-effort setup diagnostic, never a substitute for a real capability probe."""
+        try:
+            response = await self.http.get(self.root + "/openapi.json", timeout=5)
+            if not response.is_success:
+                return None
+            version = response.json()["info"]["version"]
+            # Return only a bounded version identifier, never arbitrary gateway content.
+            if isinstance(version, str) and re.fullmatch(r"v?\d+\.\d+\.\d+[A-Za-z0-9.+-]{0,48}", version):
+                return version
+        except (httpx.HTTPError, ValueError, KeyError, TypeError):
+            pass
+        return None
 
     async def classify(self, state: str, questions: dict[str, str], *, model=None) -> JevResult:
         with self.telemetry.operation('classification'):

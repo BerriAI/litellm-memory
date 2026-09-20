@@ -34,6 +34,16 @@ Use the public URL consistently in the browser and Slack manifest. Cross-origin 
 
 The database port is not published. Museum is loopback-only. Do not expose Museum or PostgreSQL publicly, and do not add a public passwordless shortcut to setup.
 
+## Connect TypeSafe Jev through LiteLLM
+
+Jev's built-in pass-through integration was introduced in **LiteLLM v1.103.0-rc**. A gateway on an older release can serve chat and embeddings normally while returning HTTP 404 for Jev. See the [launch announcement](https://docs.litellm.ai/blog/typesafe_jev) and [integration instructions](https://docs.litellm.ai/docs/pass_through/typesafe).
+
+The gateway operator must deploy a release containing the integration, set `TYPESAFE_API_KEY` in the **gateway's secret environment**, and restart or redeploy the gateway. Keep existing model routes and credentials in place. The TypeSafe provider key is not a LiteLLM virtual key and does not belong in litemem's connection form or repository.
+
+litemem uses its existing LiteLLM key to call `POST /typesafe/v1/systemone` with a harmless typed question. A successful typed response is the readiness check; absence from `/v1/models` does not mean Jev is unsupported. On HTTP 404, setup also tries to show the gateway's reported version. Version discovery is optional and never replaces the real probe, so custom builds and backports can work.
+
+After enabling the integration, select **Check again** on the same setup page. If the route still returns 404, check gateway reverse-proxy routing and the configured Jev alias. HTTP 401/403 requires checking the LiteLLM key's route permissions and the gateway's upstream credentials. Verify the deployed pass-through's no-log behavior before processing real histories; a successful classification alone does not prove logging is disabled.
+
 ## Configuration
 
 Most configuration is completed in the app and stored encrypted. Deployment environment options include:

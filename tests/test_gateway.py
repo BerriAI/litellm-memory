@@ -76,3 +76,32 @@ async def test_jev_errors_do_not_return_private_gateway_response():
         assert "PRIVATE" not in str(error.value)
     finally:
         await gateway.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("reported", ["1.102.0", "PRIVATE UPSTREAM CONTENT", None])
+async def test_missing_jev_explains_gateway_requirement_without_leaking_diagnostics(reported):
+    def handler(request):
+        if request.url.path == "/openapi.json":
+            return httpx.Response(200, json={"info": {"version": reported}})
+        return httpx.Response(404, text="PRIVATE UPSTREAM CONTENT")
+
+    async with Gateway(Settings(_env_file=None), httpx.MockTransport(handler)) as gateway:
+        result = await gateway.probe_jev()
+    assert result["status"] == "not_enabled"
+    assert "v1.103.0-rc" in result["message"] and "TYPESAFE_API_KEY" in result["message"]
+    assert "PRIVATE" not in str(result)
+    assert result["gateway_version"] == ("1.102.0" if reported == "1.102.0" else None)
+
+
+@pytest.mark.asyncio
+async def test_version_discovery_failure_preserves_missing_jev_diagnosis():
+    def handler(request):
+        if request.url.path == "/openapi.json":
+            raise httpx.ReadTimeout("PRIVATE UPSTREAM CONTENT", request=request)
+        return httpx.Response(404)
+
+    async with Gateway(Settings(_env_file=None), httpx.MockTransport(handler)) as gateway:
+        result = await gateway.probe_jev()
+    assert result["status"] == "not_enabled" and result["gateway_version"] is None
+    assert "PRIVATE" not in str(result)
