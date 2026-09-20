@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#faf9f6" />
+    <title>litemem</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='16' width='64' height='64' fill='%232b302b'/%3E%3Cpath d='M22 15v34h23' fill='none' stroke='%23faf9f6' stroke-width='7'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/static/memory.css" />
+    <script type="module" src="/static/memory.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="masthead">
+      <div class="masthead-inner">
+        <a href="/" class="brand" aria-label="litemem home"
+          >litemem<span class="brand-dot"></span
+        ></a>
+        <nav aria-label="Main navigation" id="navigation" hidden>
+          <button data-view="home" class="nav-link active">Home</button
+          ><button data-view="ask" class="nav-link">Ask</button
+          ><button data-view="people" class="nav-link">People</button>
+        </nav>
+        <div class="header-end" id="header-actions" hidden>
+          <button
+            id="global-search-button"
+            class="icon-button"
+            aria-label="Search memories"
+          >
+            <span data-icon="search"></span><kbd>⌘ K</kbd></button
+          ><button
+            id="account-button"
+            class="avatar-button"
+            aria-label="Account and settings"
+            aria-expanded="false"
+            aria-controls="account-menu"
+          >
+            <span id="my-avatar" class="avatar"></span>
+          </button>
+        </div>
+      </div>
+      <div id="account-menu" class="account-menu" hidden>
+        <p id="account-name"></p>
+        <button data-view="settings">Settings</button
+        ><button data-view="connections">Connections</button
+        ><button id="menu-sign-out">Sign out</button>
+      </div>
+    </header>
+    <main id="main" tabindex="-1">
+      <section id="welcome" class="welcome">
+        <p class="eyebrow">A LiteLLM Labs product</p>
+        <h1>A little memory<br />for all your work.</h1>
+        <p class="welcome-copy">
+          Find the decisions, ideas, and work you don’t want to lose.<br />Private
+          to you. Shared when you choose.
+        </p>
+        <a class="button primary" href="/auth/slack"
+          >Continue with Slack <span aria-hidden="true">↗</span></a
+        >
+        <p class="fine-print">Built with Ente and LiteLLM.</p>
+      </section>
+      <section id="deployment-setup" class="deployment-setup" hidden>
+        <p class="eyebrow">Welcome to litemem</p>
+        <h1>A home for your team’s work.</h1>
+        <p class="section-intro">
+          Connect your models and Slack. We’ll take care of the rest.
+        </p>
+        <form id="claim-form" class="setup-panel">
+          <h2>Claim your installation</h2>
+          <p>
+            Use the setup code in your deployment’s private settings. This keeps
+            the first visitor from becoming your administrator.
+          </p>
+          <label
+            >Setup code<input
+              id="claim-code"
+              type="password"
+              autocomplete="off"
+              required /></label
+          ><button class="button primary">Continue</button>
+          <p id="claim-error" class="inline-error" role="alert"></p>
+        </form>
+        <div id="setup-content" hidden>
+          <section class="setup-panel" id="gateway-panel">
+            <div class="setup-heading">
+              <h2>LiteLLM</h2>
+              <span id="gateway-badge" class="setup-badge">Not connected</span>
+            </div>
+            <p>One connection for your agent, embeddings, and TypeSafe Jev.</p>
+            <form id="gateway-form">
+              <label
+                >Gateway URL<input
+                  id="gateway-url"
+                  type="url"
+                  placeholder="https://your-gateway.example.com"
+                  autocomplete="url"
+                  required /></label
+              ><label
+                >API key<input
+                  id="gateway-key"
+                  type="password"
+                  autocomplete="off"
+                  placeholder="Your LiteLLM key" /></label
+              ><button class="button primary">Connect LiteLLM</button>
+              <p id="gateway-error" class="inline-error" role="alert"></p>
+            </form>
+            <div id="setup-models" hidden>
+              <div id="jev-status" class="setup-check" role="status"></div>
+              <button id="setup-recheck-jev" class="button quiet small" hidden>
+                Check Jev again</button
+              ><a
+                id="jev-help"
+                class="text-link"
+                href="https://docs.litellm.ai/docs/pass_through/typesafe"
+                target="_blank"
+                rel="noopener noreferrer"
+                hidden
+                >Gateway setup instructions ↗</a
+              >
+              <form id="setup-model-form">
+                <div class="model-grid">
+                  <label
+                    >Default agent<select
+                      id="setup-agent_model"
+                      required
+                    ></select></label
+                  ><label
+                    >Embeddings<select
+                      id="setup-embedding_model"
+                      required
+                    ></select
+                  ></label>
+                </div>
+                <details class="advanced">
+                  <summary>Customize models</summary>
+                  <div class="model-grid">
+                    <label
+                      >Slack agent<select
+                        id="setup-slack_model"
+                      ></select></label
+                    ><label
+                      >Background work<select
+                        id="setup-background_model"
+                      ></select></label
+                    ><label
+                      >TypeSafe Jev model<input
+                        id="setup-classifier_model"
+                        maxlength="200"
+                        value="jev-latest"
+                        required
+                    /></label>
+                  </div>
+                  <p>
+                    Slack and background work can use the default agent. You can
+                    change every model later in Settings.
+                  </p>
+                </details>
+                <div class="form-footer">
+                  <button class="button secondary">
+                    Check &amp; save models</button
+                  ><span id="setup-model-status" role="status"></span>
+                </div>
+              </form>
+            </div>
+          </section>
+          <section id="slack-panel" class="setup-panel" hidden>
+            <div class="setup-heading">
+              <h2>Slack</h2>
+              <span id="slack-badge" class="setup-badge">Not connected</span>
+            </div>
+            <p>
+              Your team signs in with Slack. The same agent answers in the web
+              app and as @litemem.
+            </p>
+            <label
+              >Company email domain<input
+                id="setup-domain"
+                value="berri.ai"
+                autocomplete="off"
+                placeholder="your-company.com"
+            /></label>
+            <p class="fine-print">
+              Only verified accounts from this domain and your Slack workspace
+              can join.
+            </p>
+            <div id="slack-create-options">
+              <a
+                id="create-slack-app"
+                class="button secondary"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Create app in Slack ↗</a
+              >
+              <details class="advanced">
+                <summary>Have an app configuration token?</summary>
+                <form id="auto-slack-form">
+                  <label
+                    >Slack app configuration token<input
+                      id="slack-config-token"
+                      type="password"
+                      autocomplete="off"
+                      required /></label
+                  ><button class="button secondary">
+                    Create app automatically
+                  </button>
+                  <p class="fine-print">
+                    Used once to create the app. It is never saved.
+                  </p>
+                </form>
+              </details>
+              <details class="advanced" id="slack-credentials">
+                <summary>Connect your Slack app</summary>
+                <p>
+                  Open your app’s <strong>Basic Information</strong> in Slack
+                  and copy its App Credentials below.
+                </p>
+                <form id="slack-form">
+                  <div class="model-grid">
+                    <label
+                      >App ID<input
+                        id="slack-app-id"
+                        required
+                        autocomplete="off" /></label
+                    ><label
+                      >Client ID<input
+                        id="slack-client-id"
+                        required
+                        autocomplete="off" /></label
+                    ><label
+                      >Client secret<input
+                        id="slack-client-secret"
+                        type="password"
+                        required
+                        autocomplete="off" /></label
+                    ><label
+                      >Signing secret<input
+                        id="slack-signing-secret"
+                        type="password"
+                        required
+                        autocomplete="off"
+                    /></label>
+                  </div>
+                  <button class="button secondary">Connect app</button>
+                </form>
+              </details>
+            </div>
+            <button id="install-slack" class="button primary" hidden>
+              Install in Slack ↗</button
+            ><button id="verify-slack-identity" class="button primary" hidden>
+              Confirm with Slack ↗
+            </button>
+            <p id="slack-setup-error" class="inline-error" role="alert"></p>
+          </section>
+          <div id="setup-finish" class="setup-panel" hidden>
+            <h2>You’re almost in.</h2>
+            <p>
+              Your memories start private. There’s no separate password or
+              encryption key for your team to remember.
+            </p>
+            <p id="storage-status" class="fine-print"></p>
+            <button id="finish-deployment" class="button primary">
+              Open litemem
+            </button>
+            <p id="finish-error" class="inline-error" role="alert"></p>
+          </div>
+        </div>
+      </section>
+      <section id="setup" class="auth-card" hidden>
+        <p class="eyebrow">Welcome to litemem</p>
+        <h1>Your memory starts here.</h1>
+        <p>
+          Your work is private by default. Your personal agent can organize and
+          answer questions about it. Sign-in and connections use Slack; there’s
+          no separate key to remember.
+        </p>
+        <button id="finish-signup" class="button primary">
+          Create my memory
+        </button>
+        <p id="setup-error" role="alert"></p>
+      </section>
+      <div id="workspace" hidden>
+        <section id="home-view" class="page">
+          <div class="page-heading">
+            <div>
+              <p id="today" class="eyebrow"></p>
+              <h1 id="feed-title">Activity</h1>
+            </div>
+            <button id="add-memory" class="button quiet">
+              <span data-icon="plus"></span> Add memory
+            </button>
+          </div>
+          <form id="home-ask-form" class="home-ask">
+            <label class="sr-only" for="home-question"
+              >Ask about your work</label
+            ><input
+              id="home-question"
+              placeholder="Ask about your work…"
+              autocomplete="off"
+              maxlength="16000"
+            /><button type="submit" class="send-button" aria-label="Ask">
+              <span data-icon="arrow"></span>
+            </button>
+            <p class="ask-privacy">
+              <span data-icon="lock"></span> Your private memories are included.
+            </p>
+          </form>
+          <div class="feed-tools">
+            <div class="segmented" role="group" aria-label="Feed visibility">
+              <button id="mine-tab" class="selected" data-feed="mine">
+                My work <span data-icon="lock"></span></button
+              ><button id="shared-tab" data-feed="shared">Shared</button>
+            </div>
+            <div class="feed-tools-end">
+              <button
+                id="feed-search-button"
+                class="icon-button"
+                aria-label="Search this feed"
+              >
+                <span data-icon="search"></span></button
+              ><button
+                id="filter-button"
+                class="button quiet small"
+                aria-expanded="false"
+                aria-controls="filters"
+              >
+                <span data-icon="filter"></span> Filter
+              </button>
+            </div>
+          </div>
+          <form id="search-form" class="search-form" hidden>
+            <span data-icon="search"></span
+            ><input
+              id="search-query"
+              type="search"
+              placeholder="Search your work, decisions, and ideas"
+              aria-label="Search memories"
+            /><button class="button quiet small" type="submit">Search</button>
+          </form>
+          <div id="filters" class="filters" hidden>
+            <label
+              >Type<select id="filter-kind">
+                <option value="">Any type</option>
+                <option>decision</option>
+                <option>progress</option>
+                <option>finding</option>
+                <option>blocker</option>
+                <option>plan</option>
+              </select></label
+            ><label>From<input id="filter-from" type="date" /></label
+            ><label>Before<input id="filter-before" type="date" /></label
+            ><button id="clear-filters" class="button quiet small">
+              Clear
+            </button>
+          </div>
+          <div class="feed-meta">
+            <span id="feed-caption">Latest first</span
+            ><span id="processing-status" role="status"></span>
+          </div>
+          <p id="page-error" class="inline-error" role="alert" hidden></p>
+          <details id="work-overview" class="work-overview">
+            <summary>Catch up</summary>
+            <p class="muted">
+              Decisions, progress, and open questions, linked to the original work.
+            </p>
+            <form id="overview-form" class="filters">
+              <label
+                >View<select id="overview-kind">
+                  <option value="current">Current work</option>
+                  <option value="daily">Daily catch-up</option>
+                </select></label
+              >
+              <label id="overview-date-label" hidden
+                >Day<input id="overview-day" type="date"
+              /></label>
+              <label
+                >Project<input
+                  id="overview-project"
+                  maxlength="200"
+                  placeholder="All projects"
+              /></label>
+              <button class="button quiet small">Refresh</button>
+            </form>
+            <div id="overview-content" aria-live="polite"></div>
+          </details>
+          <div id="feed" class="feed" aria-live="polite"></div>
+          <button id="load-more" class="button quiet load-more" hidden>
+            Show more
+          </button>
+        </section>
+        <section id="ask-view" class="page ask-page" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Your memory, in conversation</p>
+              <h1>Ask</h1>
+            </div>
+            <button id="new-chat" class="button quiet small">
+              <span data-icon="plus"></span> New conversation
+            </button>
+          </div>
+          <div id="chat-empty" class="chat-empty">
+            <div class="chat-mark" aria-hidden="true">l.</div>
+            <h2>What would you like to know?</h2>
+            <p>
+              Follow a thread. Revisit a decision. Pick up where you left off.
+            </p>
+            <div class="suggestions">
+              <button>What have I been working on this week?</button
+              ><button>What decisions did I make recently?</button>
+            </div>
+          </div>
+          <div id="messages" class="messages" aria-live="polite"></div>
+          <form id="chat-form" class="chat-composer">
+            <label class="sr-only" for="question">Ask a question</label
+            ><textarea
+              id="question"
+              rows="2"
+              maxlength="16000"
+              placeholder="Ask about your work…"
+            ></textarea>
+            <div class="composer-controls">
+              <label class="scope-control"
+                ><span data-icon="lock"></span
+                ><select id="chat-scope" aria-label="Memory scope">
+                  <option value="mine">My memories</option>
+                  <option value="all">All accessible memories</option>
+                  <option value="shared">Shared memories only</option>
+                </select></label
+              >
+              <div class="model-and-send">
+                <label class="sr-only" for="model">LiteLLM model</label
+                ><select id="model" aria-label="LiteLLM model">
+                  <option value="">Loading models…</option></select
+                ><button
+                  id="stop-answer"
+                  type="button"
+                  class="button quiet small"
+                  hidden
+                >
+                  Stop</button
+                ><button
+                  id="send-question"
+                  type="submit"
+                  class="send-button"
+                  aria-label="Send question"
+                >
+                  <span data-icon="arrow"></span>
+                </button>
+              </div>
+            </div>
+            <p id="chat-privacy" class="fine-print">
+              <span data-icon="lock"></span> Visible only to you.
+            </p>
+          </form>
+        </section>
+        <section id="people-view" class="page" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">The people behind the work</p>
+              <h1>People</h1>
+            </div>
+          </div>
+          <p class="muted">See what people have chosen to share.</p>
+          <div id="people-list" class="people-list"></div>
+        </section>
+        <section id="connections-view" class="page" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Bring your work along</p>
+              <h1>Connections</h1>
+            </div>
+          </div>
+          <p class="section-intro">
+            Connect your AI tools to your personal memory. Sign in with Slack
+            when prompted.
+          </p>
+          <div class="connection-instructions">
+            <h2>Your MCP connection</h2>
+            <div class="copy-row">
+              <code id="mcp-url"></code
+              ><button id="copy-mcp" class="button quiet small">
+                Copy URL
+              </button>
+            </div>
+            <h3>Codex</h3>
+            <pre id="codex-command"></pre>
+            <h3>Claude Code</h3>
+            <pre id="claude-command"></pre>
+            <p class="fine-print">
+              MCP provides recording and search tools. Enable capture hooks for
+              continuous recording. Your existing memory connection stays in
+              place until you choose to remove it.
+            </p>
+            <a
+              href="/api/connector/setup"
+              class="text-link"
+              id="capture-setup-link"
+              >Set up continuous capture →</a
+            >
+          </div>
+          <h2 class="section-heading">Connected clients</h2>
+          <div id="connection-list"></div>
+        </section>
+        <section id="settings-view" class="page" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">Make it yours</p>
+              <h1>Settings</h1>
+            </div>
+          </div>
+          <div class="settings-group">
+            <h2>Privacy</h2>
+            <p>
+              Your private memories carry a lock. Shared means visible to your
+              company, never the open internet.
+            </p>
+            <div id="sharing-note" class="quiet-note">
+              <span data-icon="lock"></span> Sharing is off for this rollout.
+              Everything stays private.
+            </div>
+            <form id="sharing-form" hidden>
+              <h3>What may be shared</h3>
+              <p class="muted">
+                Only these types are eligible. If an entry has several types,
+                all must be selected.
+              </p>
+              <fieldset class="type-options">
+                <legend class="sr-only">Shareable memory types</legend>
+                <label
+                  ><input
+                    type="checkbox"
+                    name="sharing-type"
+                    value="progress"
+                  />
+                  Progress</label
+                >
+                <label
+                  ><input
+                    type="checkbox"
+                    name="sharing-type"
+                    value="decision"
+                  />
+                  Decisions</label
+                >
+                <label
+                  ><input type="checkbox" name="sharing-type" value="finding" />
+                  Findings</label
+                >
+                <label
+                  ><input type="checkbox" name="sharing-type" value="blocker" />
+                  Blockers</label
+                >
+                <label
+                  ><input type="checkbox" name="sharing-type" value="plan" />
+                  Plans</label
+                >
+              </fieldset>
+              <label class="setting-row"
+                ><span
+                  ><strong>Share future work automatically</strong
+                  ><small
+                    >Eligible summaries only. Historical imports stay
+                    private.</small
+                  ></span
+                ><input id="auto-share" type="checkbox" role="switch"
+              /></label>
+              <button class="button secondary">Save sharing preferences</button>
+            </form>
+            <div id="workspace-sharing-control" hidden>
+              <label class="setting-row"
+                ><span
+                  ><strong>Company sharing</strong
+                  ><small
+                    >Workspace setting. Each person still controls what they
+                    share.</small
+                  ></span
+                ><input
+                  id="workspace-sharing-enabled"
+                  type="checkbox"
+                  role="switch"
+              /></label>
+            </div>
+            <h3>Keep these topics private</h3>
+            <p class="muted">
+              Describe a topic in plain English. Jev checks existing and future
+              records once per rule. Uncertain matches stay private.
+            </p>
+            <form id="rule-form" class="inline-form">
+              <input
+                id="rule-input"
+                maxlength="1000"
+                placeholder="For example, personal finances or customer details"
+                aria-label="Private topic"
+                required
+              /><button class="button secondary">Add rule</button>
+            </form>
+            <div id="rule-list"></div>
+          </div>
+          <div class="settings-group">
+            <h2>Recording & processing</h2>
+            <label class="setting-row"
+              ><span
+                ><strong>Record new work</strong
+                ><small
+                  >Pause capture without deleting your history.</small
+                ></span
+              ><input
+                id="capture-enabled"
+                type="checkbox"
+                role="switch" /></label
+            ><label class="setting-row"
+              ><span
+                ><strong>Personal agent access</strong
+                ><small
+                  >Allow your agent to organize and answer questions about your
+                  records.</small
+                ></span
+              ><input id="agent-enabled" type="checkbox" role="switch"
+            /></label>
+            <div class="setting-row">
+              <span id="processing-summary"></span
+              ><button id="retry-processing" class="button quiet small">
+                Retry failed items
+              </button>
+            </div>
+          </div>
+          <div id="model-settings" class="settings-group" hidden>
+            <h2>Models</h2>
+            <p>
+              All models run through your LiteLLM gateway. Slack and background
+              work use the default agent unless you choose another model.
+            </p>
+            <form id="model-settings-form">
+              <div class="model-grid">
+                <label
+                  >Default agent<select
+                    id="setting-agent_model"
+                    required
+                  ></select></label
+                ><label
+                  >Embeddings<select
+                    id="setting-embedding_model"
+                    required
+                  ></select></label
+                ><label
+                  >Slack agent<select id="setting-slack_model"></select></label
+                ><label
+                  >Background work<select id="setting-background_model"></select
+                ></label>
+              </div>
+              <details class="advanced">
+                <summary>Classification</summary>
+                <label
+                  >TypeSafe Jev model<input
+                    id="setting-classifier_model"
+                    value="jev-latest"
+                    maxlength="200"
+                    required
+                /></label>
+                <p class="fine-print">
+                  Jev is required and is checked through your gateway before
+                  saving. Changing it queues a fresh classification pass.
+                </p>
+              </details>
+              <div class="form-footer">
+                <button class="button secondary" id="save-models">
+                  Check &amp; save models</button
+                ><span id="model-settings-status" role="status"></span>
+              </div>
+            </form>
+            <button id="reload-models" class="button quiet small">
+              Refresh available models
+            </button>
+          </div>
+          <div class="settings-group">
+            <h2>Your data</h2>
+            <div class="setting-row">
+              <span
+                ><strong>Export your memories</strong
+                ><small
+                  >Download your records and original evidence as a readable
+                  JSONL file.</small
+                ></span
+              ><button id="export-data" class="button secondary">Export</button>
+            </div>
+            <div class="setting-row">
+              <span
+                ><strong>Leave this workspace</strong
+                ><small
+                  >Revoke your connections and agent access. Export first if you
+                  want a copy.</small
+                ></span
+              ><button id="leave-workspace" class="button quiet danger">
+                Leave
+              </button>
+            </div>
+          </div>
+          <button id="sign-out" class="button quiet">Sign out</button>
+        </section>
+      </div>
+    </main>
+    <footer class="footer">
+      <span>litemem</span
+      ><span
+        >LiteLLM Labs <span aria-hidden="true">·</span> Built with Ente &
+        LiteLLM</span
+      >
+    </footer>
+    <dialog id="source-dialog" class="source-dialog">
+      <div class="dialog-top">
+        <span id="source-visibility"></span
+        ><button
+          id="close-source"
+          class="icon-button"
+          aria-label="Close memory"
+        >
+          ×
+        </button>
+      </div>
+      <div id="source-body"></div>
+      <div id="source-actions" class="dialog-actions"></div>
+    </dialog>
+    <dialog id="capture-dialog" class="capture-dialog">
+      <div class="dialog-top">
+        <h2>Add a memory</h2>
+        <button id="close-capture" class="icon-button" aria-label="Close">
+          ×
+        </button>
+      </div>
+      <form id="capture-form">
+        <label
+          >Title<input
+            id="capture-title"
+            maxlength="300"
+            placeholder="What happened?" /></label
+        ><label
+          >Memory<textarea
+            id="capture-content"
+            rows="8"
+            maxlength="200000"
+            required
+            placeholder="A decision, an update, a finding. Keep the context that matters."
+          ></textarea>
+        </label>
+        <div class="dialog-actions">
+          <span class="privacy private"
+            ><span data-icon="lock"></span> Private</span
+          ><button class="button primary">Save memory</button>
+        </div>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <div id="announce" class="sr-only" aria-live="polite"></div>
+  </body>
+</html>

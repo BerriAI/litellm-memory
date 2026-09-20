@@ -1,0 +1,41 @@
+name: Verify litemem
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.9"
+          python-version: "3.12"
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run pytest -q
+      - run: node --check static/memory.js && node --check static/setup.js
+  portable-deployment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      POSTGRES_PASSWORD: ci_disposable_database_only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start the documented stack
+        run: docker compose up --build --wait --wait-timeout 240 -d
+      - name: Verify encrypted storage, bootstrap hardening, and setup access
+        run: docker compose exec -T litemem python - < tests/smoke_bundle.py
+      - name: Restart and verify persistent state
+        run: |
+          docker compose restart litemem
+          docker compose up --wait --wait-timeout 180 -d
+          docker compose exec -T litemem python - < tests/smoke_bundle.py
+      - name: Show content-free service status
+        if: always()
+        run: docker compose ps
+      - name: Remove disposable CI resources
+        if: always()
+        run: docker compose down -v

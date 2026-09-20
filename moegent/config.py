@@ -14,10 +14,24 @@ class Settings(BaseSettings):
     litellm_api_key: str = ""
     litellm_model: str = "gpt-5.6-luna-priority"
     litellm_search_tool: str = ""
+    background_model: str = "gpt-5.6-luna-priority"
+    slack_model: str = ""
+    model_config_revision: int = 1
+    jev_path: str = "/typesafe/v1/systemone"
+    jev_model: str = "jev-latest"
+    jev_concurrency: int = Field(default=8, ge=1, le=64)
+    model_catalog_ttl: int = Field(default=300, ge=0)
+    registration_mode: Literal["owner_only", "domain"] = "domain"
+    allowed_email_domain: str = "berri.ai"
+    sharing_enabled: bool = False
+    ente_base_url: str = ""
+    ente_auth_token: str = ""
+    vault_wrapping_key: str = ""
     public_base_url: str = "http://localhost:8000"
     access_mode: Literal["public", "allowlist"] = "public"
     allowed_slack_users: str = ""  # comma-separated TEAM_ID:USER_ID pairs
     session_secret: str = ""
+    setup_code: str = ""
     state_dir: Path = ROOT / ".state"
     memory_repo: str = "BerriAI/product-team-knowledge"
     memory_allowed_actors: str = Field(default="moe-berri", min_length=1)

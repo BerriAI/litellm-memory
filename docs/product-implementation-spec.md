@@ -16,7 +16,7 @@ This document incorporates the full product discussion and replaces earlier prod
 | Deployment | One-click infrastructure deployment on Render, followed by guided web setup. The same application is deployable on other Docker-capable hosts. |
 | Identity | Slack-only member sign-in. For Berri: the configured workspace and a verified `berri.ai` email. No separate member password or memory key to remember. |
 | Models | The only inference connection is a LiteLLM URL and key. Discover models there; show whether TypeSafe/Jev is accessible. Jev is required for this version. Admin chooses embedding and default web models; Slack initially inherits the web default and can have its own model. |
-| Background work | Luna for extraction, maintenance and daily summaries. Jev/TypeSafe for typed classification. All model traffic goes through LiteLLM. |
+| Background work | Configurable background model for extraction, maintenance and daily summaries; inherits the default agent unless overridden. Jev/TypeSafe for typed classification. All model traffic goes through LiteLLM. |
 | Memory | Preserve original evidence; derive concise work entries and rebuildable current views. Maintain metadata, attribution, time and corrections. |
 | Capture and retrieval | Capture continuously through supported client hooks. Retrieve when explicitly asked; never silently search on every coding turn. |
 | Privacy | Private or company-public. Own private memories are accessible in the web app and verified personal Slack DMs. Shared Slack answers use company-public material only. |
@@ -51,7 +51,7 @@ One click provisions infrastructure; supplying credentials and approving Slack a
 | --- | --- | --- | --- |
 | Claim installation | One-use setup code from the deployment's private settings | Installation unclaimed; code valid; limited lifetime/session; rate limit | Temporary setup-only session |
 | Connect gateway | Base URL, secret key | Connectivity, authentication, authorized model catalog; safe error messages | Encrypted saved connection and catalog |
-| Choose models | Embedding route, default agent route | Real harmless embedding request; tool-capable chat request; background Luna and Jev route checks | Validated, versioned model configuration |
+| Choose models | Embedding route, default agent route | Real harmless embedding request; tool-capable chat request; background generation and Jev route checks | Validated, versioned model configuration |
 | Connect Slack | Create new or connect existing app; Slack agent model | Credentials, redirect URLs, signed events, OAuth install identity/scopes | Workspace-bound installation and bot |
 | Finish | Confirm verified admin/workspace/domain and private defaults | Storage round trip, required gateway capabilities, processing readiness, identity match | Atomic transition to configured installation |
 
@@ -77,14 +77,14 @@ Detect Jev through a small actual typed probe on the gateway's TypeSafe route, n
 
 | Setting | Selected by | Initial value | Effect of changing it |
 | --- | --- | --- | --- |
-| `embedding_model` | Workspace admin | Required choice from eligible gateway routes | Creates a new index generation and resumable re-embedding job |
-| `default_agent_model` | Workspace admin | Required tested chat/tool route | Default for new web conversations and inherited Slack setting |
+| `embedding_model` | Workspace admin | Automatically chosen eligible embedding route; editable in Settings | Creates a new index generation and resumable re-embedding job |
+| `default_agent_model` | Workspace admin | Automatically chosen available chat/tool route; validated before activation | Default for new web conversations and inherited Slack setting |
 | `slack_agent_model` | Workspace admin in Slack setup/settings | Inherit `default_agent_model` | Used by new Slack runs; no app reinstall |
 | Web conversation model | Member | Workspace default | Applies to subsequent requests in that conversation, within allowed routes |
-| `background_model` | Deployment/admin advanced settings | Luna route; existing installation uses `gpt-5.6-luna-priority` | New extraction/daily jobs use the new explicit configuration version |
-| Classifier | Automatically checked on the same gateway | Required TypeSafe Jev integration | Explicit classifier-version migration; never routine reclassification on reads |
+| `background_model` | Workspace admin in Settings | Inherit `default_agent_model`; current gateway preference is Luna when available | New extraction/daily jobs use the new explicit configuration version |
+| Classifier | Workspace admin in Settings; automatically checked | Required TypeSafe Jev integration, default alias `jev-latest` | Explicit classifier-version migration; never routine reclassification on reads |
 
-Automation remains Luna for this build. On another gateway, the administrator maps the Luna role to its actual route alias if the default alias is unavailable. Do not infer equivalence merely from a similar model name. Model defaults are deployment settings, not provider credentials embedded in the browser or repository.
+Every model role is configurable in Settings, including background work and the Jev alias. Initial setup chooses sensible available defaults; Slack and background work inherit the default agent unless overridden. Embeddings and TypeSafe Jev retain separate capability requirements. This supersedes the earlier fixed-Luna automation requirement. Never silently replace a previously selected unavailable model. Model defaults are deployment settings, not provider credentials embedded in the browser or repository.
 
 ### 3.2 Catalog and validation
 
@@ -221,7 +221,7 @@ Run a bounded pipeline:
 
 1. Persist original evidence and an intake receipt.
 2. Group related events into an activity; expose original text for owner search.
-3. Use Luna to extract/update a concise work entry with explicit evidence references.
+3. Use the configured background model to extract/update a concise work entry with explicit evidence references.
 4. Validate typed output, attribution, supported status changes and reference existence.
 5. Evaluate missing Jev criteria on the relevant original and candidate material.
 6. Create embeddings and update encrypted search material for the correct index generation.
@@ -305,7 +305,7 @@ A search request contains search intent. Opening a page may load its permitted f
 
 Continuous processing makes current entries available; daily jobs organize what changed over a longer horizon. Do not wait for the daily job to make a new event searchable, and do not make a daily digest the only long-term record.
 
-At the scheduled workspace time, create at most one job per owner/project/audience/day/input generation. Use Luna to refresh affected current views, connect ongoing work, surface supported status changes, assemble decision history and prepare a catch-up summary. No new relevant evidence means no rewrite. Missed scheduled runs coalesce into a current refresh rather than flooding the system with duplicate digests.
+At the scheduled workspace time, create at most one job per owner/project/audience/day/input generation. Use the configured background model to refresh affected current views, connect ongoing work, surface supported status changes, assemble decision history and prepare a catch-up summary. No new relevant evidence means no rewrite. Missed scheduled runs coalesce into a current refresh rather than flooding the system with duplicate digests.
 
 Maintain separate private and public views with source manifests. A person's private view uses their permitted private work; a company view uses only company-public inputs. New evidence marks a view stale immediately. The UI shows last included work time, refresh time and incomplete processing coverage.
 
@@ -448,7 +448,7 @@ Provide an optional documented developer-token route for API development, scoped
 
 Use Pydantic validation for schemas and model outputs, and optional Pydantic Logfire instrumentation for operational visibility. Retaining the existing agent SDK is acceptable; observability does not require replacing the agent framework. Core operation must work without a paid telemetry account. Logfire can export to an OpenTelemetry-compatible backend; disable export to its hosted service unless explicitly configured. [Logfire alternative backends](https://logfire.pydantic.dev/docs/how-to-guides/alternative-backends/)
 
-All inference uses the configured gateway, including setup probes, Luna, Jev, embeddings and interactive models. Use endpoint-appropriate no-log controls and verify their behavior in the deployed version. LiteLLM documents `no-log` and request message redaction, but gateway configuration can disable the no-log parameter; TypeSafe pass-through behavior must be checked separately. Do not infer no-log compliance solely from HTTP 200. [LiteLLM logging controls](https://docs.litellm.ai/docs/proxy/logging)
+All inference uses the configured gateway, including setup probes, background generation, Jev, embeddings and interactive models. Use endpoint-appropriate no-log controls and verify their behavior in the deployed version. LiteLLM documents `no-log` and request message redaction, but gateway configuration can disable the no-log parameter; TypeSafe pass-through behavior must be checked separately. Do not infer no-log compliance solely from HTTP 200. [LiteLLM logging controls](https://docs.litellm.ai/docs/proxy/logging)
 
 Instrument opaque correlation IDs, operation/stage, duration, sanitized status, retry count, model route and reported usage. Do not emit prompts, answers, source text, private titles, semantic rules, tool arguments/results, credentials, full URLs with sensitive parameters or provider exception bodies. Disable SDK content tracing and sensitive auto-instrumentation, not just UI display of collected traces. Logfire's own guidance recommends excluding LLM content rather than relying on scrubbing. [Logfire sensitive-data guidance](https://logfire.pydantic.dev/docs/how-to-guides/scrubbing/)
 
@@ -496,9 +496,9 @@ These packages are ordered by dependency. Implement and verify the complete set;
 | B. Ente and key custody | Pinned bootstrap helper; live entity adapter; encryption interoperability; per-owner keys; durable intake reconciliation; rotation/restore | `crypto.py`, `ente.py`, `archive.py`; deployment packaging | Actual encrypted round trip and restart; tampering/owner-swap failure; bootstrap credentials removed; no plaintext persistence |
 | C. Domain and authorization | Separate evidence/work/publication/view objects; revisions and source manifests; policy generations; uniform reader/audience service | Extend `archive.py`; schema migrations; publication/policy modules | Owner/workspace/publication boundaries tested across every read path, including facets/citations |
 | D. Capture and remote MCP | Host-specific incremental hooks; encrypted outbox; resource-bound OAuth/token lifecycle; API versioning; connection health | `mcp_api.py`, `oauth.py`, connector package and setup download/installer | Actual supported Codex and Claude Code capture/query flows; no automatic recall; duplicate/replay/pause/revoke tests |
-| E. Processing and Jev | Durable leased jobs; per-chunk/per-criterion cache; Luna extraction; live/backfill priorities; publication checks | `processing.py`, gateway adapter, job schema | Real Jev through gateway; no duplicate completed inference; retry/partial failure and live-capacity proof |
+| E. Processing and Jev | Durable leased jobs; per-chunk/per-criterion cache; background extraction; live/backfill priorities; publication checks | `processing.py`, gateway adapter, job schema | Real Jev through gateway; no duplicate completed inference; retry/partial failure and live-capacity proof |
 | F. Search and agent | Bounded encrypted indexes; model-generation matching; hybrid retrieval; server-owned conversations; citations; streaming/cancellation and policy invalidation | `query.py`, `query_worker.py`, search/index services | Reviewed work-history questions, exact/semantic baselines, source attribution and mid-run revocation tests |
-| G. History and views | Legacy/session import manifests; original bytes/dates; resumable reconciliation; current person/project views and daily Luna jobs | Importer, synthesis/scheduler, current-view APIs | Moe-only history imported/reconciled; no duplicate or current-day flood; fresh queries include post-digest changes |
+| G. History and views | Legacy/session import manifests; original bytes/dates; resumable reconciliation; current person/project views and daily background jobs | Importer, synthesis/scheduler, current-view APIs | Moe-only history imported/reconciled; no duplicate or current-day flood; fresh queries include post-digest changes |
 | H. Complete product UI | Home Ask/feed; People and projects; private locks; memory/source/revision views; preferences, sharing preview, connections and admin | `static/memory.*` or equivalent frontend components | Real API-backed browser flows, mobile/keyboard/accessibility review; no placeholder actions |
 | I. Slack | Guided creation/reconnect, separate model setting, current audience checks, installed scopes and preserved conversation behavior | `scripts/slack_manifest.py`, `memory_slack.py`, Slack adapter/settings | Owner DM and synthetic shared/external audience tests; signature/dedup/steering/cancel behavior; no new enrollments/publications |
 | J. Lifecycle and operations | Encrypted portable transfer; explicit plaintext export; deletion retry; departure/reconciliation; quotas; sanitized telemetry and diagnostics | Lifecycle services, settings, storage and Logfire adapter | Export/import round trip, deletion-aware restore, expired/revoked grants, telemetry canaries |
