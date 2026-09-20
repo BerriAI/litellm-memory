@@ -11,3 +11,5 @@ dialog{border:1px solid #dedee7;box-shadow:0 20px 90px #1c1d3126;border-radius:1
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
 
 .source-card+.source-card{border-top:1px solid var(--line);margin-top:30px;padding-top:26px}.source-evidence summary{cursor:pointer;color:var(--text);font-weight:500}.source-evidence details[open] summary{margin-bottom:12px}.source-evidence p{overflow-wrap:anywhere}
+
+img.logo,.answer-heading img.avatar{object-fit:cover;padding:0;flex-shrink:0}.auth-page{min-height:100dvh;display:grid;place-items:center;padding:28px}.auth-card{width:100%;max-width:400px}.auth-card .brand{margin-bottom:38px}.auth-card h1{font-size:25px;line-height:1.25;letter-spacing:-.6px;margin:0 0 14px}.auth-card p{color:var(--muted);line-height:1.65;margin:0 0 25px}

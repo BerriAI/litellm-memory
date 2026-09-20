@@ -3,8 +3,9 @@ import contextlib
 import json
 import secrets
 from contextlib import asynccontextmanager
+from html import escape
 from typing import Literal
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 from uuid import UUID
 
 import httpx
@@ -79,11 +80,33 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
     app.state.store, app.state.slack, app.state.settings = store, slack, settings
     app.add_middleware(SessionMiddleware, secret_key=settings.session_secret, session_cookie="moegent_session",
                        same_site="none" if settings.secure_cookies else "lax", https_only=settings.secure_cookies)
-    app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
     oauth = OAuth()
     oauth.register("slack", client_id=settings.slack_client_id, client_secret=settings.slack_client_secret,
                    server_metadata_url="https://slack.com/.well-known/openid-configuration",
                    client_kwargs={"scope": "openid profile"})
+    app.state.oauth = oauth
+
+    def return_path(value):
+        # Only app pages can be OAuth return destinations, never external URLs or auth routes.
+        if any(ord(char) < 32 for char in value) or "\\" in value or value.startswith("//"):
+            return "/"
+        try:
+            parsed = urlsplit(value)
+        except ValueError:
+            return "/"
+        if parsed.scheme or parsed.netloc:
+            return "/"
+        if parsed.path in {"/", "/sources"} or parsed.path.startswith("/memory/"):
+            return value
+        return "/"
+
+    def auth_page(title, message, status_code=200, next_path="/"):
+        template = (ROOT / "static/auth.html").read_text()
+        values = {"TITLE": title, "MESSAGE": message,
+                  "LOGIN_URL": "/auth/slack?" + urlencode({"next": return_path(next_path)})}
+        for key, value in values.items():
+            template = template.replace("{{" + key + "}}", escape(value, quote=True))
+        return HTMLResponse(template, status_code=status_code, headers={"Cache-Control": "no-store"})
 
     def principal(request):
         data = request.session.get("principal", {})
@@ -108,8 +131,20 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
         return {"status": "ok", "name": "Moegent"}
 
     @app.get("/")
-    async def index():
-        return FileResponse(ROOT / "static/index.html", headers={"Cache-Control": "no-cache"})
+    @app.get("/static/index.html", include_in_schema=False)
+    @app.get("/sources")
+    @app.get("/memory/{memory_id}")
+    async def index(request: Request):
+        try:
+            authorize(request)
+        except HTTPException as exc:
+            target = return_path(request.url.path + ("?" + request.url.query if request.url.query else ""))
+            if exc.status_code == 401:
+                return RedirectResponse("/auth/slack?" + urlencode({"next": target}), status_code=303,
+                                        headers={"Cache-Control": "no-store"})
+            return auth_page("This account doesn’t have access", "Sign in with an approved Slack account.",
+                             status_code=403, next_path=target)
+        return FileResponse(ROOT / "static/index.html", headers={"Cache-Control": "no-store"})
 
     @app.get("/api/config")
     async def config(request: Request):
@@ -173,20 +208,6 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
         authorize(request)
         return await call_memory("memory_read", {"id": memory_id})
 
-    @app.get("/sources")
-    async def sources_page(request: Request):
-        return await memory_page("", request)
-
-    @app.get("/memory/{memory_id}")
-    async def memory_page(memory_id: str, request: Request):
-        try:
-            authorize(request)
-        except HTTPException as exc:
-            if exc.status_code == 401:
-                return RedirectResponse("/auth/slack")
-            raise
-        return FileResponse(ROOT / "static/index.html", headers={"Cache-Control": "no-cache"})
-
     @app.post("/slack/events")
     async def events(request: Request):
         raw = await request.body()
@@ -207,11 +228,20 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
     @app.get("/auth/slack")
     async def login(request: Request):
         if not settings.slack_client_id:
-            raise HTTPException(503, "Slack sign-in is not configured")
-        return await oauth.slack.authorize_redirect(request, settings.public_base_url + "/auth/slack/callback")
+            return auth_page("Sign-in is unavailable", "Slack sign-in hasn’t been configured yet.", 503)
+        request.session["login_next"] = return_path(request.query_params.get("next", "/"))
+        try:
+            return await oauth.slack.authorize_redirect(
+                request, settings.public_base_url + "/auth/slack/callback",
+                team=settings.slack_team_id, response_mode="form_post",
+            )
+        except Exception:
+            return auth_page("Couldn’t connect to Slack", "Try signing in again in a moment.", 503,
+                             request.session.get("login_next", "/"))
 
     @app.api_route("/auth/slack/callback", methods=["GET", "POST"])
     async def login_callback(request: Request):
+        target = return_path(request.session.get("login_next", "/"))
         try:
             token = await oauth.slack.authorize_access_token(request)
             info = token["userinfo"]
@@ -220,13 +250,22 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
             user = Principal("web", user_id, team_id)
             policy.authorize(user)
         except HTTPException:
-            raise
+            request.session.clear()
+            return auth_page("This account doesn’t have access",
+                             "Moegent is available to Moe, Tin, Krrish, and Ishaan. Switch to your approved account in Slack, then try again.",
+                             403, target)
         except Exception:
-            raise HTTPException(401, "Slack sign-in failed") from None
+            request.session.clear()
+            return auth_page("Sign-in wasn’t completed", "The sign-in was cancelled or expired. Try again.",
+                             401, target)
         request.session.clear()
         request.session.update({"principal": {"user_id": user_id, "team_id": team_id},
                                 "browser_id": secrets.token_urlsafe(24)})
-        return RedirectResponse("/", status_code=303)
+        return RedirectResponse(target, status_code=303, headers={"Cache-Control": "no-store"})
+
+    @app.get("/auth/signed-out")
+    async def signed_out():
+        return auth_page("You’re signed out", "Sign in with Slack to use Moegent.")
 
     @app.post("/auth/logout")
     async def logout(request: Request):
@@ -258,6 +297,7 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
         await store.setting("slack_scopes", data.get("scope", ""))
         return RedirectResponse("/?slack=connected", status_code=303)
 
+    app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
     return app
 
 

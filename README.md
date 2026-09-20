@@ -38,8 +38,14 @@ GitHub actor is the uploader, not necessarily the speaker. Citations open readab
 
 ## Slack and access
 
-The initial `ACCESS_MODE=public` permits anyone with the web URL, and anyone in approved Slack channels or DMs,
-to ask questions. To enable an allowlist, set `ACCESS_MODE=allowlist` and `ALLOWED_SLACK_USERS=T123:U123,T123:U456`.
+The Render blueprint uses `ACCESS_MODE=allowlist`. Set `ALLOWED_SLACK_USERS=T123:U123,T123:U456`
+to exact workspace/member pairs. The same gate protects web chat, sources, search, and Slack requests.
+The deployed allowlist is Moe, Tin, Krrish, and Ishaan. Only Moe can activate channels.
+
+Web pages redirect to Slack sign-in automatically and return to the requested source or page afterward.
+The workspace hint reuses Slack’s existing session and consent where available. A first visit may need consent.
+Sign out from the History dialog to clear the local session and conversation history.
+`ACCESS_MODE=public` is still available as an explicit configuration choice.
 Slack events provide verified workspace/user IDs; web users sign in through Slack OIDC. The same server policy
 guards chat, job access, search, and memory reads. A deployment-level provenance boundary restricts every caller to captures by `MEMORY_ALLOWED_ACTORS=moe-berri`. Consolidated notes are included only when all original sources belong to Moe. Mixed or unknown provenance is excluded. Search filters and direct reads cannot bypass this boundary. Per-caller memory scopes are not implemented yet.
 

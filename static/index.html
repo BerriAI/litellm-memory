@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffffff">
   <title>Moegent</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23292a2d'/%3E%3Ctext x='6' y='23' font-family='Arial' font-size='24' fill='white'%3Em%3C/text%3E%3C/svg%3E">
-  <link rel="stylesheet" href="/static/style.css?v=2">
-  <script type="module" src="/static/app.js?v=2"></script>
+  <link rel="icon" href="/static/moegent-icon.jpg">
+  <link rel="stylesheet" href="/static/style.css?v=3">
+  <script type="module" src="/static/app.js?v=3"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="app-header">
-    <a class="brand" href="#chat" aria-label="Moegent home"><span class="logo" aria-hidden="true">m</span>Moegent</a>
+    <a class="brand" href="#chat" aria-label="Moegent home"><img class="logo" src="/static/moegent-icon.jpg" alt="">Moegent</a>
     <nav aria-label="Main navigation">
       <button id="chat-tab" class="nav-button active" aria-current="page">Chat</button>
       <button id="memories-tab" class="nav-button">Memories</button>
@@ -83,6 +83,7 @@
   <dialog id="history-dialog" class="history-dialog" aria-labelledby="history-title">
     <div class="dialog-top"><h2 id="history-title">History</h2><button id="close-history" class="icon-button" aria-label="Close history">×</button></div>
     <div id="history-list" class="history-list"></div>
+    <div id="account-actions" class="dialog-bottom" hidden><button id="logout" class="button quiet">Sign out of Moegent</button></div>
   </dialog>
   <div id="toast" class="toast" role="status" hidden></div>
   <div id="announcement" class="sr-only" aria-live="polite"></div>

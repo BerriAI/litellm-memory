@@ -14,7 +14,9 @@ services:
       - key: STATE_DIR
         value: /data
       - key: ACCESS_MODE
-        value: public
+        value: allowlist
+      - key: ALLOWED_SLACK_USERS
+        sync: false
       - key: MEMORY_ALLOWED_ACTORS
         value: moe-berri
       - key: LITELLM_MODEL

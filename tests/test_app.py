@@ -1,8 +1,12 @@
 import json
 import time
+from base64 import b64encode
+from unittest.mock import AsyncMock
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
+from itsdangerous import TimestampSigner
 from slack_sdk.signature import SignatureVerifier
 
 from moegent.app import create_app
@@ -83,6 +87,89 @@ def test_slack_dedupe_and_public_vs_allowlist(tmp_path):
         assert client.post("/api/memories/search", json={"query": "team"}).status_code == 401
         # Query parameters cannot impersonate a signed-in Slack user.
         assert client.post("/api/chat?user_id=UOWNER&team_id=T1", json={"question": "hello"}).status_code == 401
+
+
+def sign_in(client, user_id, team_id="T1"):
+    session = {"principal": {"user_id": user_id, "team_id": team_id}, "browser_id": "test-browser"}
+    cookie = TimestampSigner("test-only").sign(b64encode(json.dumps(session).encode())).decode()
+    client.cookies.set("moegent_session", cookie)
+
+
+@pytest.mark.parametrize("user", ["UOWNER", "UTIN", "UKRRISH", "UISHAAN", "UOTHER"])
+def test_same_four_person_gate_for_web_and_slack(tmp_path, user):
+    allowed = ["UOWNER", "UTIN", "UKRRISH", "UISHAAN"]
+    app = create_app(config(tmp_path, access_mode="allowlist",
+                            allowed_slack_users=",".join("T1:" + u for u in allowed)), start_worker=False)
+    with TestClient(app) as client:
+        sign_in(client, user)
+        expected = 202 if user in allowed else 403
+        assert client.post("/api/chat", json={"question": "hello"}).status_code == expected
+        assert client.get("/", follow_redirects=False).status_code == (200 if user in allowed else 403)
+        if user in allowed:
+            assert client.portal.call(app.state.store.next_job)["kind"] == "web"
+        signed_event(client, {"type": "message", "user": user, "channel": "D1",
+                              "text": "hello", "ts": "10"})
+        job = client.portal.call(app.state.store.next_job)
+        assert bool(job) == (user in allowed)
+        if job:
+            assert client.portal.call(app.state.slack.permitted, job["payload"])
+        # Approval to ask does not grant permission to activate a channel.
+        signed_event(client, {"type": "member_joined_channel", "user": "UBOT", "channel": "C1",
+                              "inviter": user, "event_ts": "12"}, "Ev-invite")
+        assert client.portal.call(app.state.store.channel_allowed, "T1", "C1") == (user == "UOWNER")
+        # An identical user ID in another workspace never passes.
+        client.cookies.clear()
+        sign_in(client, user, "TOTHER")
+        assert client.post("/api/chat", json={"question": "hello"}).status_code == 403
+
+
+def test_web_pages_require_login_and_preserve_source_target(tmp_path):
+    app = create_app(config(tmp_path, access_mode="allowlist"), start_worker=False)
+    with TestClient(app) as client:
+        for path in ["/", "/sources?ids=one,two", "/memory/example", "/static/index.html"]:
+            response = client.get(path, follow_redirects=False)
+            assert response.status_code == 303
+            target = parse_qs(urlsplit(response.headers["location"]).query)["next"][0]
+            assert target == ("/" if path.startswith("/static") else path)
+            assert response.headers["cache-control"] == "no-store"
+        assert client.get("/health").status_code == 200
+        assert client.get("/static/moegent-icon.jpg").status_code == 200
+        assert client.get("/api/jobs/example").status_code == 401
+        assert client.post("/api/jobs/example/cancel").status_code == 401
+
+
+def test_slack_oidc_workspace_hint_and_callback(tmp_path, monkeypatch):
+    from starlette.responses import RedirectResponse
+
+    app = create_app(config(tmp_path, access_mode="allowlist", allowed_slack_users="T1:UOWNER",
+                            slack_client_id="client", slack_client_secret="secret"), start_worker=False)
+    slack = app.state.oauth.slack
+    redirect = AsyncMock(return_value=RedirectResponse("https://slack.com/openid/connect/authorize"))
+    token = AsyncMock(return_value={"userinfo": {"sub": "UOWNER", "https://slack.com/team_id": "T1"}})
+    monkeypatch.setattr(slack, "authorize_redirect", redirect)
+    monkeypatch.setattr(slack, "authorize_access_token", token)
+    with TestClient(app) as client:
+        client.get("/auth/slack", params={"next": "/sources?ids=one,two"}, follow_redirects=False)
+        assert redirect.call_args.kwargs == {"team": "T1", "response_mode": "form_post"}
+        callback = client.post("/auth/slack/callback", follow_redirects=False)
+        assert callback.status_code == 303
+        assert callback.headers["location"] == "/sources?ids=one,two"
+        assert client.post("/api/chat", json={"question": "hello"}).status_code == 202
+        assert client.post("/auth/logout").status_code == 200
+        assert client.post("/api/chat", json={"question": "hello"}).status_code == 401
+        for target in ["https://evil.example", "//evil.example", "/\\evil.example", "/auth/slack", "/\nevil"]:
+            client.get("/auth/slack", params={"next": target}, follow_redirects=False)
+            assert client.get("/auth/slack/callback", follow_redirects=False).headers["location"] == "/"
+        token.return_value = {"userinfo": {"sub": "UOTHER", "https://slack.com/team_id": "T1"}}
+        denied = client.post("/auth/slack/callback")
+        assert denied.status_code == 403
+        assert "This account doesn’t have access" in denied.text
+        assert "Sign in with Slack" in denied.text
+        assert client.post("/api/chat", json={"question": "hello"}).status_code == 401
+        token.side_effect = ValueError("invalid state")
+        expired = client.get("/auth/slack/callback")
+        assert expired.status_code == 401
+        assert "cancelled or expired" in expired.text
 
 
 def test_web_queue_session_isolation_validation_and_origin(tmp_path):

@@ -100,7 +100,8 @@ function renderChat() {
     if (m.role === 'user') { const article = el('article','message user'); article.append(el('div','user-bubble',m.content)); $('messages').append(article); }
     else {
       const article = el('article','message assistant'); const heading = el('div','answer-heading');
-      heading.append(el('span','avatar','m'), document.createTextNode('Moegent'));
+      const avatar = el('img','avatar'); avatar.src = '/static/moegent-icon.jpg'; avatar.alt = '';
+      heading.append(avatar, document.createTextNode('Moegent'));
       const status = el('div','working'); const content = el('div','answer-content'); const actions = el('div','answer-actions');
       article.append(heading,status,content,actions); $('messages').append(article);
       renderedAnswers.set(m.id,{article,status,content,actions,text:null,state:null,phase:null}); updateAnswer(chat,m);
@@ -380,8 +381,18 @@ if (sourcePath) openSources([sourcePath[1]]);
 else if (location.pathname === '/sources') openSources((new URLSearchParams(location.search).get('ids') || '').split(','));
 else if (location.hash === '#memories') showView('memories');
 api('/api/config').then(config => {
+  $('account-actions').hidden = !config.signed_in;
   $('login').hidden = !config.login_available || config.signed_in || config.access_mode === 'public';
   if (config.slack_installed && new URLSearchParams(location.search).get('slack') === 'connected') { toast('Moegent is connected to Slack.'); history.replaceState(null,'','/'); }
   if (config.access_mode === 'allowlist' && !config.signed_in) { $('connection').hidden = false; $('connection').replaceChildren(document.createTextNode('Sign in with Slack to ask questions. ')); const a = el('a','','Sign in'); a.href = '/auth/slack'; $('connection').append(a); }
   for (const chat of chats) for (const m of chat.messages) if (m.state === 'pending') execute(chat,m);
 }).catch(error => { $('connection').hidden = false; $('connection').textContent = error.message; });
+
+$('logout').onclick = async () => {
+  $('logout').disabled = true;
+  try {
+    await api('/auth/logout', {method:'POST'});
+    try { localStorage.removeItem(STORAGE); localStorage.removeItem(STORAGE + '.current'); } catch {}
+    location.replace('/auth/signed-out');
+  } catch (error) { toast(error.message); $('logout').disabled = false; }
+};
