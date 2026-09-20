@@ -1,6 +1,8 @@
-# Moegent
+# litemem
 
-A Slack and web research assistant for Moe’s own captured memories.
+A LiteLLM Labs product. Query your work memories on the web or through **@litemem** in Slack.
+
+This repository is evolving from the original personal assistant into an encrypted work-memory service built with Ente and LiteLLM. The instructions below currently describe the existing running assistant; the new service is still being integrated.
 
 OpenAI Agents SDK for Python runs the tool loop. All chat and embedding inference goes through LiteLLM;
 the default routes are `gpt-5.6-luna-priority` and `gemini/gemini-embedding-001`. FastAPI serves the chat,
@@ -50,11 +52,11 @@ Slack events provide verified workspace/user IDs; web users sign in through Slac
 guards chat, job access, search, and memory reads. A deployment-level provenance boundary restricts every caller to captures by `MEMORY_ALLOWED_ACTORS=moe-berri`. Consolidated notes are included only when all original sources belong to Moe. Mixed or unknown provenance is excluded. Search filters and direct reads cannot bypass this boundary. Per-caller memory scopes are not implemented yet.
 
 Only `SLACK_OWNER_USER_ID` in `SLACK_TEAM_ID` can activate channel access. Slack does not prevent someone else
-from clicking Invite. Moegent verifies the bot's `member_joined_channel.inviter`, persists approval, and leaves
+from clicking Invite. litemem verifies the bot's `member_joined_channel.inviter`, persists approval, and leaves
 when the inviter is anyone else or missing. Until approved, it does not answer there. Channels it cannot leave
 (such as a workspace's general channel) remain disabled. Removing the bot revokes approval. Old membership events
 cannot override newer ones. After a lost database, remove and re-invite the bot as the owner to enroll it again.
-When an invitation record is missing for a group DM, Moegent checks Slack’s conversation metadata and
+When an invitation record is missing for a group DM, litemem checks Slack’s conversation metadata and
 enrolls it only if Moe created it and the bot is a member. Explicit denials or removals take precedence.
 Group-DM metadata/history require `mpim:read` and `mpim:history`; thread follow-ups use `message.mpim`.
 This check is independent of the public/allowlist caller policy.
@@ -70,12 +72,12 @@ channel-message event. Replies appear in the original thread. The manifest enabl
 changing scopes requires reinstalling the app. This is separate from the OpenAI Agents SDK tool loop.
 
 A separate feedback loop adds 👀 while a request is queued/running, updates one progress reply, and removes the
-reaction when finished. DMs also use native agent status. Follow-up messages in a Moegent thread work without
+reaction when finished. DMs also use native agent status. Follow-up messages in a litemem thread work without
 another mention. A newer message from the same asker cancels their unfinished run and starts a new one with the
 updated context; another asker does not cancel their run. Send `stop` in that thread to stop your active request.
 Thread text is fetched through conversations.replies (bounded to 1,000 fetched messages, with the root and up to
 59 recent messages supplied to the model). If Slack history is unavailable, the model is explicitly told it has
-only saved Moegent exchanges. Files and attachments are not downloaded. Unrelated channel conversations are ignored.
+only saved litemem exchanges. Files and attachments are not downloaded. Unrelated channel conversations are ignored.
 Slack status/reaction failures are best-effort and cannot prevent answer delivery.
 
 ## Render
@@ -85,7 +87,7 @@ The disk holds queued jobs, approved channel IDs, the installed bot token, and e
 worker/instance; SQLite and the in-process job runner are intentionally sized for this small deployment.
 The source memory repository and LiteLLM remain available when the laptop is off.
 
-Set the environment variables in `.env.example` as Render secrets (or a secret file named `moegent.env`).
+Set the environment variables in `.env.example` as Render secrets (or a secret file named `litemem.env`).
 Never include `.env` in the image or source control. Set `PUBLIC_BASE_URL` to the Render URL before Slack setup.
 `/health` is the health check. Render restarts may briefly interrupt access; queued jobs resume from disk.
 Slack delivery retries reuse stable message IDs, although network failures cannot guarantee exactly-once delivery.

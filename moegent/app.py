@@ -76,7 +76,7 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
         await slack.close()
         await store.close()
 
-    app = FastAPI(title="Moegent", lifespan=lifespan)
+    app = FastAPI(title="litemem", lifespan=lifespan)
     app.state.store, app.state.slack, app.state.settings = store, slack, settings
     app.add_middleware(SessionMiddleware, secret_key=settings.session_secret, session_cookie="moegent_session",
                        same_site="none" if settings.secure_cookies else "lax", https_only=settings.secure_cookies)
@@ -128,7 +128,7 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "name": "Moegent"}
+        return {"status": "ok", "name": "litemem"}
 
     @app.get("/")
     @app.get("/static/index.html", include_in_schema=False)
@@ -150,7 +150,7 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
     async def config(request: Request):
         request.session.setdefault("browser_id", secrets.token_urlsafe(24))
         user = principal(request)
-        return {"name": "Moegent", "access_mode": settings.access_mode,
+        return {"name": "litemem", "access_mode": settings.access_mode,
                 "login_available": bool(settings.slack_client_id), "signed_in": bool(user.user_id),
                 "slack_installed": bool(await slack.token())}
 
@@ -252,7 +252,7 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
         except HTTPException:
             request.session.clear()
             return auth_page("This account doesn’t have access",
-                             "Moegent is available to Moe, Tin, Krrish, and Ishaan. Switch to your approved account in Slack, then try again.",
+                             "litemem is available to Moe, Tin, Krrish, and Ishaan. Switch to your approved account in Slack, then try again.",
                              403, target)
         except Exception:
             request.session.clear()
@@ -265,7 +265,7 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
 
     @app.get("/auth/signed-out")
     async def signed_out():
-        return auth_page("You’re signed out", "Sign in with Slack to use Moegent.")
+        return auth_page("You’re signed out", "Sign in with Slack to use litemem.")
 
     @app.post("/auth/logout")
     async def logout(request: Request):

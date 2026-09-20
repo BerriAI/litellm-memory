@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#ffffff">
-  <title>Moegent</title>
+  <title>litemem</title>
   <link rel="icon" href="/static/moegent-icon.jpg">
   <link rel="stylesheet" href="/static/style.css?v=3">
   <script type="module" src="/static/app.js?v=3"></script>
@@ -12,7 +12,7 @@
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="app-header">
-    <a class="brand" href="#chat" aria-label="Moegent home"><img class="logo" src="/static/moegent-icon.jpg" alt="">Moegent</a>
+    <a class="brand" href="#chat" aria-label="litemem home"><img class="logo" src="/static/moegent-icon.jpg" alt="">litemem</a>
     <nav aria-label="Main navigation">
       <button id="chat-tab" class="nav-button active" aria-current="page">Chat</button>
       <button id="memories-tab" class="nav-button">Memories</button>
@@ -26,12 +26,12 @@
   <div id="connection" class="connection-banner" role="status" hidden></div>
   <main id="main" tabindex="-1">
     <section id="chat-view" class="chat-view empty" aria-label="Chat">
-      <div id="welcome" class="welcome"><h1>Ask Moegent</h1></div>
+      <div id="welcome" class="welcome"><h1>Ask litemem</h1></div>
       <div id="messages" class="messages" role="log" aria-label="Conversation" aria-live="off"></div>
       <div class="composer-area">
         <div id="composer-error" class="inline-error" role="alert" hidden></div>
         <form id="chat-form" class="composer">
-          <label class="sr-only" for="question">Message Moegent</label>
+          <label class="sr-only" for="question">Message litemem</label>
           <textarea id="question" rows="1" maxlength="16000" placeholder="Ask about Moe’s memories…" autocomplete="off"></textarea>
           <div class="composer-bottom">
             <span id="composer-hint" class="keyboard-hint">Enter to send <span>·</span> Shift + Enter for a new line</span>
@@ -41,7 +41,7 @@
           </div>
         </form>
         <div id="suggestions" class="suggestions" aria-label="Suggested questions">
-          <button data-question="What has Moe decided about Moegent?">Moegent decisions <span aria-hidden="true">↗</span></button>
+          <button data-question="What has Moe decided about litemem?">litemem decisions <span aria-hidden="true">↗</span></button>
           <button data-question="What changed in Moe’s memories in the last seven days?">Recent changes <span aria-hidden="true">↗</span></button>
           <button data-question="What has Moe learned about building agents?">Building agents <span aria-hidden="true">↗</span></button>
         </div>
@@ -83,7 +83,7 @@
   <dialog id="history-dialog" class="history-dialog" aria-labelledby="history-title">
     <div class="dialog-top"><h2 id="history-title">History</h2><button id="close-history" class="icon-button" aria-label="Close history">×</button></div>
     <div id="history-list" class="history-list"></div>
-    <div id="account-actions" class="dialog-bottom" hidden><button id="logout" class="button quiet">Sign out of Moegent</button></div>
+    <div id="account-actions" class="dialog-bottom" hidden><button id="logout" class="button quiet">Sign out of litemem</button></div>
   </dialog>
   <div id="toast" class="toast" role="status" hidden></div>
   <div id="announcement" class="sr-only" aria-live="polite"></div>

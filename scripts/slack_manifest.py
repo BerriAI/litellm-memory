@@ -9,13 +9,13 @@ SCOPES = ["app_mentions:read", "chat:write", "channels:read", "channels:manage",
 
 def manifest(base_url):
     return {
-        "display_information": {"name": "Moegent", "description": "Answers grounded in Moe’s product memories.",
+        "display_information": {"name": "litemem", "description": "Ask about your work, decisions, and memories.",
                                 "background_color": "#25252d"},
-        "features": {"bot_user": {"display_name": "Moegent", "always_online": True},
-                     "agent_view": {"agent_description": "Ask questions about Moe’s work, decisions, and product memories.",
+        "features": {"bot_user": {"display_name": "litemem", "always_online": True},
+                     "agent_view": {"agent_description": "Ask litemem about work, decisions, and memories you can access.",
                                     "suggested_prompts": [
                                         {"title": "Recent decisions", "message": "What has Moe decided recently?"},
-                                        {"title": "Moegent", "message": "What decisions shaped Moegent?"}]},
+                                        {"title": "litemem", "message": "What decisions shaped litemem?"}]},
                      "app_home": {"messages_tab_enabled": True, "messages_tab_read_only_enabled": False}},
         "oauth_config": {"redirect_urls": [base_url + "/slack/install/callback", base_url + "/auth/slack/callback"],
                          "scopes": {"bot": SCOPES}},

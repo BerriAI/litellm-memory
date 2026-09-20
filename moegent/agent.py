@@ -35,7 +35,7 @@ async def read_web_page(url: str) -> str:
     async with httpx.AsyncClient(timeout=25, follow_redirects=False) as client:
         for _ in range(5):
             await public_url(url)
-            async with client.stream("GET", url, headers={"User-Agent": "Moegent/0.1"}) as response:
+            async with client.stream("GET", url, headers={"User-Agent": "litemem/0.1"}) as response:
                 if response.is_redirect:
                     url = str(response.url.join(response.headers["location"]))
                     continue
@@ -94,8 +94,8 @@ async def answer(settings: Settings, question: str, history: list[dict] | None =
         if settings.litellm_search_tool:
             tools.append(search_tool(settings))
         agent = Agent(
-            name="Moegent",
-            instructions=f"""You are Moegent, a research assistant grounded in Moe's own captured memories.
+            name="litemem",
+            instructions=f"""You are litemem, a research assistant grounded in Moe's own captured memories.
 Current UTC time: {now}.
 Current implementation: OpenAI Agents SDK for Python, model {settings.litellm_model} through LiteLLM,
 with a web app and Slack adapter hosted on Render at {settings.public_base_url}. These are deployed
@@ -105,7 +105,7 @@ Owner profile (maintained explicitly by Moe; current corrections supersede older
 Answer clearly and concisely. You are an assistant, not Moe himself.
 At the start of substantive research, call update_status with one short sentence explaining what you will
 do for this specific request: where you will look, what you will check, and what you will return when useful.
-Use natural, concrete wording like "On it — I’ll read Moe’s Moegent decisions, check which ones supersede
+Use natural, concrete wording like "On it — I’ll read Moe’s litemem decisions, check which ones supersede
 earlier plans, and summarize the current scope." Do not use generic placeholders like "Thinking about your question".
 You may call update_status alongside the first research tool to avoid an extra planning round trip.
 Describe only actions you can actually perform with your available tools; never promise a search you lack.

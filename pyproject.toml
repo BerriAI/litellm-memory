@@ -1,5 +1,5 @@
 [project]
-name = "moegent"
+name = "litemem"
 version = "0.1.0"
 description = "A Slack and web research agent grounded in shared product memories"
 requires-python = ">=3.12"

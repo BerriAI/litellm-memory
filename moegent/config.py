@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=(".env", "/etc/secrets/moegent.env"), extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", "/etc/secrets/moegent.env", "/etc/secrets/litemem.env"), extra="ignore")
 
     litellm_base_url: str = "https://gateway.litellm-sandbox.ai/v1"
     litellm_api_key: str = ""

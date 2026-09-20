@@ -1,13 +1,13 @@
 services:
   - type: web
-    name: moegent
+    name: litemem
     runtime: docker
     plan: starter
     region: oregon
     healthCheckPath: /health
     numInstances: 1
     disk:
-      name: moegent-state
+      name: litemem-state
       mountPath: /data
       sizeGB: 1
     envVars:

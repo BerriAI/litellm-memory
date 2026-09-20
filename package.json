@@ -1,5 +1,5 @@
 {
-  "name": "moegent-web-vendor",
+  "name": "litemem-web-vendor",
   "private": true,
   "dependencies": {
     "dompurify": "3.4.15",

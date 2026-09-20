@@ -27,9 +27,9 @@ class AccessPolicy:
         if self.settings.access_mode == "public":
             return
         if not principal.user_id:
-            raise HTTPException(401, "Sign in with Slack to use Moegent.")
+            raise HTTPException(401, "Sign in with Slack to use litemem.")
         if principal.identity not in self.allowed:
-            raise HTTPException(403, "Your account does not have access to Moegent.")
+            raise HTTPException(403, "Your account does not have access to litemem.")
 
     def owner(self, principal: Principal) -> bool:
         return bool(self.settings.slack_owner_user_id) and (

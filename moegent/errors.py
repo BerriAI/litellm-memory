@@ -21,9 +21,9 @@ def explain_error(error: Exception) -> Failure:
                            "route’s billing or select a funded route before I can answer.")
         return Failure("The model provider is rate-limiting requests. Please try again shortly.", True)
     if isinstance(error, (AuthenticationError, PermissionDeniedError)):
-        return Failure("Moegent’s model credentials were rejected. Moe needs to check the gateway configuration.")
+        return Failure("litemem’s model credentials were rejected. Moe needs to check the gateway configuration.")
     if isinstance(error, TimeoutError):
         return Failure("This answer took too long. Try a more specific question or ask about one topic at a time.")
     if isinstance(error, APIConnectionError):
-        return Failure("Moegent couldn’t connect to the model provider. Please try again in a moment.", True)
-    return Failure("Moegent couldn’t finish this request. Please try again in a moment.", True)
+        return Failure("litemem couldn’t connect to the model provider. Please try again in a moment.", True)
+    return Failure("litemem couldn’t finish this request. Please try again in a moment.", True)
