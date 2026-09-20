@@ -3,7 +3,7 @@
 A Slack and web research assistant for Moe’s own captured memories.
 
 OpenAI Agents SDK for Python runs the tool loop. All chat and embedding inference goes through LiteLLM;
-the default routes are `openai/gpt-5.6-luna` and `openai/text-embedding-3-small`. FastAPI serves the chat,
+the default routes are `gpt-5.6-luna-priority` and `gemini/gemini-embedding-001`. FastAPI serves the chat,
 memory explorer, Slack events, and optional Slack sign-in. The model receives only read-only memory tools
 plus a public-page reader; an optional LiteLLM search tool can be configured with `LITELLM_SEARCH_TOOL`.
 
@@ -93,3 +93,7 @@ Per-memory access control, multi-instance workers, and general task execution ar
 
 Eyes reactions are added before model work starts. Failed reaction calls retry with backoff and respect
 Slack’s rate-limit delay; cleanup is marked complete only after removal succeeds or the reaction is already absent.
+
+The agent posts a short, request-specific plan using its progress tool before substantive research.
+Credit/quota exhaustion is reported as a problem with the configured route and is not retried.
+A failing route does not imply that every route or the gateway key is out of credits.

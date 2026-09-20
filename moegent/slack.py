@@ -306,8 +306,9 @@ class Slack:
                 return
             if p["channel"].startswith("D"):
                 await self.optional_api("assistant.threads.setStatus", {
-                    "channel_id": p["channel"], "thread_ts": p["thread_ts"], "status": status + "…"})
-            text = record["partial"][:11000] + "\n\n_Working…_" if record["partial"] else f"_{status}…_"
+                    "channel_id": p["channel"], "thread_ts": p["thread_ts"], "status": status})
+            status_text = status if status.endswith((".", "!", "?", "…")) else status + "…"
+            text = record["partial"][:11000] + "\n\n_Working…_" if record["partial"] else status_text
             if record["response_ts"]:
                 await self.optional_api("chat.update", {"channel": p["channel"], "ts": record["response_ts"], **formatted(text)})
             else:

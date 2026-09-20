@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     litellm_base_url: str = "https://gateway.litellm-sandbox.ai/v1"
     litellm_api_key: str = ""
-    litellm_model: str = "openai/gpt-5.6-luna"
+    litellm_model: str = "gpt-5.6-luna-priority"
     litellm_search_tool: str = ""
     public_base_url: str = "http://localhost:8000"
     access_mode: Literal["public", "allowlist"] = "public"
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     memory_repo: str = "BerriAI/product-team-knowledge"
     memory_allowed_actors: str = Field(default="moe-berri", min_length=1)
     memory_script: Path = ROOT / "vendor/product-team-knowledge/bin/memory.mjs"
-    memory_embedding_model: str = "openai/text-embedding-3-small"
+    memory_embedding_model: str = "gemini/gemini-embedding-001"
     memory_embedding_version: str = "1"
     memory_warm_on_start: bool = True
     gh_token: str = ""

@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from .agent import answer
+from .errors import explain_error
 from .progress import reporter
 
 log = logging.getLogger(__name__)
@@ -72,13 +73,12 @@ async def worker(settings, store, slack, agent_fn=answer, running=None):
         except Exception as exc:
             # Exception messages can include upstream response bodies. Keep operational logs minimal.
             log.warning("Job %s failed (%s)", job["id"], type(exc).__name__)
-            if job["kind"] != "web" and job["attempts"] < 3:
+            failure = explain_error(exc)
+            if job["kind"] != "web" and job["attempts"] < 3 and failure.retryable:
                 await asyncio.sleep(min(job["attempts"] * 2, 6))
                 await store.result(job["id"], status="queued")
             else:
-                error = ("This answer took too long. Try a more specific question or ask about one topic at a time."
-                         if isinstance(exc, TimeoutError) else
-                         "Moegent couldn’t reach the model or memory service. Your question is saved here—try again in a moment.")
+                error = failure.message
                 await store.result(job["id"], status="failed", error=error)
                 if job["kind"] == "slack":
                     try:

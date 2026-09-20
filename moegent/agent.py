@@ -76,9 +76,21 @@ async def answer(settings: Settings, question: str, history: list[dict] | None =
         base_url=settings.litellm_base_url,
         api_key=settings.litellm_api_key,
         timeout=90,
-        max_retries=2,
+        # The worker owns retries so billing/authentication failures are never retried blindly.
+        max_retries=0,
     ) as client:
-        tools = [read_web_page]
+        status_message = ""
+
+        @function_tool
+        async def update_status(message: str) -> str:
+            """Show a brief, task-specific progress update to the person waiting for an answer."""
+            nonlocal status_message
+            status_message = " ".join(message.split())[:240]
+            if status_message:
+                await report(status_message)
+            return "Status updated. Continue the task."
+
+        tools = [read_web_page, update_status]
         if settings.litellm_search_tool:
             tools.append(search_tool(settings))
         agent = Agent(
@@ -91,6 +103,15 @@ implementation facts; older planning notes saying the SDK or host is undecided a
 Owner profile (maintained explicitly by Moe; current corrections supersede older memories):
 {(ROOT / 'moegent/owner-profile.md').read_text()}
 Answer clearly and concisely. You are an assistant, not Moe himself.
+At the start of substantive research, call update_status with one short sentence explaining what you will
+do for this specific request: where you will look, what you will check, and what you will return when useful.
+Use natural, concrete wording like "On it — I’ll read Moe’s Moegent decisions, check which ones supersede
+earlier plans, and summarize the current scope." Do not use generic placeholders like "Thinking about your question".
+You may call update_status alongside the first research tool to avoid an extra planning round trip.
+Describe only actions you can actually perform with your available tools; never promise a search you lack.
+This is a public progress update, not private reasoning. Skip it for greetings and simple direct answers.
+Update it again only when a meaningful step or change of approach would help the user. Don’t repeat status
+updates in the final answer. Keep each update under 240 characters.
 Memory retrieval is restricted to captures by Moe's account and notes sourced entirely from those captures.
 You do not have access to Tin's separately captured memories. Never claim to represent Tin's private perspective.
 For substantive questions, search memory first. For a named project, search its exact name with mode=fuzzy first;
@@ -121,7 +142,7 @@ Keep the reply useful to the asker; don't narrate every tool call or expose oper
         messages = [*(history or []), {"role": "user", "content": question}]
         result = Runner.run_streamed(agent, messages, max_turns=settings.max_agent_turns)
         partial, last_update = "", 0
-        await report("Thinking about your question")
+        await report("On it")
         try:
             async for event in result.stream_events():
                 if event.type == "raw_response_event" and event.data.type == "response.output_text.delta":
@@ -132,13 +153,16 @@ Keep the reply useful to the asker; don't narrate every tool call or expose oper
                 elif event.type == "run_item_stream_event" and event.name == "tool_called":
                     raw = event.item.raw_item
                     name = raw.get("name", "") if isinstance(raw, dict) else getattr(raw, "name", "")
+                    if name == "update_status":
+                        continue
                     phase = {"memory_search": "Searching Moe’s memories", "memory_read": "Reading source memories",
                              "memory_catalog": "Finding relevant memories", "read_web_page": "Reading a web source",
                              "search_web": "Searching the web"}.get(name, "Checking sources")
                     partial = ""
-                    await report(phase, partial)
+                    await report(status_message or phase, partial)
                 elif event.type == "run_item_stream_event" and event.name == "tool_output":
-                    await report("Connecting the findings")
+                    if not status_message:
+                        await report("Connecting the findings")
         finally:
             if not result.is_complete:
                 result.cancel()
