@@ -4,6 +4,8 @@ A LiteLLM Labs product. Query your work memories on the web or through **@liteme
 
 This repository is evolving from the original personal assistant into an encrypted work-memory service built with Ente and LiteLLM. The instructions below currently describe the existing running assistant; the new service is still being integrated.
 
+The [product and implementation specification](docs/product-implementation-spec.md) is the authoritative build plan. It covers simple deployment/setup, LiteLLM model discovery and required Jev checks, the combined memory service and agent, historical migration, privacy, acceptance tests, and verified implementation status.
+
 OpenAI Agents SDK for Python runs the tool loop. All chat and embedding inference goes through LiteLLM;
 the default routes are `gpt-5.6-luna-priority` and `gemini/gemini-embedding-001`. FastAPI serves the chat,
 memory explorer, Slack events, and optional Slack sign-in. The model receives only read-only memory tools
