@@ -109,6 +109,11 @@ class Archive:
             await self.db.execute("UPDATE records SET visibility='private' WHERE visibility='public'")
         if "source_payload" not in columns:
             await self.db.execute("ALTER TABLE records ADD COLUMN source_payload TEXT")
+        # The partial index proves publication presence without reading the
+        # large encrypted row on every warm search. Create after column upgrades.
+        await self.db.execute("""CREATE INDEX IF NOT EXISTS records_public_search_metadata
+            ON records(owner,id,updated,status)
+            WHERE deleted=0 AND visibility='public' AND publication IS NOT NULL""")
         await self.db.execute("UPDATE records SET work_lease='' WHERE status='pending'")
         token_columns = {r[1] for r in await (await self.db.execute("PRAGMA table_info(api_tokens)")).fetchall()}
         member_columns = {r[1] for r in await (await self.db.execute("PRAGMA table_info(members)")).fetchall()}

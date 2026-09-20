@@ -31,10 +31,13 @@ These are local synthetic measurements on the developer's Apple Silicon machine 
 | 100,000 owned records, covering metadata index | 1,024 MB | 54.34 s | 4.74–5.06 s | 932 MB |
 | 30,000 records / 10 people, half shared | 256 MB | 11.69 s | 0.25–0.83 s | 410 MB |
 | 100,000 records / 10 people, half shared | 512 MB | 36.34 s | 7.76–9.18 s | 629 MB |
+| Same 100,000-record team fixture, separate indexed metadata scans | 512 MB | 31.18 s | 0.41–0.58 s | 767 MB |
 
 Two simultaneous queries by different people in the 30,000-record fixture completed in 2.51 and 2.52 seconds, including loading the second person's private partitions; peak memory was 502 MB. Access assertions rejected other people's private results. A visible working set larger than the cache repeatedly rebuilds its encrypted partitions and is substantially slower. The Render Blueprint uses a 512 MB cache; the smaller Docker default is 128 MB. Larger archives need sizing from actual records and acceptable cold-start latency.
 
 Four direct retrieval calls by different people in the 100,000-record/10-person fixture completed in **46.50–46.54 seconds**. The 512 MB cache filled and cumulative partition builds rose from 2,560 to 5,709; process peak was 629 MB. This stress test bypasses the normal two-agent execution cap and excludes model calls. It shows poor concurrent retrieval at this size, not a production latency guarantee. A larger cache or stronger instance needs its own measurement before a team-scale rollout.
+
+After separating the owner and public metadata scans, the same benchmark improved to **0.41–0.58 seconds warm** and **31.18 seconds cold**. SQLite query-plan/bytecode inspection confirmed that fingerprint enumeration reads no encrypted record-table columns. The public partial index still requires a separate summary, including when a previously cached publication disappears. Four direct concurrent retrievals still took **40.47–40.51 seconds**, filled the cache and increased partition builds from 2,560 to 5,719; process peak was 767 MB. The warm improvement does not solve cold-load/cache-contention limits. The local regression suite passes 102 tests; release CI evidence follows separately.
 
 Reproduce multi-person measurements with `uv run python scripts/benchmark_search.py --records 30000 --people 10 --cache-mb 256 --parallel 2`. The fixture uses temporary encrypted data and makes no external calls. It measures retrieval, not answer quality or full model latency.
 

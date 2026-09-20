@@ -90,12 +90,23 @@ class SearchIndex:
         principal = await self.archive.member(reader.owner)
         if not principal:
             raise PermissionError('Account is unavailable')
-        cursor = await self.archive.db.execute('''SELECT r.id,r.owner,r.updated,r.status,r.visibility,
-            m.policy_version,substr(r.id,1,2) AS shard FROM records r JOIN members m ON m.id=r.owner
-            WHERE r.deleted=0 AND m.active=1 AND m.team=? AND (? IS NULL OR r.owner=?)
-            AND ((r.owner=? AND ?='owner') OR (?=1 AND r.visibility='public' AND r.publication IS NOT NULL))
-            ORDER BY r.owner,shard,r.id''', (reader.team, owner, owner, reader.owner, reader.audience,
-                                            int(self.archive.sharing_enabled)))
+        # Separate disjoint owner/public branches keep this scan in metadata
+        # indexes. A combined OR with publication IS NOT NULL makes SQLite read
+        # encrypted rows merely to test presence, even with every partition hot.
+        # The public partial index enforces that presence condition itself.
+        cursor = await self.archive.db.execute('''
+            SELECT r.id AS id,r.owner AS owner,r.updated,r.status,r.visibility,m.policy_version,substr(r.id,1,2) AS shard
+            FROM records r INDEXED BY records_search_metadata JOIN members m ON m.id=r.owner
+            WHERE r.deleted=0 AND m.active=1 AND m.team=:team AND (:owner IS NULL OR r.owner=:owner)
+                AND r.owner=:reader AND :audience='owner'
+            UNION ALL
+            SELECT r.id AS id,r.owner AS owner,r.updated,r.status,'public',m.policy_version,substr(r.id,1,2) AS shard
+            FROM records r INDEXED BY records_public_search_metadata JOIN members m ON m.id=r.owner
+            WHERE r.deleted=0 AND r.visibility='public' AND r.publication IS NOT NULL
+                AND m.active=1 AND m.team=:team AND (:owner IS NULL OR r.owner=:owner)
+                AND :sharing=1 AND (r.owner!=:reader OR :audience!='owner')
+            ORDER BY owner,shard,id''', {'team': reader.team, 'owner': owner, 'reader': reader.owner,
+                                       'audience': reader.audience, 'sharing': int(self.archive.sharing_enabled)})
         group, fingerprint_rows, batch = None, [], 0
         try:
             async for row in cursor:

@@ -8,6 +8,10 @@ This is a work archive you query deliberately. It does not search old memories o
 
 > **Release status:** the implementation is on `codex/litemem-implementation`. Deployment verification is in progress. The existing hosted assistant has not been switched to this application. See the [release checklist](docs/release-checklist.md) for verified behavior and remaining gates.
 
+![The implemented litemem dashboard with Home Ask, a chronological feed and private lock labels](docs/assets/dashboard.jpg)
+
+The actual dashboard, shown with synthetic local records.
+
 ## What it does
 
 - A chronological activity feed, Slack profiles, private lock indicators, and an **Ask** interface with citations.

@@ -56,3 +56,40 @@ async def test_public_index_only_searches_public_summary_even_after_private_cach
     assert (await archive.search(Reader('T1:B'), 'PUBLISHED_SUMMARY'))['total'] == 1
     await archive.add_rule('T1:A', 'A restricted topic')
     assert (await archive.search(Reader('T1:B'), 'PUBLISHED_SUMMARY'))['total'] == 0
+
+
+@pytest.mark.asyncio
+async def test_metadata_scan_keeps_owner_and_public_scopes_disjoint_and_requires_a_publication(archive):
+    shared = await archive.capture('T1:A', WorkInput(source_id='shared', content='ORIGINAL_PRIVATE_CANARY'))
+    await archive.set_visibility('T1:A', shared['id'], 'public')
+    row = await archive.next_work()
+    payload = await archive.decode(row)
+    payload.update(summary='A shared summary', labels={'progress': .95})
+    await archive.complete_work(row, payload, private_match=False)
+    private = await archive.capture('T1:B', WorkInput(source_id='private', content='B_ONLY_PRIVATE_CANARY'))
+
+    async def ids(reader, **scope):
+        result = await archive.search(reader, **scope)
+        identifiers = [item['id'] for item in result['results']]
+        assert result['total'] == len(set(identifiers))  # No owner/public duplicate branch.
+        return set(identifiers)
+
+    assert await ids(Reader('T1:A')) == {shared['id']}
+    assert await ids(Reader('T1:A', 'public')) == {shared['id']}
+    assert await ids(Reader('T1:B')) == {shared['id'], private['id']}
+    assert await ids(Reader('T1:B', 'public')) == {shared['id']}
+    assert await ids(Reader('T1:A'), owner='T1:B') == set()
+    assert await ids(Reader('T2:C')) == set()
+    archive.sharing_enabled = False
+    assert await ids(Reader('T1:B')) == {private['id']}
+    assert await ids(Reader('T1:A', 'public')) == set()
+    archive.sharing_enabled = True
+    # Even if visibility is inconsistent, a missing separate summary must remove
+    # the row from public searches, including already-warmed partitions. It must
+    # never fall back to the owner's encrypted original.
+    await archive.db.execute('UPDATE records SET publication=NULL WHERE id=?', (shared['id'],))
+    await archive.db.commit()
+    assert await ids(Reader('T1:B')) == {private['id']}
+    assert await ids(Reader('T1:A', 'public')) == set()
+    assert await ids(Reader('T1:A')) == {shared['id']}
+    assert not (await archive.search(Reader('T1:B'), 'ORIGINAL_PRIVATE_CANARY'))['results']
