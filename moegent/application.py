@@ -140,6 +140,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
                 tasks += [asyncio.create_task(query_worker(settings, store, slack, archive, gateway, running, agent_fn))
                           for _ in range(2)]
                 tasks.append(asyncio.create_task(slack.monitor()))
+                tasks.append(asyncio.create_task(slack.reconcile_members()))
                 if museum:
                     tasks.append(asyncio.create_task(cleanup_worker(archive)))
                     tasks.append(asyncio.create_task(views.worker()))
@@ -734,7 +735,7 @@ litemem-connector disconnect</pre>
                 if user_id:
                     owner = settings.slack_team_id + ':' + user_id
                     slack.member_checks.pop(owner, None)
-                    if not slack.eligible(user, user_id) and await archive.member(owner):
+                    if slack.explicitly_ineligible(user) and await archive.member(owner):
                         await archive.leave(owner)
                 return {'ok': True}
             await slack.event(envelope)

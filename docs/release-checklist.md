@@ -6,6 +6,7 @@ This file distinguishes implementation from verified deployment. It is not a cla
 
 - The implementation branch's initial suite passed **74 tests**, Ruff and JavaScript syntax checks locally and on Linux CI.
 - [CI run 35532804507](https://github.com/moe-berri/litemem/actions/runs/35532804507) subsequently passed **83 tests** and a complete Docker backup/restore into fresh PostgreSQL and app volumes. The restored installation preserved member keys, exact evidence and deletion tombstones. Later admin/quota/recovery changes are undergoing validation.
+- [CI run 35533800613](https://github.com/moe-berri/litemem/actions/runs/35533800613) passed **88 tests** and the full Docker restore again, including recovery-mode denial of Slack/MCP before explicitly resuming the restored synthetic instance. Admin key rotation/transfer and shared query capacity passed. A subsequent Slack partial-profile fix is covered locally and is awaiting its final CI run.
 - [CI run 35530917378](https://github.com/moe-berri/litemem/actions/runs/35530917378) built the actual Docker/Compose stack, provisioned PostgreSQL + pinned Ente Museum, verified ciphertext write/read/decrypt/delete, checked closed registration and setup access, restarted the app, and passed again with persistent credentials.
 - Actual separate Ente storage in the private Render pilot also passed encrypted round-trip/deletion checks after bootstrap registration was disabled. The old hosted app remains the running entry point.
 - The real MCP Python SDK connected to the new ASGI service, recorded/searched/read owned evidence and denied cross-account reads and revoked tokens.
@@ -35,11 +36,12 @@ Reproduce multi-person measurements with `uv run python scripts/benchmark_search
 - [ ] Verify the pilot gateway's no-log behavior for chat, embedding and TypeSafe pass-through requests.
 - [x] Complete encrypted portable export/import and a deletion-aware installation backup/restore proof.
 - [x] Implement/test private corrections with original evidence preservation, revision links and explicit account rejoin without restoring old grants.
-- [ ] Complete verification of administration transfer, gateway-key rotation and recovery-mode controls.
+- [x] Verify administration transfer, gateway-key rotation and recovery-mode controls.
 - [ ] Prove continuous capture with actual supported Codex/Claude hosts and personal OAuth, not only synthetic adapter fixtures.
 - [ ] Apply/verify needed Slack scopes and test owned-DM and least-audience shared-channel behavior without enrolling teammates or sending unsolicited messages.
 - [ ] Import approved Moe history, reconcile exact original hashes/counts, and prove rerun/restart behavior. The legacy preview alone is not a completed import.
-- [ ] Finish shared query-capacity verification and remaining spec acceptance checks. Server-owned history and citation-ID validation are implemented.
+- [x] Verify bounded shared query capacity, server-owned history and citation-ID validation.
+- [ ] Finish the real-history answer-quality evaluation and remaining full-pilot acceptance checks.
 - [x] Measure larger archives and multiple people/concurrent queries; document the cold-start and cache limits.
 - [ ] Deploy the integrated entry point to the private owner-only/sharing-off pilot, then prove actual capture → Ente → processing → explicit query → valid citation after restart.
 - [ ] Reconcile README/setup instructions and release branch references with the actual released revision; keep the repository private until the owner chooses to publish it.

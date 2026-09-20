@@ -16,6 +16,7 @@ Slack-only sign-in without a separate secret is enabled by this hosted key custo
 
 - Slack OIDC must provide a verified exact-domain email and the configured workspace. A suffix resemblance to the domain is insufficient.
 - Browser/API eligibility is rechecked through Slack with a five-minute positive cache. A signed `user_change` event invalidates the cache immediately and revokes an ineligible member. Slack queries check membership freshly; failure to verify denies access. Reinstall the generated manifest when updating scopes/events.
+- Profile events can omit email; they revoke immediately only when explicit fields prove ineligibility. Otherwise the next access performs a full check. A background task checks enrolled accounts every minute using the same five-minute cache, refreshing directory profiles and catching departures without a new visit. See Slack's [user_change contract](https://docs.slack.dev/reference/events/user_change/).
 - Personal bearer credentials cannot change sharing, consent to another client, or administer the workspace.
 - Remote MCP uses OAuth authorization code with PKCE, exact registered callbacks, one-use codes and resource binding. Access tokens expire after one hour; rotating refresh tokens expire after 30 days. Reuse of a consumed refresh token revokes its connection family.
 - The web and a verified personal Slack DM can use the requester's private records and eligible company publications. A shared Slack conversation cannot use private originals, even if the requester owns them.

@@ -64,6 +64,8 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
     sources = set()
 
     async def check_access():
+        if hasattr(archive, 'check_eligibility') and not await archive.check_eligibility(reader.owner):
+            raise PermissionError('This Slack account is no longer eligible.')
         await archive.key(reader.owner, require_agent=True)
         if await archive.policy_stamp(reader) != stamp:
             raise PermissionError("Access changed while answering. Please ask again.")

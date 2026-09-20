@@ -75,6 +75,9 @@ async def test_slack_fresh_membership_and_shared_audience_fail_closed(archive):
     store.setting.return_value = None
     store.channel_allowed.return_value = True
     slack = MemorySlack(settings, store, archive)
+    assert not slack.explicitly_ineligible({'id': 'A', 'team_id': 'T1', 'profile': {'display_name': 'New name'}})
+    assert slack.explicitly_ineligible({'id': 'A', 'deleted': True})
+    assert slack.explicitly_ineligible({'id': 'A', 'profile': {'email': 'a@another.example'}})
     users = {u: {'id': u, 'team_id': 'T1', 'profile': {'email': u + '@berri.ai'}} for u in ['A', 'B', 'C']}
     channel = {'is_im': True, 'user': 'A'}
     participants = ['A', 'B', 'BOT']
