@@ -544,7 +544,10 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
 
     @app.get("/api/capture-identity")
     async def capture_identity(request: Request):
-        return {"owner": await account(request)}
+        owner = await account(request)
+        member = await archive.member(owner)
+        return {"owner": owner, "capture_enabled": bool(member['capture_enabled']),
+                "capture_after": member['capture_after']}
 
     @app.get("/api/connector/setup", response_class=HTMLResponse)
     async def connector_setup(request: Request):
@@ -559,7 +562,8 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         <pre class="code-block">uv tool install git+https://github.com/moe-berri/litemem.git@codex/litemem-implementation
 litemem-connector connect {url}</pre>
         <p>The installer adds capture hooks and the litemem MCP, preserving your existing connections.
-        Restart your coding tool after installation, then sign in to its litemem MCP when prompted.</p>
+        Restart your coding tool after installation, then sign in to its litemem MCP when prompted.
+        In Codex, open <code>/hooks</code> and review/trust the litemem capture hooks.</p>
         <p>Visible conversation text is recorded privately. Tool outputs, system messages and hidden reasoning
         are excluded. Memories are searched only when you ask.</p>
         <details><summary>Choose a tool or import history</summary>

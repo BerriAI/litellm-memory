@@ -227,3 +227,30 @@ async def test_remote_delete_failure_denies_reads_immediately_and_cleanup_resume
     await archive.cleanup()
     assert (await archive.row(saved['id']))['payload'] == '{}'
     assert saved['id'] not in archive.museum.entities
+
+
+@pytest.mark.asyncio
+async def test_remote_resume_discards_delayed_host_capture_but_allows_explicit_history(archive, monkeypatch):
+    from datetime import UTC, datetime
+    stamp = 1_000_000_000
+    monkeypatch.setattr('moegent.archive.time.time', lambda: stamp)
+    def record(identity, seconds):
+        return WorkInput(source_id=identity, source='codex', content='Visible work: ' + identity,
+                         occurred_at=datetime.fromtimestamp(seconds, UTC) if seconds else None)
+    original = await archive.capture('T1:A', record('before', stamp - 30))
+    await archive.preferences('T1:A', capture_enabled=False)
+    with pytest.raises(PermissionError):
+        await archive.capture('T1:A', record('paused', stamp - 10))
+    await archive.preferences('T1:A', capture_enabled=True)
+    writes_before = archive.museum.writes
+    for body in [record('paused', stamp - 10), record('unknown', None)]:
+        assert await archive.capture('T1:A', body) == {'status': 'skipped', 'reason': 'outside_capture_window'}
+    assert archive.museum.writes == writes_before
+    again = await archive.capture('T1:A', record('before', stamp - 30))
+    assert again['id'] == original['id'] and again['duplicate']
+    await archive.capture('T1:A', record('after', stamp + 1))
+    imported = await archive.capture('T1:A', record('paused', stamp - 10).model_copy(update={'historical': True}))
+    assert (await archive.read(Reader('T1:A'), imported['id']))['historical']
+    monkeypatch.setattr('moegent.archive.time.time', lambda: stamp + 60)
+    await archive.preferences('T1:A', capture_enabled=True)
+    assert (await archive.member('T1:A'))['capture_after'] == stamp  # Saving an unchanged preference is not a new resume.

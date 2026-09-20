@@ -19,25 +19,7 @@ from .archive import Reader
 from .crypto import decrypt_blob, encrypt_blob, new_key
 from .gateway import Gateway
 from .model_settings import ModelConfiguration, ModelSettingsService
-
-BOT_SCOPES = ["app_mentions:read", "chat:write", "channels:read", "channels:manage", "groups:read",
-              "groups:write", "im:history", "im:read", "reactions:write", "channels:history",
-              "groups:history", "mpim:read", "mpim:history", "assistant:write", "users:read", "users:read.email"]
-
-
-def slack_manifest(base_url):
-    return {
-        "display_information": {"name": "litemem", "description": "Your work, with a little memory.",
-                                "background_color": "#2b302b"},
-        "features": {"bot_user": {"display_name": "litemem", "always_online": False},
-                     "app_home": {"messages_tab_enabled": True, "messages_tab_read_only_enabled": False}},
-        "oauth_config": {"redirect_urls": [base_url + "/slack/install/callback", base_url + "/auth/slack/callback"],
-                         "scopes": {"bot": BOT_SCOPES}},
-        "settings": {"event_subscriptions": {"request_url": base_url + "/slack/events",
-                      "bot_events": ["app_mention", "message.im", "message.mpim", "message.channels", "message.groups",
-                                     "member_joined_channel", "member_left_channel", "user_change"]},
-                     "org_deploy_enabled": False, "socket_mode_enabled": False, "token_rotation_enabled": False},
-    }
+from .slack_manifest import BOT_SCOPES, slack_manifest
 
 
 class DeploymentConfig:

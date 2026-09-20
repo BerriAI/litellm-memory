@@ -111,6 +111,9 @@ class Archive:
             await self.db.execute("ALTER TABLE records ADD COLUMN source_payload TEXT")
         await self.db.execute("UPDATE records SET work_lease='' WHERE status='pending'")
         token_columns = {r[1] for r in await (await self.db.execute("PRAGMA table_info(api_tokens)")).fetchall()}
+        member_columns = {r[1] for r in await (await self.db.execute("PRAGMA table_info(members)")).fetchall()}
+        if "capture_after" not in member_columns:
+            await self.db.execute("ALTER TABLE members ADD COLUMN capture_after REAL NOT NULL DEFAULT 0")
         if "expires" not in token_columns:
             await self.db.execute("ALTER TABLE api_tokens ADD COLUMN expires REAL")
         await self.db.execute("""CREATE TABLE IF NOT EXISTS refresh_tokens (
@@ -211,6 +214,13 @@ class Archive:
                             k: v for k, v in value.items() if k != "historical"}:
                         raise ValueError("A source ID cannot replace its original content. Use a new revision ID.")
                 return {"id": record_id, "status": old["status"], "duplicate": True}
+            if (not body.historical and body.source in {"codex", "claude"} and current_member["capture_after"]
+                    and (not body.occurred_at or not body.occurred_at.tzinfo
+                         or body.occurred_at.timestamp() < current_member["capture_after"])):
+                # An offline connector may not have observed a dashboard pause.
+                # Acknowledge without persisting that text, allowing its queue to
+                # discard it. Explicit historical import remains a separate opt-in.
+                return {"status": "skipped", "reason": "outside_capture_window"}
             payload = {"schema": 1, "id": record_id, "owner": owner, "original": value,
                        "title": body.title or "Recorded work", "content": body.content,
                        "created_at": value["occurred_at"], "captured_at": now(),
@@ -594,7 +604,9 @@ class Archive:
     async def preferences(self, owner, *, capture_enabled=None, agent_enabled=None):
         async with self.owner_lock(owner):
             if capture_enabled is not None:
-                await self.db.execute("UPDATE members SET capture_enabled=? WHERE id=?", (int(capture_enabled), owner))
+                await self.db.execute("""UPDATE members SET capture_after=CASE
+                    WHEN capture_enabled=0 AND ?=1 THEN ? ELSE capture_after END,
+                    capture_enabled=? WHERE id=?""", (int(capture_enabled), time.time(), int(capture_enabled), owner))
             if agent_enabled is not None:
                 await self.db.execute("UPDATE members SET agent_enabled=?,policy_version=policy_version+1 WHERE id=?",
                                       (int(agent_enabled), owner))

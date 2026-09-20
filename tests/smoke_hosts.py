@@ -145,6 +145,8 @@ def main():
             time.sleep(0.1)
         assert any(r["content"] == PROMPT and r["metadata"]["role"] == "user" for r in records), "user capture missing"
         assert any(r["content"] == ANSWER and r["metadata"]["role"] == "assistant" for r in records), "assistant capture missing"
+        extras = [r for r in records if r["content"] not in (PROMPT, ANSWER)]
+        assert not extras, f"Synthetic host context was captured: {[r['content'][:120] for r in extras]}"
         assert len({r["source_id"] for r in records}) == len(records), "duplicate upload"
         assert all(r["source"] == host and not r["historical"] for r in records)
         assert all(r["occurred_at"] for r in records)

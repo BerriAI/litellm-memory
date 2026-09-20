@@ -52,6 +52,22 @@ def test_claude_adapter_excludes_tools_reasoning_and_metadata():
         {'type': 'tool_result', 'content': 'full tool dump'}]}}, 'claude') is None
 
 
+def test_codex_adapter_excludes_injected_user_role_context():
+    context = row('Injected policy', internal_chat_message_metadata_passthrough={
+        'content_item_kinds': ['agents_md.instructions']})
+    assert visible_message(context, 'codex') is None
+    mixed = row('Actual user text', internal_chat_message_metadata_passthrough={
+        'content_item_kinds': ['user.text', 'environments.environment_context']})
+    mixed['payload']['content'].append({'type': 'input_text', 'text': 'Synthetic environment context'})
+    assert visible_message(mixed, 'codex')[1] == 'Actual user text'
+    for prefix in ('<environment_context>', '# AGENTS.md instructions for /tmp/work', '<permissions instructions>'):
+        assert visible_message(row(prefix + '\nInjected context'), 'codex') is None
+    # Typed genuine user text remains genuine even when quoting an envelope.
+    actual = row('<environment_context> quoted by the user', internal_chat_message_metadata_passthrough={
+        'content_item_kinds': ['user.text']})
+    assert visible_message(actual, 'codex') is not None
+
+
 def test_connector_outage_rotation_idempotence_and_revoke_preserve_queue(tmp_path):
     local = LocalCapture(tmp_path)
     local.set('connection', {'url': 'https://memory.example', 'access_token': 'old', 'refresh_token': 'refresh',
@@ -202,5 +218,26 @@ def test_resume_skips_pause_without_hooks_and_preexisting_sessions(tmp_path, mon
         local.capture(other, 'codex', 'two', historical=True)
         assert local.status()['queued'] == 4
         assert local.capture(other, 'codex', 'two', historical=True) == 0
+    finally:
+        local.close()
+
+
+def test_remote_pause_discard_leaves_explicit_backfill_possible(tmp_path):
+    local = LocalCapture(tmp_path)
+    local.set('connection', {'url': 'https://memory.example', 'access_token': 'token', 'expires_at': 10**20})
+    record = {'source_id': 'paused-source', 'content': 'Paused text', 'historical': False}
+    local.enqueue(record)
+    local.db.commit()
+    try:
+        transport = httpx.MockTransport(lambda _: httpx.Response(200, json={
+            'status': 'skipped', 'reason': 'outside_capture_window'}))
+        assert local.flush(transport=transport) == 1
+        assert local.status()['queued'] == 0
+        assert local.status()['skipped_after_pause'] == 1
+        # A successful non-storage acknowledgment must not become a receipt
+        # that would prohibit a future deliberate historical import.
+        assert local.enqueue({**record, 'historical': True})
+        local.db.commit()
+        assert local.status()['queued'] == 1
     finally:
         local.close()

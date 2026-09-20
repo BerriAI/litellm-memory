@@ -211,8 +211,12 @@ class LocalCapture:
                         response = client.post("/api/memories", json=self.vault.open_operational(row["payload"]),
                                                headers={"Authorization": "Bearer " + config["access_token"]})
                         if response.is_success:
+                            skipped = response.json().get("status") == "skipped"
                             with self.db:
-                                self.db.execute("INSERT OR IGNORE INTO receipts VALUES(?)", (row["id"],))
+                                if not skipped:
+                                    self.db.execute("INSERT OR IGNORE INTO receipts VALUES(?)", (row["id"],))
+                                else:
+                                    self.set("skipped_after_pause", self.get("skipped_after_pause", 0) + 1)
                                 self.db.execute("DELETE FROM outbox WHERE id=?", (row["id"],))
                             sent += 1
                         elif response.status_code in {400, 409, 413, 422}:
@@ -234,6 +238,7 @@ class LocalCapture:
 
     def status(self):
         return {"status": self.get("status", "not_connected"), "paused": self.get("paused", False),
+                "skipped_after_pause": self.get("skipped_after_pause", 0),
                 "coverage_warning": self.get("coverage_warning"),
                 "last_capture": self.get("last_capture"), "last_sync": self.get("last_sync"),
                 "queued": self.db.execute("SELECT count(*) FROM outbox WHERE status='pending'").fetchone()[0],
@@ -257,11 +262,26 @@ def visible_message(item, host):
     if role not in {"user", "assistant"}:
         return None
     content = message.get("content", [])
+    if host == "codex" and role == "user":
+        metadata = message.get("internal_chat_message_metadata_passthrough") or {}
+        kinds = metadata.get("content_item_kinds")
+        if isinstance(kinds, list):
+            # Codex can place environment/AGENTS context in a user-role wire
+            # message. Its typed item markers distinguish actual user text.
+            if not isinstance(content, list) or len(content) != len(kinds):
+                return None
+            content = [item for item, kind in zip(content, kinds, strict=True) if kind == "user.text"]
     if isinstance(content, list):
         content = "\n".join(x["text"] for x in content if isinstance(x, dict)
                             and x.get("type") in {"text", "input_text", "output_text"}
                             and isinstance(x.get("text"), str))
     if not isinstance(content, str) or not content.strip():
+        return None
+    if host == "codex" and role == "user" and not kinds and content.lstrip().startswith((
+        "<environment_context>", "# AGENTS.md instructions for ", "<permissions instructions>"
+    )):
+        # Public CLI versions without typed item markers emit these synthetic
+        # context envelopes as standalone user-role messages.
         return None
     timestamp = item.get("timestamp")
     try:

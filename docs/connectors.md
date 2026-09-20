@@ -34,6 +34,8 @@ A 100 MB queue limit stops new buffering without deleting old queued records. `s
 
 Live capture starts with text timestamped after connection or the latest resume. Paused hooks advance past visible work without recording it. The timestamp boundary also excludes paused text when no hook ran during the pause or a transcript is discovered later. Undated live messages are skipped with a coverage warning because the connector cannot establish when they were written; an explicit historical backfill can import them. Previously buffered work stays queued and can sync after resume. Disconnect removes only litemem's managed hooks/MCP entry, revokes its capture credential when online and pauses the local queue. If offline, revoke the connection in the dashboard too. Queued encrypted work is retained locally, not uploaded to a replacement identity.
 
+Pausing in the dashboard or MCP stops hosted intake. A computer can still buffer locally while offline or disconnected from that control; use `litemem-connector pause` to stop local buffering too. After a dashboard resume, the server discards delayed automatic captures dated before that resume without storing their content. The connector removes those queued copies and reports `skipped_after_pause`. An explicit historical backfill can still import them later. Saving an already-enabled recording preference does not move the boundary.
+
 ## Historical backfill
 
 Choose the folders or files you actually intend to import:

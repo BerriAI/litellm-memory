@@ -12,6 +12,7 @@ This file distinguishes implementation from verified deployment. It is not a cla
 - The real MCP Python SDK connected to the new ASGI service, recorded/searched/read owned evidence and denied cross-account reads and revoked tokens.
 - Desktop and 390px mobile browser checks showed the activity feed, private locks, catch-up panel and all model settings without console errors. These used isolated synthetic data.
 - Connector tests cover partial transcript rows, role filtering, encrypted local queueing, interruption/replay, token rotation, offline retries, pause, configuration preservation and account-safe connection behavior.
+- [CI run 35534905557](https://github.com/moe-berri/litemem/actions/runs/35534905557) passed **89 tests**, full Docker restore, and actual Codex **0.155.1** / Claude Code **2.1.278** hook dispatch. Both CLIs produced and uploaded visible user and assistant messages through the installed connector in disposable accounts. Model responses and the upload endpoint were loopback fixtures; this does not verify personal Slack OAuth or live Jev. Codex's one-run hook trust bypass was limited to that empty CI account, not installed on a user's computer.
 - Privacy tests cover owner/public/workspace boundaries, distinct public summaries/vectors, live policy changes, private topic rules, cached Jev work, automatic type sharing and nonpublication of historical imports.
 - New optional Logfire instrumentation passed a canary test that exception messages/private input do not appear in exported spans. Full-suite validation after subsequent changes remains required.
 
@@ -37,7 +38,8 @@ Reproduce multi-person measurements with `uv run python scripts/benchmark_search
 - [x] Complete encrypted portable export/import and a deletion-aware installation backup/restore proof.
 - [x] Implement/test private corrections with original evidence preservation, revision links and explicit account rejoin without restoring old grants.
 - [x] Verify administration transfer, gateway-key rotation and recovery-mode controls.
-- [ ] Prove continuous capture with actual supported Codex/Claude hosts and personal OAuth, not only synthetic adapter fixtures.
+- [x] Prove real Codex/Claude lifecycle hook dispatch and transcript compatibility, beyond adapter fixtures.
+- [ ] Complete personal Slack OAuth and actual capture through the hosted pilot; the isolated host tests above do not replace this.
 - [ ] Apply/verify needed Slack scopes and test owned-DM and least-audience shared-channel behavior without enrolling teammates or sending unsolicited messages.
 - [ ] Import approved Moe history, reconcile exact original hashes/counts, and prove rerun/restart behavior. The legacy preview alone is not a completed import.
 - [x] Verify bounded shared query capacity, server-owned history and citation-ID validation.

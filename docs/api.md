@@ -8,7 +8,7 @@ The web app, Slack adapter and remote MCP share one API/backend. The current API
 | --- | --- |
 | `GET /api/me` | Browser identity, enrollment and settings summary. |
 | `GET /api/models` | Authorized chat model choices from the LiteLLM gateway. |
-| `POST /api/memories` | Idempotent private source capture. |
+| `POST /api/memories` | Idempotent private source capture. Delayed automatic captures outside the resumed recording window return `status: skipped` without storing content. |
 | `POST /api/memories/search` | Authorized feed, keyword or hybrid retrieval. |
 | `GET /api/memories/{id}` | Allowed source evidence; originals are owner-only. |
 | `GET /api/memories/{id}/sharing-preview` | Browser-only preview of the separate summary. |
@@ -52,6 +52,8 @@ Pending question quotas are atomic and survive restarts: defaults are four per p
 ```
 
 The authenticated owner is assigned server-side. Repeating the same source/content is safe; changing the content requires a new revision ID. A receipt can be `storing` (encrypted durable intake awaiting Ente) or `pending` (stored, awaiting processing). `ready` means derived processing completed. Pause/revocation returns an access error. Deleted source IDs remain tombstoned and cannot be restored by replay.
+
+After recording resumes, a delayed nonhistorical `codex` or `claude` capture dated before that resume (or missing a timezone-aware date) returns `{"status":"skipped","reason":"outside_capture_window"}`. No source is stored and no record ID is issued. Connectors should remove that automatic queued copy without marking it permanently imported, so a later explicit historical backfill remains possible. Already-stored sources retain their normal duplicate receipt.
 
 Dates are original work dates, not import times. Unknown dates remain null. The importer records original bytes/digests and provenance separately. Capturing an assistant message does not certify its claims.
 
