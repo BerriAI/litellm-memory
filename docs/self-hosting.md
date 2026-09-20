@@ -8,6 +8,8 @@ One app replica is intentional: SQLite and process-local job coordination requir
 
 The Render Blueprint sets `SEARCH_CACHE_MB=512`; Docker's portable default is 128 MB. This is a maximum index budget, not a startup allocation. Reserve memory for Python, Ente, SQLite and concurrent requests as well. A 30,000-record/10-person synthetic fixture used about 502 MB for the Python process with two queries; 100,000 owned records needed a 1,024 MB cache to avoid repeated rebuilds. At that size, warm retrieval measured about five seconds and cold retrieval about 54 seconds. These are current operating limits, not an instant-search promise for arbitrary archive size. Use [the benchmark and results](release-checklist.md#performance-measurements) before a large rollout.
 
+With 100,000 records across ten people and half shared, the 512 MB cache measured 7.76–9.18 seconds warm and 36.34 seconds cold. Four direct concurrent retrievals took 46.50–46.54 seconds while the cache filled and partitions rebuilt. The Python process peaked at 629 MB, excluding Museum and PostgreSQL. The starter topology is not validated for fast search at that scale; size and benchmark your actual sharing pattern before expanding beyond a small pilot.
+
 ## Render
 
 The root `render.yaml` and `Dockerfile.litemem` provision the complete starter topology. Click the README deploy button, review the services and pricing, then deploy. Keep the generated `SESSION_SECRET` and `SETUP_CODE` in Render's secret environment. The app discovers its public URL from `RENDER_EXTERNAL_URL`.
