@@ -81,6 +81,8 @@ The new app is `moegent.application:app`; the portable launcher is `python -m mo
 
 [Architecture](docs/architecture.md) · [Product specification](docs/product-implementation-spec.md) · [Release checklist](docs/release-checklist.md)
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local development, code orientation and review expectations.
+
 ## Open source
 
 litemem is licensed under **AGPL-3.0**. The bundled Ente Museum executable is unmodified and also AGPL-3.0; see [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md). The self-hosted core needs no proprietary litemem control plane. Hosting and model inference may have costs.
