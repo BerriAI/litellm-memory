@@ -3,9 +3,9 @@ import asyncio
 import pytest
 from test_archive import archive as archive_fixture
 
-from moegent.archive import Reader
-from moegent.config import Settings
-from moegent.storage import QueueFull, Storage
+from litellm_memory.archive import Reader
+from litellm_memory.config import Settings
+from litellm_memory.storage import QueueFull, Storage
 
 archive = archive_fixture
 
@@ -40,7 +40,7 @@ async def test_pending_query_quota_is_atomic_durable_and_does_not_reject_idempot
 
 @pytest.mark.asyncio
 async def test_web_and_mcp_answers_share_capacity_and_cancel_releases_it(archive, monkeypatch):
-    from moegent import query
+    from litellm_memory import query
     entered, peak, calls = 0, 0, 0
     release = asyncio.Event()
     async def answering(*args):

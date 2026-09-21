@@ -408,7 +408,7 @@ def configure_hosts(home, directory, url, hosts, *, remove=False):
                 if kept:
                     groups.append({**group, "hooks": kept})
             if not remove:
-                command = shlex.join([sys.executable, "-m", "moegent.connector", "--directory", str(directory),
+                command = shlex.join([sys.executable, "-m", "litellm_memory.connector", "--directory", str(directory),
                                       "hook", "--host", host, "--marker", marker])
                 groups.append({"hooks": [{"type": "command", "command": command, "timeout": 10}]})
             if groups:
@@ -479,7 +479,7 @@ def main():
                 else:
                     local.set("status", "transcript_unavailable")
                     local.db.commit()
-                subprocess.Popen([sys.executable, "-m", "moegent.connector", "--directory", str(args.directory), "flush"],
+                subprocess.Popen([sys.executable, "-m", "litellm_memory.connector", "--directory", str(args.directory), "flush"],
                                  stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                  start_new_session=True)
             except Exception:

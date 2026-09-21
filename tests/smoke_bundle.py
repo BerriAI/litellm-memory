@@ -9,13 +9,13 @@ import httpx
 import yaml
 from nacl.public import PublicKey, SealedBox
 
-from moegent.archive import Archive, Reader, WorkInput
-from moegent.config import Settings
-from moegent.crypto import KeyVault, b64, decrypt_blob, encode, encrypt_blob, new_key, unb64
-from moegent.ente import Museum
-from moegent.migration import Packet, Transfers
-from moegent.setup import DeploymentConfig
-from moegent.time_settings import DisplayPreferences, ScheduleSettings
+from litellm_memory.archive import Archive, Reader, WorkInput
+from litellm_memory.config import Settings
+from litellm_memory.crypto import KeyVault, b64, decrypt_blob, encode, encrypt_blob, new_key, unb64
+from litellm_memory.ente import Museum
+from litellm_memory.migration import Packet, Transfers
+from litellm_memory.setup import DeploymentConfig
+from litellm_memory.time_settings import DisplayPreferences, ScheduleSettings
 
 
 async def main():

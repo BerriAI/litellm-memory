@@ -4,7 +4,7 @@ import httpx
 import pytest
 import tomlkit
 
-from moegent.connector import LocalCapture, configure_hosts, visible_message
+from litellm_memory.connector import LocalCapture, configure_hosts, visible_message
 
 
 def row(content, role='user', **extra):
@@ -116,10 +116,10 @@ def test_pause_skips_transcript_work_and_outbox_limit_does_not_advance_cursor(tm
         local.db.commit()
         with transcript.open('a') as file:
             file.write(json.dumps(row('after')) + '\n')
-        monkeypatch.setattr('moegent.connector.MAX_OUTBOX_BYTES', 1)
+        monkeypatch.setattr('litellm_memory.connector.MAX_OUTBOX_BYTES', 1)
         assert local.capture(transcript, 'codex', 'session') == 0
         assert local.get('status') == 'outbox_full'
-        monkeypatch.setattr('moegent.connector.MAX_OUTBOX_BYTES', 100000)
+        monkeypatch.setattr('litellm_memory.connector.MAX_OUTBOX_BYTES', 100000)
         assert local.capture(transcript, 'codex', 'session') == 1
         captured = [local.vault.open_operational(r[0])['content'] for r in local.db.execute('SELECT payload FROM outbox')]
         assert captured == ['before', 'after']
@@ -175,7 +175,7 @@ def test_capture_transactions_rollback_cursor_when_encrypt_fails(tmp_path, monke
 def test_resume_skips_pause_without_hooks_and_preexisting_sessions(tmp_path, monkeypatch):
     local = LocalCapture(tmp_path / 'state')
     started = 1_000_000_000
-    monkeypatch.setattr('moegent.connector.time.time', lambda: started)
+    monkeypatch.setattr('litellm_memory.connector.time.time', lambda: started)
 
     def dated(content, seconds):
         from datetime import UTC, datetime
@@ -195,7 +195,7 @@ def test_resume_skips_pause_without_hooks_and_preexisting_sessions(tmp_path, mon
         local.db.commit()
         with transcript.open('a') as file:
             file.write(dated('paused without a hook', started + 20))
-        monkeypatch.setattr('moegent.connector.time.time', lambda: started + 30)
+        monkeypatch.setattr('litellm_memory.connector.time.time', lambda: started + 30)
         local.set_paused(False)
         local.db.commit()
         # Resume must not depend on having received a hook while paused.
@@ -246,7 +246,7 @@ def test_remote_pause_discard_leaves_explicit_backfill_possible(tmp_path):
 def test_rename_reuses_encrypted_capture_state(tmp_path, monkeypatch):
     from pathlib import Path
 
-    from moegent.connector import capture_directory
+    from litellm_memory.connector import capture_directory
 
     monkeypatch.setattr(Path, 'home', lambda: tmp_path)
     assert capture_directory() == tmp_path / '.local/share/litellm-memory'

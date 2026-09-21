@@ -10,10 +10,10 @@ from test_archive import archive as archive_fixture
 from test_model_settings import application, enroll
 from test_work_views import ViewGateway, ready
 
-from moegent.archive import Reader, WorkInput
-from moegent.config import Settings
-from moegent.view_preferences import ViewPreferences
-from moegent.work_views import ViewRequest, WorkViews
+from litellm_memory.archive import Reader, WorkInput
+from litellm_memory.config import Settings
+from litellm_memory.view_preferences import ViewPreferences
+from litellm_memory.work_views import ViewRequest, WorkViews
 
 archive = archive_fixture
 
@@ -143,7 +143,7 @@ async def test_type_search_uses_jev_labels_instead_of_a_conflicting_summary_type
 
 @pytest.mark.asyncio
 async def test_agent_read_tool_cannot_bypass_a_personal_filter(archive, monkeypatch):
-    from moegent import query
+    from litellm_memory import query
     saved = await archive.capture('T1:A', WorkInput(source_id='hidden', source='codex', content='EXCLUDED_CANARY'))
     await archive.save_view_preferences('T1:A', ViewPreferences(hidden_sources=['codex']))
 

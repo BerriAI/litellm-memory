@@ -3,7 +3,7 @@ import json
 import pytest
 from nacl.exceptions import CryptoError
 
-from moegent.crypto import KeyVault, decrypt_blob, encrypt_blob, new_key
+from litellm_memory.crypto import KeyVault, decrypt_blob, encrypt_blob, new_key
 
 
 def test_records_are_authenticated_and_not_readable_with_another_owner_key():

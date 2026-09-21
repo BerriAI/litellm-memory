@@ -7,9 +7,9 @@ from fastapi.testclient import TestClient
 from test_archive import archive as archive_fixture
 from test_model_settings import application, enroll
 
-from moegent.archive import Reader, WorkInput
-from moegent.config import Settings
-from moegent.memory_slack import MemorySlack
+from litellm_memory.archive import Reader, WorkInput
+from litellm_memory.config import Settings
+from litellm_memory.memory_slack import MemorySlack
 
 archive = archive_fixture
 

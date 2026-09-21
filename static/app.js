@@ -2,7 +2,7 @@ import { marked } from './vendor/marked.esm.js';
 import DOMPurify from './vendor/purify.es.mjs';
 
 const $ = id => document.getElementById(id);
-const STORAGE = 'moegent.conversations.v2';
+const STORAGE = 'moegent.conversations.v2'; // Preserve existing legacy chat history.
 const uid = () => crypto.randomUUID();
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const el = (tag, className, text) => {
@@ -100,7 +100,7 @@ function renderChat() {
     if (m.role === 'user') { const article = el('article','message user'); article.append(el('div','user-bubble',m.content)); $('messages').append(article); }
     else {
       const article = el('article','message assistant'); const heading = el('div','answer-heading');
-      const avatar = el('img','avatar'); avatar.src = '/static/moegent-icon.jpg'; avatar.alt = '';
+      const avatar = el('img','avatar'); avatar.src = '/static/litellm-memory-icon.jpg'; avatar.alt = '';
       heading.append(avatar, document.createTextNode('LiteLLM Memory'));
       const status = el('div','working'); const content = el('div','answer-content'); const actions = el('div','answer-actions');
       article.append(heading,status,content,actions); $('messages').append(article);

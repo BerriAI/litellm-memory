@@ -29,7 +29,7 @@ Do not add a subtitle just to fill the space beneath a heading. Do not put a sen
 | LiteLLM gateway | The configured inference connection and model catalog |
 | Logfire | Pydantic's observability product; not a second model provider |
 
-Use legacy names only when a migration explanation requires them. Internal package `moegent` is not the user-facing product. Do not revive “product team knowledge” as the memory source for the new app without verifying that a specific legacy import is being described.
+Use legacy names only when a migration explanation requires them. The Python package is `litellm_memory`. Do not revive “product team knowledge” as the memory source for the new app without verifying that a specific legacy import is being described.
 
 ## Privacy copy is functional
 

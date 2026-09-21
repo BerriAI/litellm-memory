@@ -10,9 +10,9 @@ from test_model_settings import application, enroll
 from test_setup import claim
 from test_work_views import ViewGateway, ready
 
-from moegent.archive import Reader
-from moegent.time_settings import ScheduleSettings
-from moegent.work_views import ViewRequest, WorkViews
+from litellm_memory.archive import Reader
+from litellm_memory.time_settings import ScheduleSettings
+from litellm_memory.work_views import ViewRequest, WorkViews
 
 archive = archive_fixture
 

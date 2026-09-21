@@ -1,7 +1,7 @@
 import pytest
 from test_archive import archive as archive_fixture
 
-from moegent.archive import Reader, WorkInput
+from litellm_memory.archive import Reader, WorkInput
 
 archive = archive_fixture
 

@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from nacl.public import PublicKey, SealedBox
 from test_model_settings import application, enroll, session
 
-from moegent.crypto import b64, encode, unb64
+from litellm_memory.crypto import b64, encode, unb64
 
 SOURCE = 'https://source.example'
 DESTINATION = 'https://destination.example'
@@ -195,7 +195,7 @@ def test_transfer_staging_is_bounded_and_accepts_only_its_recipient(tmp_path, mo
         second = destination.post('/api/transfers/receive', json={'source': SOURCE}).json()
         assert destination.post('/api/transfers/receive', json={'source': SOURCE}).status_code == 400
         assert destination.post(f"/api/transfers/{second['id']}/packets", json=frames[0]).status_code == 400
-        monkeypatch.setattr('moegent.migration.MAX_TOTAL_STAGED_BYTES', 10)
+        monkeypatch.setattr('litellm_memory.migration.MAX_TOTAL_STAGED_BYTES', 10)
         assert destination.post(f"/api/transfers/{invitation['id']}/packets", json=frames[0]).status_code == 400
         assert destination.post('/api/memories/search', json={}).json()['results'] == []
 
@@ -238,7 +238,7 @@ def test_receiving_capability_is_origin_bound_upload_only_and_resumable(tmp_path
 
 
 def test_sender_csp_only_adds_one_canonical_validated_origin(tmp_path):
-    from moegent.migration import origin
+    from litellm_memory.migration import origin
 
     assert origin('https://DESTINATION.example:443/') == DESTINATION
     assert origin('http://[::1]:8882') == 'http://[::1]:8882'

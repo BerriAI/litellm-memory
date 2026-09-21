@@ -55,7 +55,7 @@ Paths below are relative to the repository root, three levels above this skill d
 - `static/memory.js`: rendering, permissions, state transitions, source dialogs, query interactions.
 - `static/ui.js`: shared element, busy, copy-feedback, and confirmation primitives.
 - `static/setup.js`, `static/migration.js`: first-run and transfer flows.
-- `static/auth.html`, `static/transfer*.html`, connector setup in `moegent/application.py`: standalone surfaces using the same language.
+- `static/auth.html`, `static/transfer*.html`, connector setup in `litellm_memory/application.py`: standalone surfaces using the same language.
 - `docs/ui-review.md`: current screenshots and evidence scope.
 
 CSS is the source of truth for implemented values. References describe intended use and rationale. If they disagree, inspect the current user request and code; fix the discrepancy deliberately and update both. Do not copy an obsolete screenshot's mistakes just because it is documented.

@@ -1,8 +1,8 @@
 import httpx
 import pytest
 
-from moegent.crypto import KeyVault, decrypt_blob, encrypt_blob, new_key
-from moegent.ente import Museum
+from litellm_memory.crypto import KeyVault, decrypt_blob, encrypt_blob, new_key
+from litellm_memory.ente import Museum
 
 
 @pytest.mark.asyncio

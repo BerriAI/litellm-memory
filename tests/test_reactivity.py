@@ -7,10 +7,10 @@ import pytest
 from fastapi.testclient import TestClient
 from test_app import config, signed_event
 
-from moegent.app import create_app
-from moegent.progress import report
-from moegent.slack import Slack, SlackAPIError
-from moegent.storage import Storage
+from litellm_memory.app import create_app
+from litellm_memory.progress import report
+from litellm_memory.slack import Slack, SlackAPIError
+from litellm_memory.storage import Storage
 
 
 def test_web_stream_cancel_and_idempotent_retry(tmp_path):
@@ -196,7 +196,7 @@ def test_slack_followup_cancels_running_model_and_answers_latest(tmp_path):
 
 @pytest.mark.asyncio
 async def test_slack_native_markdown_and_workspace_fallback(tmp_path):
-    from moegent.slack import formatted
+    from litellm_memory.slack import formatted
     markdown = '# Heading\n\n**Bold** and [source](https://example.com).\n\n- First\n- Second\n\n```python\nprint("**literal**")\n```'
     payload = formatted(markdown)
     assert payload['blocks'] == [{'type': 'markdown', 'text': markdown}]

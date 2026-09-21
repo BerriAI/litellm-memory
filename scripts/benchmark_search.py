@@ -13,8 +13,8 @@ import tempfile
 import time
 from pathlib import Path
 
-from moegent.archive import Archive, Reader
-from moegent.crypto import KeyVault, encrypt_blob
+from litellm_memory.archive import Archive, Reader
+from litellm_memory.crypto import KeyVault, encrypt_blob
 
 
 async def benchmark(count, people, cache_mb, parallel):

@@ -153,7 +153,7 @@ async def serve():
         if not (settings.ente_base_url and settings.ente_auth_token):
             processes.append(await start_museum(settings, vault, deployment))
         web = await asyncio.create_subprocess_exec(
-            sys.executable, '-m', 'uvicorn', 'moegent.application:app', '--host', '0.0.0.0',
+            sys.executable, '-m', 'uvicorn', 'litellm_memory.application:app', '--host', '0.0.0.0',
             '--port', os.environ.get('PORT', '8000'), '--no-access-log', '--log-level', 'warning')
         processes.append(web)
         print('LiteLLM Memory is starting. Finish setup in the web app. Setup code: private STATE_DIR/setup-code file.', flush=True)

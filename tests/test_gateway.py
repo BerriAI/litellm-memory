@@ -3,8 +3,8 @@ import asyncio
 import httpx
 import pytest
 
-from moegent.config import Settings
-from moegent.gateway import Gateway, GatewayError
+from litellm_memory.config import Settings
+from litellm_memory.gateway import Gateway, GatewayError
 
 
 @pytest.mark.asyncio

@@ -2,8 +2,8 @@ import json
 
 import pytest
 
-from moegent.archive import Archive, Reader, WorkInput
-from moegent.crypto import KeyVault
+from litellm_memory.archive import Archive, Reader, WorkInput
+from litellm_memory.crypto import KeyVault
 
 
 class FakeMuseum:
@@ -155,8 +155,8 @@ async def test_semantic_search_does_not_compare_different_models_with_equal_dime
 
 @pytest.mark.asyncio
 async def test_jev_cache_keeps_successful_chunks_and_only_classifies_new_criteria(archive):
-    from moegent.gateway import JevResult, NoulAnswer
-    from moegent.processing import classify_record
+    from litellm_memory.gateway import JevResult, NoulAnswer
+    from litellm_memory.processing import classify_record
 
     saved = await archive.capture('T1:A', WorkInput(source_id='chunks', content='a'*15000))
     row = await archive.row(saved['id'])
@@ -233,7 +233,7 @@ async def test_remote_delete_failure_denies_reads_immediately_and_cleanup_resume
 async def test_remote_resume_discards_delayed_host_capture_but_allows_explicit_history(archive, monkeypatch):
     from datetime import UTC, datetime
     stamp = 1_000_000_000
-    monkeypatch.setattr('moegent.archive.time.time', lambda: stamp)
+    monkeypatch.setattr('litellm_memory.archive.time.time', lambda: stamp)
     def record(identity, seconds):
         return WorkInput(source_id=identity, source='codex', content='Visible work: ' + identity,
                          occurred_at=datetime.fromtimestamp(seconds, UTC) if seconds else None)
@@ -251,7 +251,7 @@ async def test_remote_resume_discards_delayed_host_capture_but_allows_explicit_h
     await archive.capture('T1:A', record('after', stamp + 1))
     imported = await archive.capture('T1:A', record('paused', stamp - 10).model_copy(update={'historical': True}))
     assert (await archive.read(Reader('T1:A'), imported['id']))['historical']
-    monkeypatch.setattr('moegent.archive.time.time', lambda: stamp + 60)
+    monkeypatch.setattr('litellm_memory.archive.time.time', lambda: stamp + 60)
     await archive.preferences('T1:A', capture_enabled=True)
     assert (await archive.member('T1:A'))['capture_after'] == stamp  # Saving an unchanged preference is not a new resume.
 
@@ -269,7 +269,7 @@ async def test_new_sharing_does_not_require_preset_types_but_preserves_old_restr
 
 
 def test_new_classification_only_asks_for_user_rules():
-    from moegent.processing import criteria_for
+    from litellm_memory.processing import criteria_for
     assert criteria_for([], 'jev') == {}
     criteria = criteria_for([{'id': 'one', 'version': 'v1', 'instruction': 'Customer names'}], 'jev')
     assert set(criteria) == {'rule_one'}

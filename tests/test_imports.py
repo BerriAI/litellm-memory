@@ -2,7 +2,7 @@ import json
 
 import httpx
 
-from moegent.imports import import_plan, legacy_plan
+from litellm_memory.imports import import_plan, legacy_plan
 
 
 def source(root, folder, name, *, actor='moe-berri', content='Original.  Two spaces.\n'):

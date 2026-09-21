@@ -17,7 +17,7 @@ from pathlib import Path
 
 import tomlkit
 
-from moegent.connector import LocalCapture, configure_hosts
+from litellm_memory.connector import LocalCapture, configure_hosts
 
 PROMPT = "LITELLM_MEMORY_HOST_USER_CANARY: Reply briefly. Do not use tools."
 ANSWER = "LITELLM_MEMORY_HOST_ASSISTANT_CANARY: Capture verified."

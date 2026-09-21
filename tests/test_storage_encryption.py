@@ -1,7 +1,7 @@
 import pytest
 
-from moegent.crypto import KeyVault
-from moegent.storage import Storage
+from litellm_memory.crypto import KeyVault
+from litellm_memory.storage import Storage
 
 
 @pytest.mark.asyncio
