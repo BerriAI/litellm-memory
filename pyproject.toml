@@ -1,6 +1,6 @@
 [project]
-name = "litemem"
-version = "0.1.0"
+name = "litellm-memory"
+version = "0.2.0"
 description = "Private, queryable work history for your team, built with Ente and LiteLLM"
 requires-python = ">=3.12"
 dependencies = [
@@ -27,6 +27,10 @@ dependencies = [
 dev = ["pytest>=8.3", "pytest-asyncio>=0.25", "ruff>=0.11"]
 
 [project.scripts]
+litellm-memory-connector = "moegent.connector:main"
+litellm-memory-transfer = "moegent.transfer_cli:main"
+litellm-memory-evaluate = "moegent.evaluation:main"
+# Compatibility for installed scripts and existing hook commands.
 litemem-connector = "moegent.connector:main"
 litemem-transfer = "moegent.transfer_cli:main"
 litemem-evaluate = "moegent.evaluation:main"

@@ -48,8 +48,8 @@ async function api(path, options = {}) {
   try { data = await response.json(); } catch { data = {}; }
   if (!response.ok) {
     const messages = {401:'Sign in with Slack to continue.',403:'Your account doesn’t have access to this request.',
-      404:'This request is no longer available. Try asking again.',429:'litemem is busy. Give it a moment, then retry.',
-      502:'litemem is restarting. Try again in a moment.',503:'The memory service is unavailable. Try again in a moment.',
+      404:'This request is no longer available. Try asking again.',429:'LiteLLM Memory is busy. Give it a moment, then retry.',
+      502:'LiteLLM Memory is restarting. Try again in a moment.',503:'The memory service is unavailable. Try again in a moment.',
       504:'This request took too long. Try again with a more specific question.'};
     throw new ApiError(typeof data.detail === 'string' ? data.detail : messages[response.status] || 'Something went wrong. Please try again.', response.status);
   }
@@ -101,7 +101,7 @@ function renderChat() {
     else {
       const article = el('article','message assistant'); const heading = el('div','answer-heading');
       const avatar = el('img','avatar'); avatar.src = '/static/moegent-icon.jpg'; avatar.alt = '';
-      heading.append(avatar, document.createTextNode('litemem'));
+      heading.append(avatar, document.createTextNode('LiteLLM Memory'));
       const status = el('div','working'); const content = el('div','answer-content'); const actions = el('div','answer-actions');
       article.append(heading,status,content,actions); $('messages').append(article);
       renderedAnswers.set(m.id,{article,status,content,actions,text:null,state:null,phase:null}); updateAnswer(chat,m);
@@ -383,7 +383,7 @@ else if (location.hash === '#memories') showView('memories');
 api('/api/config').then(config => {
   $('account-actions').hidden = !config.signed_in;
   $('login').hidden = !config.login_available || config.signed_in || config.access_mode === 'public';
-  if (config.slack_installed && new URLSearchParams(location.search).get('slack') === 'connected') { toast('litemem is connected to Slack.'); history.replaceState(null,'','/'); }
+  if (config.slack_installed && new URLSearchParams(location.search).get('slack') === 'connected') { toast('LiteLLM Memory is connected to Slack.'); history.replaceState(null,'','/'); }
   if (config.access_mode === 'allowlist' && !config.signed_in) { $('connection').hidden = false; $('connection').replaceChildren(document.createTextNode('Sign in with Slack to ask questions. ')); const a = el('a','','Sign in'); a.href = '/auth/slack'; $('connection').append(a); }
   for (const chat of chats) for (const m of chat.messages) if (m.state === 'pending') execute(chat,m);
 }).catch(error => { $('connection').hidden = false; $('connection').textContent = error.message; });

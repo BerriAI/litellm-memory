@@ -2,7 +2,7 @@
 # Museum runs privately beside the web process, managed by moegent.boot.
 services:
   - type: web
-    name: litemem
+    name: litellm-memory
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
@@ -12,7 +12,7 @@ services:
     autoDeployTrigger: off
     healthCheckPath: /health
     disk:
-      name: litemem-state
+      name: litellm-memory-state
       mountPath: /data
       sizeGB: 5
     envVars:
@@ -22,7 +22,7 @@ services:
         value: "10000"
       - key: DATABASE_URL
         fromDatabase:
-          name: litemem-ente
+          name: litellm-memory-ente
           property: connectionString
       - key: SESSION_SECRET
         generateValue: true
@@ -37,11 +37,11 @@ services:
       - key: SEARCH_CACHE_MB
         value: "512"
 databases:
-  - name: litemem-ente
+  - name: litellm-memory-ente
     plan: basic-256mb
     region: oregon
-    databaseName: litemem
-    user: litemem
+    databaseName: litellm_memory
+    user: litellm_memory
     postgresMajorVersion: "17"
     diskSizeGB: 1
     ipAllowList: []

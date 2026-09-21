@@ -19,8 +19,8 @@ import tomlkit
 
 from moegent.connector import LocalCapture, configure_hosts
 
-PROMPT = "LITEMEM_HOST_USER_CANARY: Reply briefly. Do not use tools."
-ANSWER = "LITEMEM_HOST_ASSISTANT_CANARY: Capture verified."
+PROMPT = "LITELLM_MEMORY_HOST_USER_CANARY: Reply briefly. Do not use tools."
+ANSWER = "LITELLM_MEMORY_HOST_ASSISTANT_CANARY: Capture verified."
 records = []
 
 
@@ -96,7 +96,7 @@ class Fixture(BaseHTTPRequestHandler):
 
 
 def main():
-    if os.environ.get("LITEMEM_DISPOSABLE_HOST_TEST") != "1":
+    if os.environ.get("LITELLM_MEMORY_DISPOSABLE_HOST_TEST") != "1":
         raise SystemExit("Run only in the disposable host-verification CI job.")
     host = sys.argv[1]
     base = Path.home()
@@ -104,7 +104,7 @@ def main():
     for name in (".codex", ".claude", ".claude.json"):
         if (base / name).exists():
             raise SystemExit(f"Expected a clean CI account; {name} already exists.")
-    with tempfile.TemporaryDirectory(prefix="litemem-host-") as directory:
+    with tempfile.TemporaryDirectory(prefix="litellm-memory-host-") as directory:
         root = Path(directory)
         state = root / "capture"
         server = ThreadingHTTPServer(("127.0.0.1", 0), Fixture)
@@ -124,7 +124,7 @@ def main():
             config["model_providers"] = {"fixture": {"name": "Disposable fixture", "base_url": url + "/v1",
                                                   "wire_api": "responses", "requires_openai_auth": False}}
             config["features"] = {"hooks": True}
-            config["mcp_servers"]["litemem"]["enabled"] = False
+            config["mcp_servers"]["litellm-memory"]["enabled"] = False
             path.write_text(tomlkit.dumps(config))
             # All sources are the reviewed installer output in this empty CI
             # account. This flag is never part of installation instructions.

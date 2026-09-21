@@ -26,7 +26,7 @@ def build_mcp(settings, archive, gateway):
                                subject=owner, resource=resource)
 
     server = MCPServer(
-        "litemem", title="litemem", version="1.0.0",
+        "litellm-memory", title="LiteLLM Memory", version="1.0.0",
         instructions=("Records the user's work continuously through configured capture hooks. "
                       "Use search_memories, read_memory and ask_memories only when the user asks to check "
                       "their work history or memories. Never search automatically every coding turn. "

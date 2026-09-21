@@ -1,10 +1,10 @@
 # Architecture
 
-litemem stores evidence about people's work. Its retrieval is explicit: a capture hook records new work; a user later opens Ask, searches the archive, or asks @litemem. Capturing a normal coding turn never performs background recall into that conversation.
+LiteLLM Memory stores evidence about people's work. Its retrieval is explicit: a capture hook records new work; a user later opens Ask, searches the archive, or asks @memory. Capturing a normal coding turn never performs background recall into that conversation.
 
 ```mermaid
 flowchart LR
-  C[Codex / Claude capture hooks] -->|OAuth, encrypted local queue| A[litemem API]
+  C[Codex / Claude capture hooks] -->|OAuth, encrypted local queue| A[litellm-memory API]
   W[Slack sign-in + web app] --> A
   S[Slack bot] -->|fresh audience check| A
   M[Remote MCP] -->|personal OAuth| A
@@ -46,7 +46,7 @@ The agent receives only authorized search/read/people/overview tools. Web, Slack
 
 ## Key custody and processes
 
-Ente Museum is the opaque encrypted object store. litemem holds the authorized hosted processor's root key and separate member key envelopes; this is not zero knowledge against the operator. The portable boot process automatically provisions Museum, disables further registration, initializes the memory namespace, then runs the application. It supervises both processes and does not expose Museum's port publicly.
+Ente Museum is the opaque encrypted object store. LiteLLM Memory holds the authorized hosted processor's root key and separate member key envelopes; this is not zero knowledge against the operator. The portable boot process automatically provisions Museum, disables further registration, initializes the memory namespace, then runs the application. It supervises both processes and does not expose Museum's port publicly.
 
 SQLite persists membership/policies, encrypted records/jobs, classification cache, OAuth token hashes, requests and current views. It makes the starter deployment simple and single-replica. PostgreSQL belongs to Museum. Neither GitHub nor a proprietary SaaS control plane stores the team's live work archive.
 

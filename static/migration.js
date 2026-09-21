@@ -48,7 +48,7 @@ function installation(value) {
     url.pathname !== "/"
   ) {
     throw new Error(
-      "Enter the HTTPS address of the other litemem installation.",
+      "Enter the HTTPS address of the other LiteLLM Memory installation.",
     );
   }
   return url.origin;

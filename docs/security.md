@@ -10,7 +10,7 @@ Encryption uses libsodium secretstream XChaCha20-Poly1305 with authenticated fin
 
 The hosted app decrypts authorized content to process and query it. The deployment operator controls that runtime and its key material. A malicious or compromised operator can recover content by changing or inspecting the service. This design does **not** offer cryptographic protection against that operator.
 
-Slack-only sign-in without a separate secret is enabled by this hosted key custody. litemem adopts Ente's storage and encryption formats, not Ente Photos' end-to-end client key model. The gateway and model provider also see the content selected for each authorized inference request. Browser and Slack output is plaintext for its intended viewer; recipients can retain what they have seen.
+Slack-only sign-in without a separate secret is enabled by this hosted key custody. LiteLLM Memory adopts Ente's storage and encryption formats, not Ente Photos' end-to-end client key model. The gateway and model provider also see the content selected for each authorized inference request. Browser and Slack output is plaintext for its intended viewer; recipients can retain what they have seen.
 
 ## Authorization
 

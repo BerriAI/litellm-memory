@@ -1,4 +1,4 @@
-"""litemem application API and web/Slack/MCP adapters."""
+"""LiteLLM Memory application API and web/Slack/MCP adapters."""
 
 import asyncio
 import contextlib
@@ -174,7 +174,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
                 await transfers.close()
                 await store.close()
 
-    app = FastAPI(title="litemem API", version="1.0.0", lifespan=lifespan)
+    app = FastAPI(title="LiteLLM Memory API", version="1.0.0", lifespan=lifespan)
     api = APIRouter()
     app.state.archive, app.state.store, app.state.gateway = archive, store, gateway
     app.state.transfers = transfers
@@ -316,7 +316,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
 
     @app.get("/health")
     async def health():
-        return {"status": "recovery" if settings.recovery_mode else "ok", "name": "litemem",
+        return {"status": "recovery" if settings.recovery_mode else "ok", "name": "litellm-memory",
                 "storage": "ente" if museum else "unconfigured"}
 
     @app.get("/")
@@ -331,7 +331,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
             identity = session_identity(request)
         except HTTPException:
             return {"signed_in": False, "login_available": bool(settings.slack_client_id),
-                    "name": "litemem"}
+                    "name": "litellm-memory"}
         owner = f"{identity['team_id']}:{identity['user_id']}"
         member = await archive.member(owner)
         if member and not await slack.verify_member(owner):
@@ -615,33 +615,33 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         await browser_account(request)
         url = escape(settings.public_base_url.rstrip("/"))
         return HTMLResponse(f'''<!doctype html><html lang="en"><meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1"><title>Connect your tools · litemem</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1"><title>Connect your tools · LiteLLM Memory</title>
         <link rel="stylesheet" href="/static/memory.css"><main class="auth-card guide-page">
         <a href="/#connections">← Connections</a><p class="eyebrow">Connect a tool</p><h1>Record as you work</h1>
         <p>Install the connector once on the computer where you use Codex or Claude Code.
         Sign in with Slack when the browser opens. You don't need an API key or a memory password.</p>
         <h2>1. Install &amp; connect</h2>
-        <pre class="code-block">uv tool install git+https://github.com/moe-berri/litemem.git@codex/litemem-implementation
-litemem-connector connect {url}</pre>
+        <pre class="code-block">uv tool install --force git+https://github.com/moe-berri/litellm-memory.git@main
+litellm-memory-connector connect {url}</pre>
         <h2>2. Restart your coding tool</h2>
-        <p>The installer adds capture hooks and the litemem MCP, preserving your existing connections.
-        Restart Codex or Claude Code, then sign in to its litemem MCP when prompted.
-        In Codex, open <code>/hooks</code> and review/trust the litemem capture hooks.</p>
+        <p>The installer adds capture hooks and the LiteLLM Memory MCP, preserving your existing connections.
+        Restart Codex or Claude Code, then sign in to its LiteLLM Memory MCP when prompted.
+        In Codex, open <code>/hooks</code> and review/trust the LiteLLM Memory capture hooks.</p>
         <p>Visible conversation text is recorded privately. Tool outputs, system messages and hidden reasoning
         are excluded. Memories are searched only when you ask.</p>
         <details class="advanced"><summary>Choose a tool or import history</summary>
-        <pre class="code-block">litemem-connector connect {url} --host codex
-litemem-connector connect {url} --host claude
-litemem-connector backfill ~/.codex/sessions --host codex
-litemem-connector backfill ~/.claude/projects --host claude</pre>
+        <pre class="code-block">litellm-memory-connector connect {url} --host codex
+litellm-memory-connector connect {url} --host claude
+litellm-memory-connector backfill ~/.codex/sessions --host codex
+litellm-memory-connector backfill ~/.claude/projects --host claude</pre>
         <p>History import is opt-in. Review which projects you want to import first; a specific folder or
         transcript file works too. Originals and their dates are preserved.</p></details>
         <details class="advanced"><summary>Status, pause, and disconnect</summary>
-        <pre class="code-block">litemem-connector status
-litemem-connector flush
-litemem-connector pause
-litemem-connector resume
-litemem-connector disconnect</pre>
+        <pre class="code-block">litellm-memory-connector status
+litellm-memory-connector flush
+litellm-memory-connector pause
+litellm-memory-connector resume
+litellm-memory-connector disconnect</pre>
         <p>The connector buffers offline work locally with encryption and retries on the next hook.
         A 100 MB limit pauses buffering instead of silently dropping old work. The status command reports
         queued work and items needing attention. Revoke access at any time from Connections.</p></details>
@@ -673,7 +673,7 @@ litemem-connector disconnect</pre>
                 yield stream.line(value) if stream else json.dumps(value, ensure_ascii=False) + '\n'
             if stream:
                 yield stream.finish()
-        extension = 'litemem' if stream else 'jsonl'
+        extension = 'litellm-memory' if stream else 'jsonl'
         return StreamingResponse(records(), media_type='application/octet-stream' if stream else 'application/x-ndjson',
             headers={'Content-Disposition': f'attachment; filename="my-memory-export.{extension}"', 'Cache-Control': 'no-store'})
 
@@ -846,7 +846,7 @@ litemem-connector disconnect</pre>
             return HTMLResponse('<!doctype html><title>Sign-in incomplete</title><link rel="stylesheet" href="/static/memory.css">'
                                 '<main class="auth-card"><h1>Sign-in wasn’t completed</h1>'
                                 '<p>Use your eligible company Slack account.</p>'
-                                '<a href="/">Return to litemem</a></main>', status_code=403)
+                                '<a href="/">Return to LiteLLM Memory</a></main>', status_code=403)
         return RedirectResponse(target, status_code=303)
 
     @app.post("/auth/logout")

@@ -19,7 +19,7 @@ import httpx
 from nacl.exceptions import CryptoError
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .connector import LocalCapture, atomic_private
+from .connector import LocalCapture, atomic_private, capture_directory
 from .crypto import encode
 
 CATEGORIES = (
@@ -150,7 +150,7 @@ class Evaluation:
         self.local.flush(limit=0, transport=self.transport)
         connection = self.local.get('connection')
         if not connection or connection.get('expires_at', 0) <= time.time() + 30:
-            raise ValueError('Reconnect litemem-connector before running this evaluation.')
+            raise ValueError('Reconnect litellm-memory-connector before running this evaluation.')
         url = urlsplit(connection['url'])
         if (url.username or url.password or url.query or url.fragment or url.path not in {'', '/'}
                 or url.scheme != 'https' and not (url.scheme == 'http' and url.hostname in {'127.0.0.1', 'localhost'})):
@@ -356,8 +356,8 @@ def review_answers(evaluation, run, *, ask=input, display=print):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Privately evaluate real work-history answers through litemem.')
-    parser.add_argument('--directory', type=Path, default=Path.home() / '.local/share/litemem')
+    parser = argparse.ArgumentParser(description='Privately evaluate real work-history answers through LiteLLM Memory.')
+    parser.add_argument('--directory', type=Path, default=capture_directory())
     sub = parser.add_subparsers(dest='command', required=True)
     start = sub.add_parser('start', help='Submit explicit questions; preserves encrypted, resumable results.')
     start.add_argument('questions', type=Path)
@@ -370,7 +370,7 @@ def main():
     try:
         directory = outside_repository(args.directory)
         if not (directory / 'capture.sqlite3').is_file():
-            raise ValueError('Connect with litemem-connector first.')
+            raise ValueError('Connect with litellm-memory-connector first.')
         local = LocalCapture(directory)
         evaluation = Evaluation(local)
         with evaluation.lock():

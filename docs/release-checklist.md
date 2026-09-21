@@ -1,12 +1,12 @@
 # Release status
 
-The implementation is on `codex/litemem-implementation`. The existing hosted assistant has not been switched to the new app. This repository is still private; publishing and production cutover are separate release actions.
+The implementation is on `main`. The existing hosted assistant has not been switched to the new app. This repository is still private; publishing and production cutover are separate release actions.
 
 ## Verification
 
-CI runs unit/API tests, Ruff, frontend syntax checks, real Codex/Claude hook dispatch against disposable fixtures, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. [Current checks](https://github.com/moe-berri/litemem/pull/1/checks).
+CI runs unit/API tests, Ruff, frontend syntax checks, real Codex/Claude hook dispatch against disposable fixtures, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. [Current checks](https://github.com/moe-berri/litellm-memory/pull/1/checks).
 
-The core-loop revision passed [CI run 35648509804](https://github.com/moe-berri/litemem/actions/runs/35648509804), source `0da818f`: **153 tests**, Ruff, four frontend syntax checks, both real host-hook checks, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. Browser review uses synthetic records and simulated inference; [screenshots and review scope](ui-review.md). No synthetic check is a real-history quality score.
+The core-loop revision passed [CI run 35648509804](https://github.com/moe-berri/litellm-memory/actions/runs/35648509804), source `0da818f`: **153 tests**, Ruff, four frontend syntax checks, both real host-hook checks, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. Browser review uses synthetic records and simulated inference; [screenshots and review scope](ui-review.md). No synthetic check is a real-history quality score.
 
 Frontend format checks also pass. Browser checks cover first-use intake status, person browsing and routes, query scope, privacy preview, saved-filter recovery and 390px/320px layouts. Automated daily overview sweeps are removed; source processing and explicit Ask remain.
 

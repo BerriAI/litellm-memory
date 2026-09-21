@@ -33,6 +33,32 @@ MAX_LINE_BYTES = 2_000_000
 HOOK_EVENTS = ("SessionStart", "UserPromptSubmit", "PostToolUse", "Stop")
 
 
+def capture_directory():
+    """Reuse existing keys, credentials and outbox; never fork them on rename."""
+    base = Path.home() / ".local/share"
+    legacy = base / "litemem"
+    return legacy if legacy.exists() else base / "litellm-memory"
+
+
+def configure_mcp(servers, url, host, *, remove):
+    names = ("litellm-memory", "litemem")
+    endpoint = url + "/mcp"
+    if remove:
+        for name in names:
+            if servers.get(name, {}).get("url") == endpoint:
+                del servers[name]
+        return
+    if any(name in servers and servers[name].get("url") != endpoint for name in names):
+        raise ValueError("A different LiteLLM Memory MCP is already configured; rename it before connecting.")
+    # Existing host OAuth credentials are keyed by server name. Keep that name
+    # during upgrades; new installations get only the new name.
+    name = next((name for name in names if name in servers), names[0])
+    if name not in servers:
+        servers[name] = {"url": endpoint}
+    if host == "claude":
+        servers[name]["type"] = "http"
+
+
 def atomic_private(path, value):
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     temporary = path.with_name(path.name + "." + secrets.token_hex(6))
@@ -299,7 +325,7 @@ def login(local, url, *, opener=webbrowser.open):
     parsed = urlsplit(url)
     if (parsed.scheme != "https" and not (parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"})) \
             or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path:
-        raise ValueError("Use the HTTPS address of your litemem installation.")
+        raise ValueError("Use the HTTPS address of your LiteLLM Memory installation.")
     result = {}
     state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
 
@@ -320,7 +346,7 @@ def login(local, url, *, opener=webbrowser.open):
 
     with HTTPServer(("127.0.0.1", 0), Callback) as server, httpx.Client(base_url=url, timeout=20) as client:
         callback = f"http://127.0.0.1:{server.server_port}/callback"
-        response = client.post("/oauth/register", json={"client_name": "litemem continuous capture",
+        response = client.post("/oauth/register", json={"client_name": "LiteLLM Memory continuous capture",
                                "redirect_uris": [callback], "token_endpoint_auth_method": "none"})
         response.raise_for_status()
         client_id = response.json()["client_id"]
@@ -361,12 +387,13 @@ def login(local, url, *, opener=webbrowser.open):
 
 def configure_hosts(home, directory, url, hosts, *, remove=False):
     """Merge only our named connection/commands. Never replace existing hooks."""
-    marker = "litemem-managed-capture"
+    marker = "litellm-memory-managed-capture"
+    markers = (marker, "litemem-managed-capture")
     changed, prepared = [], []
 
     def write(path, content):
         if path.is_symlink():
-            raise ValueError("Configure litemem manually when the host configuration is a symlink.")
+            raise ValueError("Configure LiteLLM Memory manually when the host configuration is a symlink.")
         prepared.append((path, content, path.read_text() if path.exists() else None))
 
     for host in hosts:
@@ -376,7 +403,8 @@ def configure_hosts(home, directory, url, hosts, *, remove=False):
         for event in HOOK_EVENTS:
             groups = []
             for group in hooks.get(event, []):
-                kept = [h for h in group.get("hooks", []) if marker not in h.get("command", "")]
+                kept = [h for h in group.get("hooks", [])
+                        if not any(m in h.get("command", "") for m in markers)]
                 if kept:
                     groups.append({**group, "hooks": kept})
             if not remove:
@@ -392,23 +420,13 @@ def configure_hosts(home, directory, url, hosts, *, remove=False):
             config_path = home / ".codex/config.toml"
             document = tomlkit.parse(config_path.read_text()) if config_path.exists() else tomlkit.document()
             servers = document.setdefault("mcp_servers", {})
-            if not remove:
-                if "litemem" in servers and servers["litemem"].get("url") != url + "/mcp":
-                    raise ValueError("A different litemem MCP is already configured; rename it before connecting.")
-                servers["litemem"] = {"url": url + "/mcp"}
-            elif servers.get("litemem", {}).get("url") == url + "/mcp":
-                del servers["litemem"]
+            configure_mcp(servers, url, host, remove=remove)
             write(config_path, tomlkit.dumps(document))
         else:
             config_path = home / ".claude.json"
             document = json.loads(config_path.read_text()) if config_path.exists() else {}
             servers = document.setdefault("mcpServers", {})
-            if not remove:
-                if "litemem" in servers and servers["litemem"].get("url") != url + "/mcp":
-                    raise ValueError("A different litemem MCP is already configured; rename it before connecting.")
-                servers["litemem"] = {"type": "http", "url": url + "/mcp"}
-            elif servers.get("litemem", {}).get("url") == url + "/mcp":
-                del servers["litemem"]
+            configure_mcp(servers, url, host, remove=remove)
             write(config_path, json.dumps(document, indent=2) + "\n")
     # Validate every document before touching any file. Detect concurrent host
     # changes and retain private backups for an explicit rollback.
@@ -416,7 +434,7 @@ def configure_hosts(home, directory, url, hosts, *, remove=False):
         if (path.read_text() if path.exists() else None) != original:
             raise ValueError("Host settings changed during setup. Close the tool and retry.")
         if original is not None:
-            backup = path.with_name(path.name + ".litemem-backup-" + str(time.time_ns()))
+            backup = path.with_name(path.name + ".litellm-memory-backup-" + str(time.time_ns()))
             atomic_private(backup, original)
         atomic_private(path, content)
         changed.append(path)
@@ -424,8 +442,8 @@ def configure_hosts(home, directory, url, hosts, *, remove=False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Connect private work capture to litemem.")
-    parser.add_argument("--directory", type=Path, default=Path.home() / ".local/share/litemem")
+    parser = argparse.ArgumentParser(description="Connect private work capture to LiteLLM Memory.")
+    parser.add_argument("--directory", type=Path, default=capture_directory())
     commands = parser.add_subparsers(dest="command", required=True)
     connect = commands.add_parser("connect")
     connect.add_argument("url")
@@ -447,9 +465,9 @@ def main():
             configure_hosts(Path.home(), args.directory.resolve(), args.url.rstrip("/"), hosts)
             local.set("hosts", hosts)
             local.db.commit()
-            print("Connected. Restart your coding tool to load its hooks and sign in to the litemem MCP when prompted.")
+            print("Connected. Restart your coding tool to load its hooks and sign in to the LiteLLM Memory MCP when prompted.")
             if "codex" in hosts:
-                print("In Codex, open /hooks and review/trust the litemem capture hooks before recording starts.")
+                print("In Codex, open /hooks and review/trust the LiteLLM Memory capture hooks before recording starts.")
             print("New visible conversation text will be recorded privately. Use backfill to import earlier sessions.")
         elif args.command == "hook":
             # Hooks must not fail the user's coding turn or leak a transcript in an error.

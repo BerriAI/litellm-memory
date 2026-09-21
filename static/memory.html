@@ -5,19 +5,19 @@
     <meta charset="utf-8" />
     <meta content="width=device-width,initial-scale=1" name="viewport" />
     <meta content="#ffffff" name="theme-color" />
-    <title>litemem</title>
+    <title>LiteLLM Memory</title>
     <link
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='16' width='64' height='64' fill='%232b302b'/%3E%3Cpath d='M22 15v34h23' fill='none' stroke='%23faf9f6' stroke-width='7'/%3E%3C/svg%3E"
       rel="icon"
     />
     <link href="/static/memory.css" rel="stylesheet" />
-    <script src="/static/memory.js?v=7" type="module"></script>
+    <script src="/static/memory.js?v=8" type="module"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
     <aside aria-label="Workspace" class="sidebar">
-      <a aria-label="litemem home" class="brand" href="/"
-        >litemem<span class="brand-dot" aria-hidden="true">.</span></a
+      <a aria-label="LiteLLM Memory home" class="brand" href="/"
+        >LiteLLM Memory</a
       >
       <button
         aria-label="Search memories"
@@ -66,7 +66,7 @@
     </aside>
     <main id="main" tabindex="-1">
       <div class="auth-card" id="boot-status" role="status">
-        <p class="muted">Opening litemem…</p>
+        <p class="muted">Opening LiteLLM Memory…</p>
       </div>
       <section class="welcome" hidden="" id="welcome">
         <p class="eyebrow">A LiteLLM Labs product</p>
@@ -85,7 +85,7 @@
         </button>
       </section>
       <section class="deployment-setup" hidden="" id="deployment-setup">
-        <p class="eyebrow">Welcome to litemem</p>
+        <p class="eyebrow">Welcome to LiteLLM Memory</p>
         <h1>Set up your workspace</h1>
         <p class="section-intro">Connect LiteLLM and Slack to get started.</p>
         <form class="setup-panel" id="claim-form">
@@ -204,7 +204,7 @@
             </div>
             <p>
               Your team signs in with Slack. The same agent answers in the web
-              app and as @litemem.
+              app and as @memory.
             </p>
             <label
               >Company email domain<input
@@ -297,14 +297,14 @@
             </p>
             <p class="fine-print" id="storage-status"></p>
             <button class="button primary" id="finish-deployment">
-              Open litemem
+              Open LiteLLM Memory
             </button>
             <p class="inline-error" id="finish-error" role="alert"></p>
           </div>
         </div>
       </section>
       <section class="auth-card" hidden="" id="setup">
-        <p class="eyebrow">Welcome to litemem</p>
+        <p class="eyebrow">Welcome to LiteLLM Memory</p>
         <h1 id="member-setup-title">Your memory starts here.</h1>
         <p id="member-setup-description">
           Browse your team’s shared work and ask about it. Connect Codex or
@@ -682,7 +682,7 @@
                 <h3>Do a little work</h3>
                 <p>
                   Send a message and let your tool finish its reply. Check above
-                  to see when litemem receives it.
+                  to see when LiteLLM Memory receives it.
                 </p>
               </li>
             </ol>
@@ -716,8 +716,8 @@
                 show locally queued work and retry uploads.
               </p>
               <pre class="code-block">
-litemem-connector status
-litemem-connector flush</pre>
+litellm-memory-connector status
+litellm-memory-connector flush</pre>
               <a class="text-link" href="/api/connector/setup"
                 >Full connection guide</a
               >
@@ -1202,7 +1202,7 @@ litemem-connector flush</pre>
             <section class="settings-section">
               <div class="section-copy">
                 <h2>Transfer history</h2>
-                <p>Copy your work to another litemem installation.</p>
+                <p>Copy your work to another LiteLLM Memory installation.</p>
               </div>
               <div class="section-controls">
                 <p class="control-description">
@@ -1256,7 +1256,7 @@ litemem-connector flush</pre>
       </div>
     </main>
     <footer class="footer">
-      <span>litemem</span
+      <span>LiteLLM Memory</span
       ><span
         >LiteLLM Labs <span aria-hidden="true">·</span> Built with Ente &amp;
         LiteLLM</span

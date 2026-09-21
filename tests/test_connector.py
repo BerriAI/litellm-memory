@@ -144,7 +144,7 @@ def test_installer_preserves_unrelated_configs_and_rejects_conflicts_before_writ
     assert hooks['Stop'][0]['hooks'][0]['command'] == 'existing hook'
     assert json.loads((tmp_path / '.claude.json').read_text())['theme'] == 'dark'
     before = (tmp_path / '.codex/hooks.json').read_text()
-    with pytest.raises(ValueError, match='different litemem'):
+    with pytest.raises(ValueError, match='different LiteLLM Memory'):
         configure_hosts(tmp_path, tmp_path / 'state', 'https://other.example', ['codex'])
     assert (tmp_path / '.codex/hooks.json').read_text() == before
     configure_hosts(tmp_path, tmp_path / 'state', 'https://memory.example', ['codex', 'claude'], remove=True)
@@ -241,3 +241,65 @@ def test_remote_pause_discard_leaves_explicit_backfill_possible(tmp_path):
         assert local.status()['queued'] == 1
     finally:
         local.close()
+
+
+def test_rename_reuses_encrypted_capture_state(tmp_path, monkeypatch):
+    from pathlib import Path
+
+    from moegent.connector import capture_directory
+
+    monkeypatch.setattr(Path, 'home', lambda: tmp_path)
+    assert capture_directory() == tmp_path / '.local/share/litellm-memory'
+    legacy = tmp_path / '.local/share/litemem'
+    local = LocalCapture(legacy)
+    local.set('account_binding', {'url': 'https://memory.example', 'owner': 'T:OWNER'})
+    local.enqueue({'source_id': 'before-rename', 'content': 'private queued work'})
+    local.db.commit()
+    local.close()
+    (tmp_path / '.local/share/litellm-memory').mkdir()
+    reopened = LocalCapture(capture_directory())
+    try:
+        assert reopened.directory == legacy
+        assert reopened.get('account_binding')['owner'] == 'T:OWNER'
+        assert reopened.status()['queued'] == 1
+        encrypted = reopened.db.execute('SELECT payload FROM outbox').fetchone()[0]
+        assert reopened.vault.open_operational(encrypted)['content'] == 'private queued work'
+    finally:
+        reopened.close()
+
+
+def test_rename_preserves_host_auth_and_replaces_legacy_hooks(tmp_path):
+    (tmp_path / '.codex').mkdir()
+    (tmp_path / '.claude').mkdir()
+    url = 'https://memory.example'
+    (tmp_path / '.codex/config.toml').write_text(
+        '[mcp_servers.litemem]\nurl = "https://memory.example/mcp"\nbearer_token_env_var = "EXISTING_TOKEN"\n')
+    (tmp_path / '.claude.json').write_text(json.dumps({'mcpServers': {
+        'litemem': {'type': 'http', 'url': url + '/mcp', 'headers': {'X-Preserved': 'yes'}}}}))
+    old_hooks = {'hooks': {'Stop': [{'hooks': [
+        {'type': 'command', 'command': 'python -m moegent.connector hook --marker litemem-managed-capture'},
+        {'type': 'command', 'command': 'unrelated-hook'}]}]}}
+    for path in (tmp_path / '.codex/hooks.json', tmp_path / '.claude/settings.json'):
+        path.write_text(json.dumps(old_hooks))
+    for _ in range(2):
+        configure_hosts(tmp_path, tmp_path / 'state', url, ['codex', 'claude'])
+    codex = tomlkit.parse((tmp_path / '.codex/config.toml').read_text())['mcp_servers']
+    claude = json.loads((tmp_path / '.claude.json').read_text())['mcpServers']
+    assert list(codex) == ['litemem'] and codex['litemem']['bearer_token_env_var'] == 'EXISTING_TOKEN'
+    assert list(claude) == ['litemem'] and claude['litemem']['headers'] == {'X-Preserved': 'yes'}
+    for path in (tmp_path / '.codex/hooks.json', tmp_path / '.claude/settings.json'):
+        commands = [h['command'] for g in json.loads(path.read_text())['hooks']['Stop'] for h in g['hooks']]
+        assert len(commands) == 2 and commands[0] == 'unrelated-hook'
+        assert '--marker litellm-memory-managed-capture' in commands[1]
+        assert '--marker litemem-managed-capture' not in commands[1]
+    configure_hosts(tmp_path, tmp_path / 'state', url, ['codex', 'claude'], remove=True)
+    assert not tomlkit.parse((tmp_path / '.codex/config.toml').read_text()).get('mcp_servers')
+    assert not json.loads((tmp_path / '.claude.json').read_text())['mcpServers']
+    for path in (tmp_path / '.codex/hooks.json', tmp_path / '.claude/settings.json'):
+        assert json.loads(path.read_text())['hooks']['Stop'][0]['hooks'][0]['command'] == 'unrelated-hook'
+
+
+def test_new_host_installations_use_canonical_name(tmp_path):
+    configure_hosts(tmp_path, tmp_path / 'state', 'https://memory.example', ['codex', 'claude'])
+    assert list(tomlkit.parse((tmp_path / '.codex/config.toml').read_text())['mcp_servers']) == ['litellm-memory']
+    assert list(json.loads((tmp_path / '.claude.json').read_text())['mcpServers']) == ['litellm-memory']

@@ -291,7 +291,7 @@ function setView(view, { navigate = true } = {}) {
   const changed = state.view !== view;
   state.view = view;
   document.body.dataset.view = view;
-  document.title = `${viewNames[view]} · litemem`;
+  document.title = `${viewNames[view]} · LiteLLM Memory`;
   for (const name of Object.keys(viewNames))
     show(name + "-view", name === view);
   document.querySelectorAll(".nav-link").forEach((button) => {
@@ -974,7 +974,7 @@ function addMessage(role, text) {
   const message = el("article", "", "chat-message");
   message.dataset.role = role;
   message.append(
-    el("div", role === "user" ? "You" : "litemem", "message-author"),
+    el("div", role === "user" ? "You" : "LiteLLM Memory", "message-author"),
   );
   const body = el("div", "", "message-body");
   if (role === "user") body.textContent = text;
@@ -1093,7 +1093,7 @@ function recordingMessage(status) {
     };
   if (!status.connected_clients)
     return {
-      title: "Bring your work into litemem",
+      title: "Bring your work into LiteLLM Memory",
       copy: "Connect Codex or Claude Code once. Your conversations are recorded privately as you work.",
       action: "Connect a tool",
       destination: "connections",
@@ -1194,20 +1194,20 @@ function renderConnectorGuide() {
   const url = state.me.mcp_url.replace(/\/mcp\/?$/, "");
   const quoted = "'" + url.replaceAll("'", "'\"'\"'") + "'";
   $("capture-command").textContent =
-    `uv tool install 'git+https://github.com/moe-berri/litemem.git@codex/litemem-implementation'\nlitemem-connector connect ${quoted} --host ${host}`;
+    `uv tool install --force 'git+https://github.com/moe-berri/litellm-memory.git@main'\nlitellm-memory-connector connect ${quoted} --host ${host}`;
   $("capture-restart").textContent =
     host === "codex"
-      ? "Restart Codex and sign in to its litemem MCP when prompted. Open /hooks and review and trust the litemem capture hooks."
-      : "Restart Claude Code and sign in to its litemem MCP when prompted. The connector has added the recording hooks.";
+      ? "Restart Codex and sign in to its LiteLLM Memory MCP when prompted. Open /hooks and review and trust the LiteLLM Memory capture hooks."
+      : "Restart Claude Code and sign in to its LiteLLM Memory MCP when prompted. The connector has added the recording hooks.";
   $("backfill-command").textContent =
     host === "codex"
-      ? "litemem-connector backfill ~/.codex/sessions --host codex"
-      : "litemem-connector backfill ~/.claude/projects --host claude";
+      ? "litellm-memory-connector backfill ~/.codex/sessions --host codex"
+      : "litellm-memory-connector backfill ~/.claude/projects --host claude";
   $("mcp-url").textContent = state.me.mcp_url;
   $("codex-command").textContent =
-    `codex mcp add litemem --url ${quoted}/mcp\ncodex mcp login litemem`;
+    `codex mcp add litellm-memory --url ${quoted}/mcp\ncodex mcp login litellm-memory`;
   $("claude-command").textContent =
-    `claude mcp add --transport http litemem ${quoted}/mcp`;
+    `claude mcp add --transport http litellm-memory ${quoted}/mcp`;
 }
 async function loadConnections() {
   const version = ++state.connectionsVersion;
@@ -1981,7 +1981,7 @@ $("encrypted-export-form").onsubmit = async (event) => {
           encrypted: true,
           passphrase: $("export-passphrase").value,
         },
-        "my-memory-export.litemem",
+        "my-memory-export.litellm-memory",
       );
       $("export-dialog").close();
       toast("Encrypted export downloaded. Keep its passphrase separately.");

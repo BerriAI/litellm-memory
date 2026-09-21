@@ -12,7 +12,7 @@ Do not add a subtitle just to fill the space beneath a heading. Do not put a sen
 
 | Say | Meaning / avoid |
 | --- | --- |
-| litemem | Product name, lowercase; Slack agent is `@litemem` |
+| LiteLLM Memory | Product name; repository/package is `litellm-memory`; Slack app is **LiteLLM Memory**, agent mention is `@memory` |
 | LiteLLM Labs | Product affiliation; avoid inventing brand variants |
 | Activity | Chronological work, not recommendations |
 | My work | The person's own work context |

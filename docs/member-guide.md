@@ -1,10 +1,10 @@
-# Using litemem
+# Using LiteLLM Memory
 
-litemem keeps a private, searchable record of your work with AI. You decide when to ask it a question and what your company can see.
+LiteLLM Memory keeps a private, searchable record of your work with AI. You decide when to ask it a question and what your company can see.
 
 ## Join and connect
 
-Choose **Sign in with Slack** using your company account. Your installation accepts only its configured Slack workspace and verified email domain. There is no separate litemem password or key to save. If this is an owner-only pilot, other members cannot join yet.
+Choose **Sign in with Slack** using your company account. Your installation accepts only its configured Slack workspace and verified email domain. There is no separate LiteLLM Memory password or key to save. If this is an owner-only pilot, other members cannot join yet.
 
 After joining, Company opens immediately so you can browse shared work. Choose **Connect a tool** on Activity, or open **Connections**. Select Codex or Claude Code, copy the installation commands and run them on your computer. Restart the tool and finish its MCP sign-in; Codex also requires reviewing and trusting the installed hooks. The connector preserves existing configuration. [Full connector instructions](connectors.md).
 
@@ -12,7 +12,7 @@ Send a message and let your tool finish its reply. Connections first shows **Con
 
 Recording captures visible user and assistant messages; it excludes system instructions, tool dumps and hidden reasoning. Remote MCP by itself cannot see your conversations. Nothing searches your history on every coding turn.
 
-An encrypted local outbox retries uploads when you are offline. **Settings → Recording → Record new work** pauses hosted intake. To stop local buffering too, run `litemem-connector pause`. Resuming does not automatically sweep up the paused period; you can choose an explicit historical import later.
+An encrypted local outbox retries uploads when you are offline. **Settings → Recording → Record new work** pauses hosted intake. To stop local buffering too, run `litellm-memory-connector pause`. Resuming does not automatically sweep up the paused period; you can choose an explicit historical import later.
 
 ## Browse and ask
 
@@ -30,7 +30,7 @@ Ask questions such as “What did Tin work on yesterday?” directly in Ask. The
 
 **Settings → General** lets you choose your display time zone or follow your device. Dates and feed date filters use that choice; original timestamps stay unchanged. A date without an original timezone is marked as incomplete and excluded from exact date ranges.
 
-In Slack, talk to **@litemem**. A verified personal DM can use your private history. Shared conversations use only company-public evidence that is safe for every participant. Slack membership failures or external/unknown participants cause the agent to withhold an answer. It cannot retract information someone already read.
+In Slack, talk to **@memory**. A verified personal DM can use your private history. Shared conversations use only company-public evidence that is safe for every participant. Slack membership failures or external/unknown participants cause the agent to withhold an answer. It cannot retract information someone already read.
 
 ## Control sharing
 
@@ -44,7 +44,7 @@ Open an entry’s **More actions → Add correction** to add dated corrective ev
 
 ## Move or download your history
 
-For another litemem installation, choose **Settings → Your data → Transfer history**, enter its HTTPS address, and sign in there with the same Slack account. Confirm receiving, return automatically, then review the destination and choose **Send my history**. There is no transfer password or key to copy.
+For another LiteLLM Memory installation, choose **Settings → Your data → Transfer history**, enter its HTTPS address, and sign in there with the same Slack account. Confirm receiving, return automatically, then review the destination and choose **Send my history**. There is no transfer password or key to copy.
 
 Keep the tab open while it sends. If interrupted, return to that page and retry; packets already received are skipped. Once it says **Importing privately**, you can close the tab. **View recent imports** at the destination shows progress. If recording is paused, the import waits until you resume it. A transfer must arrive within 30 minutes; accepted imports have up to 24 hours to finish. Start again if it expires.
 
@@ -62,4 +62,4 @@ If you are still eligible, signing in again offers an explicit restore of your d
 
 ## What encryption protects
 
-Persisted work is encrypted and normal administrators cannot browse your private records through litemem. The hosted application is a trusted processor: its runtime decrypts authorized content for search and inference. An operator controlling that runtime and its keys could access it. This is not protection against a malicious operator. Read the [privacy model](security.md) for that boundary and the gateway's role.
+Persisted work is encrypted and normal administrators cannot browse your private records through litellm-memory. The hosted application is a trusted processor: its runtime decrypts authorized content for search and inference. An operator controlling that runtime and its keys could access it. This is not protection against a malicious operator. Read the [privacy model](security.md) for that boundary and the gateway's role.

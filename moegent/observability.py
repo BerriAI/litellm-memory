@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import wraps
 
-request_source = ContextVar('litemem_request_source', default='api')
+request_source = ContextVar('litellm_memory_request_source', default='api')
 TOOLS = {'search_work', 'read_work', 'list_people', 'work_overview', 'update_status'}
 
 
@@ -40,7 +40,7 @@ class Telemetry:
     def operation(self, operation, **attributes):
         if operation not in {'request', 'classification', 'generation', 'embedding', 'query', 'tool', 'setup_check'}:
             raise ValueError('Unknown telemetry operation')
-        span = self.client.span('litemem.' + operation) if self.client else None
+        span = self.client.span('litellm-memory.' + operation) if self.client else None
         if span:
             span.__enter__()
         try:
@@ -89,7 +89,7 @@ def configure(settings, *, span_processors=None):
         processors.append(BatchSpanProcessor(OTLPSpanExporter(endpoint=settings.otlp_traces_endpoint)))
     if settings.observability_export == 'logfire' and not settings.logfire_token:
         raise ValueError('Set LOGFIRE_TOKEN for the selected telemetry exporter.')
-    client = logfire.configure(local=True, service_name='litemem', service_version='0.1.0',
+    client = logfire.configure(local=True, service_name='litellm-memory', service_version='0.2.0',
         send_to_logfire=settings.observability_export == 'logfire', token=settings.logfire_token or None,
         console=False, metrics=False, inspect_arguments=False, add_baggage_to_attributes=False,
         distributed_tracing=False, additional_span_processors=processors,
@@ -107,7 +107,7 @@ def main():
     with telemetry.operation('setup_check'):
         pass
     telemetry.client.force_flush()
-    print('Trace export attempted. Look for litemem.setup_check in your backend to confirm receipt.')
+    print('Trace export attempted. Look for litellm-memory.setup_check in your backend to confirm receipt.')
 
 
 if __name__ == '__main__':

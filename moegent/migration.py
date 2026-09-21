@@ -34,7 +34,7 @@ PACKET_BYTES = 600_000
 def origin(value):
     # This value also enters the sender page's CSP. Reconstruct a strict origin;
     # never interpolate a user-provided netloc into a response header.
-    message = 'Use the HTTPS origin of the other litemem installation.'
+    message = 'Use the HTTPS origin of the other LiteLLM Memory installation.'
     try:
         if not isinstance(value, str) or any(ord(char) <= 32 or ord(char) == 127 or char in "\\;\"'<>`" for char in value):
             raise ValueError(message)
