@@ -6,7 +6,11 @@ This document describes the implementation on the feature branch. It replaces th
 
 ## The product
 
-- **Activity:** chronological personal or company feed, direct Ask input, search and metadata filters. Private records show a lock and text.
+The MVP centers on one loop: **set up, start recording, browse shared work, and ask about it.** The Company feed and browsing a teammate's shared activity are primary experiences alongside Ask. Company opens by default, with My work second for personal history. People can see only work shared with them; recording alone never publishes private originals.
+
+Prioritize making that loop reliable and easy to understand: successful setup, a visible first capture, readable entries, clear sharing, useful browsing, and cited answers. Separate catch-up pages, daily-summary settings, and other auxiliary workflows are not prerequisites for the MVP. The implementation below includes existing supporting features; their presence does not make each one essential to the core experience.
+
+- **Activity:** chronological Company feed by default, My work second, direct Ask input, search and metadata filters. Private records show a lock and text.
 - **Ask:** one conversation, a visible audience selector, and models discovered through the configured LiteLLM key. Answers cite accessible evidence. People can cancel a running answer.
 - **People:** enrolled Slack profiles, shared activity, and an action to ask about that person's work.
 - **Connections:** instructions for Codex/Claude Code capture and remote MCP, plus connected-client revocation.
