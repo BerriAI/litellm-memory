@@ -33,12 +33,12 @@ Use legacy names only when a migration explanation requires them. Internal packa
 
 ## Privacy copy is functional
 
-Privacy information changes a person's decision, so keep it clear without turning every page into a warning. Pair the private lock with text. “Company” means the implemented audience; avoid an unexplained globe icon suggesting Internet publication.
+Show privacy information where it changes a person's decision. Do not add repeated privacy reassurance beneath chat boxes; the user explicitly rejected that boilerplate. Keep lock icons and audience labels on memories, and explain sharing when someone chooses to publish. Pair the private lock with text. “Company” means the implemented audience; avoid an unexplained globe icon suggesting Internet publication.
 
 | Context | Useful copy | Misleading copy |
 | --- | --- | --- |
 | Private entry | Private | Secure, with no audience specified |
-| Home Ask | Your questions and answers stay private. | Ask the company, when that sounds like broadcasting |
+| Ask composer | Ask about this work; scope shown by the selector or placeholder | Repeated “Your question and answer stay private” boilerplate |
 | Future sharing | Original conversations and existing history stay private. | Everything is shared automatically. |
 | Private topic | Keep this topic out of shared summaries. | Delete this from memory. |
 | Add topic queued | Topic added. Existing and future work will be checked. | Your entire history is now filtered. |

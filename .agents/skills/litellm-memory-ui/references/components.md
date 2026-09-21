@@ -8,11 +8,11 @@ Page headers · navigation and tabs · settings sections · fields · actions ·
 
 Use `.page-heading` with one `h1`, optionally a `.page-description`, and a single related page action. Descriptions explain the task; they do not repeat the heading in a sentence. Activity uses the date instead of an unnecessary slogan. Ask does not need both a subtitle and a banner explaining what Ask means.
 
-Keep the title aligned with the content below it. Right-side actions should remain on the same row when they fit; wrap naturally when they do not. Do not add breadcrumbs to these shallow top-level pages or a second workspace navigation bar above the sidebar.
+Keep the title aligned with the content below it. Right-side actions align with the title row, not the bottom of a title-plus-description block. Keep them on the same row when they fit; wrap naturally when they do not. Do not add breadcrumbs to these shallow top-level pages or a second workspace navigation bar above the sidebar.
 
 ## Navigation and tabs
 
-The main destinations are Activity, Ask, People, Connections, and Settings. The selected item is clear through weight and shape or underline. Icons complement labels. The account menu contains sign-out; do not repeat it after unrelated Settings forms.
+The main destinations are Activity, Ask, People, Connections, and Settings. In the narrow top shell, center the wordmark, labelled Search button and account control on one row; place the five destinations in an evenly spaced row below. Do not leave utility links stranded at the far edge. The selected item is clear through weight and shape or underline. Icons complement labels. The account menu contains sign-out; do not repeat it after unrelated Settings forms.
 
 Use tabs only for sibling panels in one context. Settings uses Privacy, Recording, General, Workspace for admins, and Your data. Do not add a category to accommodate one minor field that already belongs in a section.
 

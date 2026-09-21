@@ -16,7 +16,9 @@ An encrypted local outbox retries uploads when you are offline. **Settings → R
 
 ## Browse and ask
 
-**Activity** opens on **Company**, showing company publications newest first, without a recommendation algorithm. **My work** is the second tab and shows your own private and shared records. Private items have a lock and a **Private** label. The Activity question box asks about the selected feed. Filters narrow by person, source, type and date; search also uses searchable metadata. Missing original dates stay unknown.
+**Activity** opens on **Company**, showing company publications newest first, without a recommendation algorithm. **My work** is the second tab and shows your own private and shared records. Private items have a lock and a **Private** label. The Activity question box asks about the selected feed. Filters narrow the feed by person, source, type and date. Missing original dates stay unknown.
+
+**Search** (⌘K or Ctrl+K) opens a panel without leaving your page. Choose Company or My work, enter a phrase, then press Enter or Search. Opening it from a person’s activity selects their shared work. Results include titles, excerpts, owners, dates and privacy labels; open one to inspect its source, then close the source to return to your results. Escape or Close dismisses search. Saved browsing exclusions apply to search too.
 
 Use the question box on Activity or open **Ask**. Choose a model from your gateway's available models, ask about your own work or choose a person, and open citations to inspect the evidence. You can ask follow-up questions within the same scope. Changing person or audience asks before clearing an existing conversation. Browser Back returns to the previous view. Person feeds and My work have URLs that preserve their scope on reload; the home URL opens Company. Use **Refresh** to fetch the latest feed without reloading the app.
 
