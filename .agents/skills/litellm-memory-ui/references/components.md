@@ -14,7 +14,7 @@ Keep the title aligned with the content below it. Right-side actions align with 
 
 The main destinations are Activity, Ask, People, Connections, and Settings. In the narrow top shell, center the wordmark, labelled Search button and account control on one row; place the five destinations in an evenly spaced row below. Do not leave utility links stranded at the far edge. The selected item is clear through weight and shape or underline. Icons complement labels. The account menu contains sign-out; do not repeat it after unrelated Settings forms.
 
-Use tabs only for sibling panels in one context. Settings uses Privacy, Recording, General, Workspace for admins, and Your data. Do not add a category to accommodate one minor field that already belongs in a section.
+Use tabs only for sibling panels in one context. Settings uses Sharing, Preferences, Your data, then Workspace for admins. Recording controls belong in Connections. Do not add a category to accommodate one minor field that already belongs in a section.
 
 Settings tabs are actual `role="tab"` controls in a `tablist`, with `aria-selected`, `aria-controls`, and a labelled `tabpanel`. One selected tab participates in the Tab sequence. Left/Right moves among visible tabs; Home/End reaches the first/last. Hidden admin tabs are excluded. Keep focus visible inside the tab strip even if it scrolls horizontally. Tabs switch already available panels without moving keyboard focus into them unexpectedly.
 
@@ -34,7 +34,7 @@ Do not give all tabs `aria-pressed`: these select panels, rather than independen
 </section>
 ```
 
-The left column states purpose. The right column contains the task. On narrow screens these become one reading sequence. Do not put an action between the explanation and its unrelated next section.
+Use one reading sequence at every width: section purpose, controls, then the related action. Bound the content width so explanations and fields stay close. Do not put an action between the explanation and its unrelated next section.
 
 Use `.setting-row` for a compact name/explanation with a switch or action. A switch has a visible label and a programmatic relationship to that label. Its current value must remain discernible beyond color. Keep longer consequence text below the name, not as part of a large heading.
 

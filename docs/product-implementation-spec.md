@@ -13,8 +13,8 @@ Prioritize making that loop reliable and easy to understand: successful setup, a
 - **Activity:** chronological Company feed by default, My work second, direct Ask input, search and metadata filters. Private records show a lock and text.
 - **Ask:** one conversation, a visible audience selector, and models discovered through the configured LiteLLM key. Answers cite accessible evidence. People can cancel a running answer.
 - **People:** enrolled Slack profiles, shared activity, and an action to ask about that person's work.
-- **Connections:** in-app tool setup, real intake receipts, optional history imports and connected-client revocation. Authorized clients and received work are separate states.
-- **Settings:** privacy, recording, dates, administrator workspace configuration, and personal data controls. Rare operations stay behind disclosures or explicit actions.
+- **Connections:** in-app tool setup, real intake receipts, recording controls, optional history imports and connected-client revocation. Authorized clients and received work are separate states.
+- **Settings:** Sharing, Preferences (dates and viewing exclusions), Your data, and administrator-only Workspace. Rare operations stay behind disclosures or explicit actions.
 
 One sidebar provides navigation. No recommendation algorithm, fixed memory-category checklist, social engagement mechanics, or automatic retrieval on every coding turn.
 

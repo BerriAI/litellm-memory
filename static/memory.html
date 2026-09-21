@@ -11,7 +11,7 @@
       rel="icon"
     />
     <link href="/static/memory.css" rel="stylesheet" />
-    <script src="/static/memory.js?v=10" type="module"></script>
+    <script src="/static/memory.js?v=11" type="module"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -606,7 +606,7 @@
             <div>
               <h1>Connections</h1>
               <p class="page-description">
-                Bring your AI work into your private memory.
+                Record work from Codex or Claude Code.
               </p>
             </div>
           </div>
@@ -618,31 +618,44 @@
             </div>
             <div class="action-row">
               <button class="button secondary small" id="check-recording">
-                Check connection
+                Refresh status
               </button>
               <button class="text-button" id="see-my-work" hidden>
                 View my work
               </button>
+              <button class="text-button" id="manage-recording" hidden>
+                Review recording
+              </button>
             </div>
             <p class="inline-error" id="recording-error" role="alert"></p>
           </section>
+          <section
+            id="connected-tools"
+            class="connected-tools"
+            hidden
+            aria-labelledby="connected-tools-title"
+          >
+            <h2 id="connected-tools-title">Your tools</h2>
+            <div id="connection-list"></div>
+          </section>
           <details class="connection-instructions" id="connector-guide" open>
-            <summary>Connect your coding tool</summary>
+            <summary id="connector-guide-title">Connect a tool</summary>
             <p class="muted">
-              Install once on the computer where you use your tool. Sign in with
-              Slack when the browser opens.
+              Set this up once on the computer where you work.
             </p>
-            <label class="field-label" for="capture-host">Your tool</label>
+            <label class="field-label" for="capture-host"
+              >Choose your tool</label
+            >
             <select id="capture-host">
               <option value="codex">Codex</option>
               <option value="claude">Claude Code</option>
             </select>
             <ol class="connection-steps">
               <li>
-                <h3>Install and connect</h3>
+                <h3>Run these commands in Terminal</h3>
                 <pre id="capture-command" class="code-block"></pre>
                 <button
-                  class="button secondary small"
+                  class="button primary small"
                   data-copy="capture-command"
                   type="button"
                 >
@@ -654,95 +667,91 @@
                 </p>
               </li>
               <li>
-                <h3>Restart your tool</h3>
+                <h3 id="capture-restart-title">Finish setup in Codex</h3>
                 <p id="capture-restart"></p>
               </li>
               <li>
-                <h3>Do a little work</h3>
+                <h3>Send a message</h3>
                 <p>
-                  Send a message and let your tool finish its reply. Check above
-                  to see when LiteLLM Memory receives it.
+                  Let your tool finish its reply. This page will confirm when
+                  the first conversation arrives.
                 </p>
               </li>
             </ol>
-            <p class="fine-print">
-              <span data-icon="lock"></span> Visible conversations are saved
-              privately. Searching happens only when you ask.
-            </p>
-            <details class="advanced">
-              <summary>Import earlier work</summary>
-              <p>
-                Choose the history you want to bring over. Dates and originals
-                are preserved; imports stay private.
-              </p>
-              <pre id="backfill-command" class="code-block"></pre>
-              <button
-                class="button secondary small"
-                data-copy="backfill-command"
-                type="button"
-              >
-                Copy import command
-              </button>
-              <p class="fine-print">
-                This imports the tool’s history folder. Replace the path with a
-                specific project or transcript to import less.
-              </p>
-            </details>
-            <details class="advanced">
-              <summary>Nothing arriving?</summary>
-              <p>
-                Restart your tool and finish the setup above. These commands
-                show locally queued work and retry uploads.
-              </p>
-              <pre class="code-block">
-litellm-memory-connector status
-litellm-memory-connector flush</pre>
-              <a class="text-link" href="/api/connector/setup"
-                >Full connection guide</a
-              >
-            </details>
-            <details class="advanced">
-              <summary>Manual MCP connection</summary>
-              <p class="muted">
-                For search and manual recording only. The setup above already
-                includes MCP.
-              </p>
-
-              <div class="copy-row">
-                <code id="mcp-url"></code
-                ><button class="button quiet small" id="copy-mcp">
-                  Copy URL
-                </button>
-              </div>
-              <h3>Codex</h3>
-              <pre id="codex-command"></pre>
-              <button
-                class="button secondary small"
-                data-copy="codex-command"
-                type="button"
-              >
-                Copy Codex commands
-              </button>
-              <h3>Claude Code</h3>
-              <pre id="claude-command"></pre>
-              <button
-                class="button secondary small"
-                data-copy="claude-command"
-                type="button"
-              >
-                Copy Claude Code command
-              </button>
-            </details>
           </details>
-          <h2 class="section-heading">Connected clients</h2>
-          <div id="connection-list"></div>
+          <details class="connection-options" id="recording-controls">
+            <summary>Recording controls</summary>
+            <div id="recording-preferences" inert>
+              <label class="setting-row"
+                ><span
+                  ><strong>Record new work</strong
+                  ><small
+                    >Save new conversations. Pausing keeps your existing
+                    history.</small
+                  ></span
+                ><input id="capture-enabled" role="switch" type="checkbox"
+              /></label>
+              <label class="setting-row"
+                ><span
+                  ><strong>Let my agent use my history</strong
+                  ><small
+                    >Organize recorded work and answer questions about
+                    it.</small
+                  ></span
+                ><input id="agent-enabled" role="switch" type="checkbox"
+              /></label>
+            </div>
+          </details>
+          <section
+            id="processing-section"
+            class="processing-panel"
+            hidden
+            aria-label="Processing status"
+          >
+            <div class="setting-row">
+              <span id="processing-summary"></span
+              ><button class="button secondary small" id="retry-processing">
+                Retry failed items
+              </button>
+            </div>
+          </section>
+          <details class="connection-options" id="import-guide">
+            <summary>Import earlier work</summary>
+            <p class="muted">
+              Bring in older conversations. Original text and dates are
+              preserved; imports stay private.
+            </p>
+            <label class="field-label" for="backfill-host">Import from</label>
+            <select id="backfill-host">
+              <option value="codex">Codex</option>
+              <option value="claude">Claude Code</option>
+            </select>
+            <pre id="backfill-command" class="code-block"></pre>
+            <button
+              class="button secondary small"
+              data-copy="backfill-command"
+              type="button"
+            >
+              Copy import command
+            </button>
+            <p class="fine-print">
+              Run after connecting the tool above. This imports its history
+              folder; replace the path with a project or transcript to import
+              less.
+            </p>
+          </details>
+          <p class="connection-help">
+            <a class="text-link" href="/api/connector/setup"
+              >Connection guide &amp; troubleshooting</a
+            >
+          </p>
         </section>
         <section class="page" hidden id="settings-view">
           <header class="page-heading">
             <div>
               <h1>Settings</h1>
               <p class="page-description">
-                Your privacy, recording, and workspace.
+                Sharing, preferences, and your account.
               </p>
             </div>
           </header>
@@ -758,17 +767,7 @@ litellm-memory-connector flush</pre>
               aria-controls="privacy-settings"
               data-settings="privacy"
             >
-              Privacy
-            </button>
-            <button
-              role="tab"
-              id="recording-tab"
-              aria-selected="false"
-              tabindex="-1"
-              aria-controls="recording-settings"
-              data-settings="recording"
-            >
-              Recording
+              Sharing
             </button>
             <button
               role="tab"
@@ -778,7 +777,17 @@ litellm-memory-connector flush</pre>
               aria-controls="general-settings"
               data-settings="general"
             >
-              General
+              Preferences
+            </button>
+            <button
+              role="tab"
+              id="data-tab"
+              aria-selected="false"
+              tabindex="-1"
+              aria-controls="data-settings"
+              data-settings="data"
+            >
+              Your data
             </button>
             <button
               role="tab"
@@ -791,16 +800,6 @@ litellm-memory-connector flush</pre>
             >
               Workspace
             </button>
-            <button
-              role="tab"
-              id="data-tab"
-              aria-selected="false"
-              tabindex="-1"
-              aria-controls="data-settings"
-              data-settings="data"
-            >
-              Your data
-            </button>
           </nav>
           <p class="inline-status" id="settings-status" role="status"></p>
           <div
@@ -812,7 +811,7 @@ litellm-memory-connector flush</pre>
           >
             <section class="settings-section">
               <div class="section-copy">
-                <h2>Sharing</h2>
+                <h2>Share new work</h2>
                 <p>
                   Memories start private. Only summaries you choose to share are
                   visible to your company.
@@ -842,14 +841,14 @@ litellm-memory-connector flush</pre>
                       id="sharing-status"
                       role="status"
                     ></span
-                    ><button class="button primary">Save changes</button>
+                    ><button class="button primary">Save sharing</button>
                   </div>
                 </form>
               </div>
             </section>
             <section class="settings-section">
               <div class="section-copy">
-                <h2>Private topics</h2>
+                <h2>Keep topics private</h2>
                 <p>
                   Keep specific topics out of shared summaries. You can still
                   ask about them privately.
@@ -875,57 +874,6 @@ litellm-memory-connector flush</pre>
                   <p class="inline-error" id="rule-error" role="alert"></p>
                 </form>
                 <div id="rule-list"></div>
-              </div>
-            </section>
-          </div>
-          <div
-            class="settings-group"
-            role="tabpanel"
-            aria-labelledby="recording-tab"
-            data-settings-section="recording"
-            hidden
-            id="recording-settings"
-          >
-            <section class="settings-section">
-              <div class="section-copy">
-                <h2>Recording</h2>
-                <p>
-                  Control what your connected tools save and what your personal
-                  agent can use.
-                </p>
-              </div>
-              <div class="section-controls">
-                <label class="setting-row"
-                  ><span
-                    ><strong>Record new work</strong
-                    ><small
-                      >Pause capture without deleting your history.</small
-                    ></span
-                  ><input id="capture-enabled" role="switch" type="checkbox"
-                /></label>
-                <label class="setting-row"
-                  ><span
-                    ><strong>Personal agent access</strong
-                    ><small
-                      >Let your agent organize and answer questions about your
-                      records.</small
-                    ></span
-                  ><input id="agent-enabled" role="switch" type="checkbox"
-                /></label>
-              </div>
-            </section>
-            <section class="settings-section">
-              <div class="section-copy">
-                <h2>Processing</h2>
-                <p>New records are organized automatically.</p>
-              </div>
-              <div class="section-controls">
-                <div class="setting-row">
-                  <span id="processing-summary"></span
-                  ><button class="button secondary small" id="retry-processing">
-                    Retry failed items
-                  </button>
-                </div>
               </div>
             </section>
           </div>

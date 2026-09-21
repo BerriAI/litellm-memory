@@ -37,6 +37,7 @@ const state = {
   recording: null,
   recordingLoading: false,
   connectionsVersion: 0,
+  listedClientCount: null,
   firstReceipt: false,
   guideInitialized: false,
 };
@@ -257,6 +258,7 @@ function expireSession() {
   state.viewPreferences = null;
   state.recording = null;
   state.connectionsVersion++;
+  state.listedClientCount = null;
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   document.querySelectorAll("input, textarea").forEach((input) => {
     input.value = "";
@@ -400,17 +402,22 @@ function renderCoverage(stats) {
     .filter(Boolean)
     .join(" · ");
   $("processing-summary").replaceChildren(
-    el("strong", `${stats.ready} of ${stats.total} memories organized`),
+    el(
+      "strong",
+      `${stats.ready} of ${stats.total} ${stats.total === 1 ? "memory" : "memories"} organized`,
+    ),
     el(
       "small",
       stats.failed
-        ? `${stats.failed} items can be retried.`
+        ? `${stats.failed} ${stats.failed === 1 ? "item can" : "items can"} be retried.`
         : stats.pending
-          ? `${stats.pending} items are being processed.`
+          ? `${stats.pending} ${stats.pending === 1 ? "item is" : "items are"} being processed.`
           : "Up to date.",
     ),
   );
   show("processing-status", state.feed === "mine");
+  show("processing-section", Boolean(stats.pending || stats.failed));
+  show("retry-processing", Boolean(stats.failed));
   $("retry-processing").disabled = !stats.failed;
 }
 async function loadFeed(append = false) {
@@ -1090,7 +1097,7 @@ function recordingMessage(status) {
   if (!status.capture_enabled)
     return {
       title: "Recording is paused",
-      copy: "Your saved work is still here. Resume in Settings when you’re ready.",
+      copy: "Your saved work is still here. Resume recording in Connections when you’re ready.",
       action: "Review recording",
       destination: "recording",
     };
@@ -1113,7 +1120,7 @@ function recordingMessage(status) {
       title: !status.agent_enabled
         ? "Organization is paused"
         : "Some work needs attention",
-      copy: "Your work has been saved. Review processing in Settings to make it ready for questions.",
+      copy: "Your work has been saved. Review recording controls in Connections to make it ready for questions.",
       action: "Review recording",
       destination: "recording",
     };
@@ -1130,19 +1137,41 @@ function renderRecording() {
   const message = recordingMessage(status);
   if (!state.guideInitialized) {
     $("connector-guide").open = !status.connected_clients || !status.received;
+    $("recording-controls").open =
+      !status.capture_enabled || !status.agent_enabled;
     state.guideInitialized = true;
   }
+  $("connector-guide-title").textContent = !status.connected_clients
+    ? "Connect a tool"
+    : status.received
+      ? "Connect another tool"
+      : "Finish tool setup";
   $("recording-title").textContent =
     status.capture_enabled && !status.connected_clients
       ? "No tool connected"
       : message.title;
-  $("recording-copy").textContent = message.copy;
+  $("recording-copy").textContent = !status.capture_enabled
+    ? "Your existing history is kept. Turn recording back on below when you’re ready."
+    : !status.connected_clients
+      ? "Follow the setup below to start saving conversations."
+      : !status.received
+        ? "Finish setup in your tool, then send a message and wait for its reply."
+        : !status.agent_enabled
+          ? "Your work is saved. Enable your agent below to organize and ask about it."
+          : status.stats.failed
+            ? "Your work is saved. Retry the failed items below."
+            : "Open My work to browse your saved conversations.";
   $("recording-last-received").textContent = status.last_received_at
-    ? `Last record received ${date(status.last_received_at * 1000, true)}. This confirms saved work, not whether your tool is currently running.`
+    ? `Last work received ${date(status.last_received_at * 1000, true)}.`
     : status.stats.total
       ? "Imported history is available. No new work has arrived yet."
       : "No work received yet.";
+  show(
+    "recording-last-received",
+    Boolean(status.last_received_at || status.stats.total),
+  );
   show("see-my-work", status.stats.total > 0);
+  show("manage-recording", !status.capture_enabled || !status.agent_enabled);
   show("recording-nudge", state.firstReceipt || message.destination !== "mine");
   $("recording-nudge-title").textContent = message.title;
   $("recording-nudge-copy").textContent = message.copy;
@@ -1153,16 +1182,14 @@ function renderRecording() {
       renderRecording();
       openFeed("mine");
     } else if (message.destination === "recording") {
-      state.settingsSection = "recording";
-      setView("settings");
-      selectSettings("recording");
+      reviewRecording();
     } else {
       $("connector-guide").open = true;
       setView("connections");
     }
   };
 }
-async function refreshRecording() {
+async function refreshRecording({ loadClients = true } = {}) {
   if (!state.me?.enrolled || state.recordingLoading) return;
   state.recordingLoading = true;
   try {
@@ -1173,8 +1200,18 @@ async function refreshRecording() {
     state.recording = status;
     state.me.capture_enabled = status.capture_enabled;
     state.me.agent_enabled = status.agent_enabled;
+    $("capture-enabled").checked = status.capture_enabled;
+    $("agent-enabled").checked = status.agent_enabled;
+    $("recording-preferences").inert = false;
     renderCoverage(status.stats);
     renderRecording();
+    if (first) $("connector-guide").open = false;
+    if (
+      loadClients &&
+      state.listedClientCount !== status.connected_clients &&
+      state.view === "connections"
+    )
+      await loadConnectionList();
     $("recording-error").textContent = "";
     if (first && state.view === "home" && state.feed === "mine")
       await loadFeed();
@@ -1198,26 +1235,39 @@ function renderConnectorGuide() {
   const quoted = "'" + url.replaceAll("'", "'\"'\"'") + "'";
   $("capture-command").textContent =
     `uv tool install --force 'git+https://github.com/moe-berri/litellm-memory.git@main'\nlitellm-memory-connector connect ${quoted} --host ${host}`;
+  $("capture-restart-title").textContent =
+    host === "codex" ? "Finish setup in Codex" : "Finish setup in Claude Code";
   $("capture-restart").textContent =
     host === "codex"
       ? "Restart Codex and sign in to its LiteLLM Memory MCP when prompted. Open /hooks and review and trust the LiteLLM Memory capture hooks."
       : "Restart Claude Code and sign in to its LiteLLM Memory MCP when prompted. The connector has added the recording hooks.";
+  renderBackfillGuide();
+}
+function renderBackfillGuide() {
   $("backfill-command").textContent =
-    host === "codex"
+    $("backfill-host").value === "codex"
       ? "litellm-memory-connector backfill ~/.codex/sessions --host codex"
       : "litellm-memory-connector backfill ~/.claude/projects --host claude";
-  $("mcp-url").textContent = state.me.mcp_url;
-  $("codex-command").textContent =
-    `codex mcp add litellm-memory --url ${quoted}/mcp\ncodex mcp login litellm-memory`;
-  $("claude-command").textContent =
-    `claude mcp add --transport http litellm-memory ${quoted}/mcp`;
+}
+function reviewRecording() {
+  $("connector-guide").open = false;
+  $("recording-controls").open = true;
+  setView("connections");
+  $("recording-controls").scrollIntoView({ block: "nearest" });
+  $("recording-controls").querySelector("summary").focus();
 }
 async function loadConnections() {
-  const version = ++state.connectionsVersion;
   renderConnectorGuide();
-  await refreshRecording();
+  await refreshRecording({ loadClients: false });
+  await loadConnectionList();
+}
+async function loadConnectionList() {
+  const version = ++state.connectionsVersion;
   const data = await api("/api/v1/connections");
   if (version !== state.connectionsVersion || !state.me) return;
+  state.listedClientCount = data.connections.filter(
+    (client) => client.connected,
+  ).length;
   const list = $("connection-list");
   list.replaceChildren();
   for (const c of data.connections.filter((c) => !c.revoked)) {
@@ -1225,14 +1275,7 @@ async function loadConnections() {
     const name = el("div");
     name.append(
       el("strong", c.label),
-      el(
-        "small",
-        !c.connected
-          ? "Expired · reconnect this tool"
-          : c.last_used
-            ? "Last used " + date(c.last_used * 1000, true)
-            : "Authorized · not used yet",
-      ),
+      el("small", !c.connected ? "Expired · reconnect this tool" : "Connected"),
     );
     const revoke = el("button", "Disconnect", "button quiet small");
     revoke.onclick = () =>
@@ -1253,10 +1296,11 @@ async function loadConnections() {
     row.append(name, revoke);
     list.append(row);
   }
-  if (!list.children.length)
-    list.append(el("p", "No connected clients yet.", "muted"));
+  show("connected-tools", list.children.length > 0);
 }
 $("capture-host").onchange = renderConnectorGuide;
+$("backfill-host").onchange = renderBackfillGuide;
+$("manage-recording").onclick = reviewRecording;
 $("check-recording").onclick = () =>
   busy($("check-recording"), async () => {
     try {
@@ -2028,7 +2072,15 @@ for (const [id, key] of [
         await api("/api/v1/preferences", { [key]: desired }, "PUT");
         state.me[key] = desired;
         await refreshRecording();
-        toast(desired ? "Enabled." : "Paused.");
+        toast(
+          key === "capture_enabled"
+            ? desired
+              ? "Recording resumed."
+              : "Recording paused."
+            : desired
+              ? "Agent access enabled."
+              : "Agent access paused.",
+        );
       } catch (e) {
         input.checked = !desired;
         toast(explain(e));
@@ -2040,15 +2092,11 @@ $("retry-processing").onclick = () =>
     try {
       await api("/api/v1/retry-processing", {});
       toast("Failed items queued for retry.");
-      await loadSettings();
+      await refreshRecording();
     } catch (e) {
       toast(explain(e));
     }
   });
-$("copy-mcp").onclick = async () => {
-  if (!(await copyText(state.me.mcp_url, $("copy-mcp"))))
-    toast("Select the connection URL to copy it.");
-};
 document.querySelectorAll("[data-copy]").forEach((button) => {
   button.onclick = async () => {
     if (!(await copyText($(button.dataset.copy).textContent, button)))
