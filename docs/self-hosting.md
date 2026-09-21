@@ -80,7 +80,7 @@ Domain-mode workspaces can transfer administration to another enrolled, currentl
 
 New records are processed continuously. Current or daily overviews are built only when requested through Ask or the overview API; no periodic history sweep or external cron is required. Existing source records and saved views remain available.
 
-Personal display timezones are controlled in **Settings → General**, persist in encrypted member profiles and affect presentation/date filters only. Requested daily overviews use the workspace timezone chosen during setup. Legacy schedule settings remain readable through the compatibility API, with automatic refresh disabled. Timezone data is included in the image.
+Personal display timezones are controlled in **Settings → Preferences**, persist in encrypted member profiles and affect presentation/date filters only. Requested daily overviews use the workspace timezone chosen during setup. Legacy schedule settings remain readable through the compatibility API, with automatic refresh disabled. Timezone data is included in the image.
 
 ## External Ente
 

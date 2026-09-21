@@ -104,7 +104,7 @@ Use a small recurring spacing vocabulary: 4, 8, 12, 16, 20, 24, 28, 32, 40, and 
 
 Desktop shell: 208px sidebar, reducing to 190px at the intermediate breakpoint. Main page uses 40px top / 48px side padding and a bounded width. A wide monitor should add outside breathing room, not stretch text indefinitely.
 
-Settings: section purpose in a 210px column, 40px gap, controls in the remaining width. The section begins and ends as one group. Collapse this to a single reading column at 960px viewport width before the controls become cramped. Do not preserve two columns merely for visual symmetry.
+Settings: one reading column for purpose, controls and actions, with a 20px gap between purpose and controls. Bound Settings and Connections to 856px including page padding. Related short fields may use two columns inside the form; section descriptions always precede their controls.
 
 Activity: a primary reading column and a 200px contextual rail with generous separation. At 960px and below, the secondary rail yields to content; the team directory remains available through People.
 
@@ -131,7 +131,7 @@ Use one SVG per icon. Do not wrap an already-rendered SVG in another icon compon
 
 Responsive design changes layout before text hierarchy:
 
-- Wide desktop: persistent sidebar, bounded content, side-by-side Settings descriptions/controls.
+- Wide desktop: persistent sidebar, bounded content, a single reading sequence for Settings descriptions and controls.
 - Intermediate: reduced page padding; drop the activity rail; stack Settings sections as needed.
 - At 700px: navigation becomes a compact top shell; use full available content width.
 - At 560px: compact icon-plus-label navigation, single-column model forms, wrapped inline forms.

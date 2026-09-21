@@ -8,11 +8,11 @@ Choose **Sign in with Slack** using your company account. Your installation acce
 
 After joining, Company opens immediately so you can browse shared work. Choose **Connect a tool** on Activity, or open **Connections**. Select Codex or Claude Code, copy the installation commands and run them on your computer. Restart the tool and finish its MCP sign-in; Codex also requires reviewing and trusting the installed hooks. The connector preserves existing configuration. [Full connector instructions](connectors.md).
 
-Send a message and let your tool finish its reply. Connections first shows **Connected. Waiting for work.**, then confirms when a record arrives and offers **View my work**. It checks while that page is visible; **Check connection** refreshes immediately. Authorization alone, imported history and an upload still awaiting storage are not proof of new work arriving. A receipt confirms saved work, not that your tool is currently running. **Import earlier work** is optional.
+Send a message and let your tool finish its reply. Connections first shows **Connected. Waiting for work.**, then confirms when a record arrives and offers **View my work**. It checks while that page is visible; **Refresh status** refreshes immediately. Authorization alone, imported history and an upload still awaiting storage are not proof of new work arriving. A receipt confirms saved work, not that your tool is currently running. **Import earlier work** is optional.
 
 Recording captures visible user and assistant messages; it excludes system instructions, tool dumps and hidden reasoning. Remote MCP by itself cannot see your conversations. Nothing searches your history on every coding turn.
 
-An encrypted local outbox retries uploads when you are offline. **Settings → Recording → Record new work** pauses hosted intake. To stop local buffering too, run `litellm-memory-connector pause`. Resuming does not automatically sweep up the paused period; you can choose an explicit historical import later.
+An encrypted local outbox retries uploads when you are offline. **Connections → Recording controls → Record new work** pauses hosted intake. To stop local buffering too, run `litellm-memory-connector pause`. Resuming does not automatically sweep up the paused period; you can choose an explicit historical import later.
 
 ## Browse and ask
 
@@ -24,13 +24,13 @@ Use the question box on Activity or open **Ask**. Choose a model from your gatew
 
 **People** uses enrolled members' Slack profiles. You can see their shared activity and ask about evidence they have made available. Another person's private counts, source transcripts and metadata are not exposed.
 
-In **Settings → General → Browsing → Exclude from my feed and Ask**, hide people's work, projects or sources from your feed and answers. These personal filters are saved across sign-ins. They do not change anyone's access or your sharing choices, and originals remain available through their links and in exports. Activity shows **Personal filters are on · Edit** while exclusions apply. Clear the selections and save to include everything you can access again. Saving filters starts a fresh Ask conversation so earlier excluded material is not reused.
+In **Settings → Preferences → Browsing → Exclude from my feed and Ask**, hide people's work, projects or sources from your feed and answers. These personal filters are saved across sign-ins. They do not change anyone's access or your sharing choices, and originals remain available through their links and in exports. Activity shows **Personal filters are on · Edit** while exclusions apply. Clear the selections and save to include everything you can access again. Saving filters starts a fresh Ask conversation so earlier excluded material is not reused.
 
 Project and source names match without regard to capitalization. Enter one per line. Existing type metadata remains searchable; older saved type exclusions are retained. Changing viewing choices does not call Jev again.
 
-Ask questions such as “What did Tin work on yesterday?” directly in Ask. There is no separate Catch up screen or automatic daily-summary sweep. Requested overviews use dated sources and do not rewrite originals. **Settings → Recording** shows processing failures and a retry action.
+Ask questions such as “What did Tin work on yesterday?” directly in Ask. There is no separate Catch up screen or automatic daily-summary sweep. Requested overviews use dated sources and do not rewrite originals. **Connections** shows processing failures and a retry action.
 
-**Settings → General** lets you choose your display time zone or follow your device. Dates and feed date filters use that choice; original timestamps stay unchanged. A date without an original timezone is marked as incomplete and excluded from exact date ranges.
+**Settings → Preferences** lets you choose your display time zone or follow your device. Dates and feed date filters use that choice; original timestamps stay unchanged. A date without an original timezone is marked as incomplete and excluded from exact date ranges.
 
 In Slack, talk to **@memory**. A verified personal DM can use your private history. Shared conversations use only company-public evidence that is safe for every participant. Slack membership failures or external/unknown participants cause the agent to withhold an answer. It cannot retract information someone already read.
 
@@ -38,7 +38,7 @@ In Slack, talk to **@memory**. A verified personal DM can use your private histo
 
 Everything starts private. **Company-public** means eligible members of your installation, never the open internet. Sharing may be disabled for the whole workspace during a pilot.
 
-Open a memory to preview the separate summary that would be shared. The original evidence stays private. In **Settings → Privacy**, optionally enable **Automatically share new summaries**. Historical imports do not publish automatically.
+Open a memory to preview the separate summary that would be shared. The original evidence stays private. In **Settings → Sharing**, optionally enable **Automatically share new summaries**. Historical imports do not publish automatically.
 
 Under **Never share work about**, describe a topic to exclude. Jev checks existing and future source chunks, caching each result for the criterion and classifier version. Adding a rule checks that new rule; it does not rerun previously completed rules. Uncertain matches remain private, and the rule withdraws existing publications while checks run.
 

@@ -1,6 +1,6 @@
 # Interface guide
 
-The UI uses a shared hierarchy: 24px page titles, 16px content titles, 14px body, 13px controls, and 12px supporting detail. Settings groups pair a concise purpose with their controls and related action, stacking into one column in narrow windows. Placeholders remain secondary; narrow desktop panes do not trigger touch-sized input text.
+The UI uses a shared hierarchy: 24px page titles, 16px content titles, 14px body, 13px controls, and 12px supporting detail. Settings uses one reading column: section purpose, controls, then the related action. Personal tabs precede the administrator-only Workspace tab. Placeholders remain secondary; narrow desktop panes do not trigger touch-sized input text.
 
 The UI uses one sidebar, a chronological feed, explicit private/company labels, and a single-column Ask conversation. Search and advanced filters stay out of the way until needed. Icons use one Lucide grid and local font assets; there is no frontend build step or external font request.
 
@@ -28,7 +28,7 @@ Select a person from the feed or directory to browse their shared work. The pers
 
 ![Person activity](assets/person.jpg)
 
-Connections provides inline tool setup, optional history import, and a server-confirmed receipt. It distinguishes authorization from saved work; returning members can collapse setup instructions.
+Connections puts saved-work status and connected tools first. Setup, recording controls and historical imports are separate disclosures. Pause/resume and processing retries live here; manual MCP setup and troubleshooting are in the connection guide. A connected credential and a saved-work receipt remain separate facts.
 
 ![Recording status](assets/connections.jpg)
 
@@ -38,7 +38,7 @@ Choose the memory scope and a gateway model. Responses include clickable source 
 
 ![Ask](assets/ask.jpg)
 
-## Privacy
+## Sharing
 
 Memories start private. Future sharing is opt-in. Write topics that Jev should keep private; no predefined category grid is required. Existing restrictive policies remain enforced.
 
@@ -54,7 +54,7 @@ A summary links back to its evidence. The original and metadata remain available
 
 These are screenshots of the actual local application with synthetic records and simulated model replies. They do not establish live gateway or Slack readiness.
 
-The core-loop review covers joining → Company → tool instructions → authorized/waiting → first received work → My work, person browsing/reload/Back, Ask scope, sharing preview, saved-filter editing, and recording pause. Browser checks include 1280px, 390px and 320px layouts, keyboard Settings navigation, source-dialog dismissal and recording-status failure/retry. Long connection commands scroll inside their own block without widening the page. The search review also covers Company/My work/person scopes, empty results, a simulated failure and retry, source detail returning to results, Escape with focus restoration, and a 400px-high window with scrolling results. Search and navigation fit at 320px without horizontal overflow.
+The core-loop review covers joining → Company → tool instructions → authorized/waiting → first received work → My work, person browsing/reload/Back, Ask scope, sharing preview, saved-filter editing, and recording pause. Browser checks include 1280px, 390px and 320px layouts, keyboard Settings navigation, source-dialog dismissal and recording-status failure/retry. Long connection commands scroll inside their own block without widening the page. Connections checks cover initial setup, automatic client-list refresh, a saved first-record receipt, pause/resume and failed-save rollback, independent import-tool selection, and direct recovery from the paused Activity notice. Settings checks include personal/admin tab visibility, keyboard navigation and saving a time zone. The search review also covers Company/My work/person scopes, empty results, a simulated failure and retry, source detail returning to results, Escape with focus restoration, and a 400px-high window with scrolling results. Search and navigation fit at 320px without horizontal overflow.
 
 The backend suite passes **160 tests**, including owner-only intake receipts, expired/refreshed connections, import-versus-live status, private/shared access, on-demand overviews and independent Luna defaults. Ruff and frontend syntax/format checks pass. UI capture was simulated through a disposable fixture; these checks do not prove a real host connection, external model quality or live Slack OAuth. The release checklist tracks those separately.
 

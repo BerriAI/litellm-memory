@@ -14,7 +14,7 @@ Keep the feed chronological. The useful title and work excerpt are more prominen
 
 The home Ask form has a visible label, concise placeholder and send control. Do not repeat a privacy reassurance underneath every composer. Avoid a welcome hero, metric cards, progress rings, or recommendation panel above the first entry. The feed should appear within a normal viewport, not beneath an onboarding essay.
 
-Search opens a native dialog near the top of the viewport, without navigating or rearranging the underlying page. Put query, explicit Company/My work/person scope, and results together. Search only on submission; typing, opening the panel and changing scope do not fetch work. Clear stale results when the input changes, retain the query on failure, and preserve the underlying page, scroll and keyboard focus on close. Source details can open above search and return to the selected result. Metadata filters remain scoped to the Activity feed; saved viewing exclusions in Settings → General apply to both and must be disclosed when active. Personal viewing exclusions do not change sharing.
+Search opens a native dialog near the top of the viewport, without navigating or rearranging the underlying page. Put query, explicit Company/My work/person scope, and results together. Search only on submission; typing, opening the panel and changing scope do not fetch work. Clear stale results when the input changes, retain the query on failure, and preserve the underlying page, scroll and keyboard focus on close. Source details can open above search and return to the selected result. Metadata filters remain scoped to the Activity feed; saved viewing exclusions in Settings → Preferences apply to both and must be disclosed when active. Personal viewing exclusions do not change sharing.
 
 For someone else's feed, show a compact identity header and Back to Company action; scope the question to their shared work. Person routes survive reload and browser Back. Changing the feed/person clears temporary filters; saved exclusions remain enforced. Do not expose private counts, hidden titles, or inaccessible source previews merely to fill the layout.
 
@@ -44,9 +44,9 @@ The empty directory explains that people appear after joining with Slack. Search
 
 **Task:** connect the coding tool once, then see/manage connections.
 
-The page starts with actual recording status, a Check connection action, and View my work when there is saved history. A connected credential is not proof of running hooks; imported history is not new intake. Report saved receipts precisely.
+The page starts with actual recording status, Refresh status, and View my work when there is saved history. A connected credential is not proof of running hooks; imported history is not new intake. Report saved receipts precisely.
 
-Inline setup offers a tool selector, copyable install/connect commands, restart and hook-trust instructions, and a first-record check. Collapse setup for returning members with a connection and received work. History import, troubleshooting and manual MCP are disclosures. Keep command text selectable on narrow screens. Connected clients follow below.
+Connected tools follow the status. Label valid credentials Connected; do not confuse MCP last-used timestamps with recording receipts. Inline setup offers a tool selector, copyable install/connect commands, restart and hook-trust instructions, and a first-record check. Collapse setup for returning members with a connection and received work. Recording controls and history import are separate disclosures, so importing is not buried inside setup. Import has its own explicit tool selector. Troubleshooting and manual MCP remain in the linked connection guide. Keep command text selectable on narrow screens.
 
 The connector guide groups the real steps: install/connect; restart and complete MCP/hook setup; optional history import/status commands. Code is copyable/selectable, monospaced, and horizontally scrollable rather than wrapping commands into invalid lines. Keep requirements near the relevant setup, not in the home feed.
 
@@ -56,9 +56,9 @@ Explain that recording and search are different: visible work is saved continuou
 
 **Task:** make a deliberate preference or workspace change with a predictable effect.
 
-The page title is Settings. A short subtitle establishes scope, followed by sibling tabs. Every panel uses the same settings-section pattern, not a different card layout for each category.
+The page title is Settings. A short subtitle establishes scope, followed by Sharing, Preferences, Your data and administrator-only Workspace tabs. Every panel uses the same settings-section pattern, not a different card layout for each category.
 
-### Privacy
+### Sharing
 
 Two task groups: sharing and private topics.
 
@@ -68,11 +68,11 @@ Two task groups: sharing and private topics.
 - Company sharing being unavailable is a real state with an explanation; do not substitute a disabled switch that looks like a personal preference.
 - Existing history and original conversations remain distinct from newly shared summaries. Copy must preserve that boundary.
 
-### Recording
+### Recording belongs in Connections
 
-Group Record new work and Personal agent access under Recording. Processing is a separate status group with actual counts and retry if applicable. Do not style “all organized” as a warning or give a disabled retry button primary emphasis.
+Group Record new work and Let my agent use my history under Recording controls in Connections. A paused-state action opens those controls directly. Show processing status only while records are pending or failed, with retry only when failures exist. Do not show a routine all-organized panel or disabled retry button.
 
-### General
+### Preferences
 
 Personal date/time display and a disclosed saved-viewing-preferences editor. There are no daily-summary scheduling controls. Existing exclusions must remain visible through an active-filter notice on the feed and editable here.
 

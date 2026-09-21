@@ -1178,10 +1178,12 @@ body[data-view="ask"] .footer {
 .person-row > .button {
   margin-left: auto;
 }
-#settings-view,
-#connections-view,
 #people-view {
   max-width: 1120px;
+}
+#settings-view,
+#connections-view {
+  max-width: 856px;
 }
 .settings-tabs {
   display: flex;
@@ -1209,8 +1211,8 @@ body[data-view="ask"] .footer {
 }
 .settings-section {
   display: grid;
-  grid-template-columns: 210px minmax(0, 1fr);
-  gap: 40px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
   padding: 28px 0;
   border-bottom: 1px solid var(--line);
 }
@@ -1219,7 +1221,7 @@ body[data-view="ask"] .footer {
 }
 .section-copy h2 {
   margin: 0 0 6px;
-  font-size: var(--text-body);
+  font-size: var(--text-section);
   font-weight: 600;
 }
 .section-copy p,
@@ -1480,9 +1482,7 @@ body[data-view="ask"] .footer {
   flex-shrink: 0;
 }
 .recording-status-panel {
-  max-width: 780px;
   padding: 0 0 24px;
-  border-bottom: 1px solid var(--line);
 }
 .recording-status-panel .action-row {
   margin-top: 14px;
@@ -1497,11 +1497,12 @@ body[data-view="ask"] .footer {
   margin-top: 8px;
 }
 .connection-instructions {
-  margin: 28px 0;
-  max-width: 780px;
+  margin: 0;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
 }
 .connection-instructions > summary {
-  font-size: var(--text-section);
+  font-size: var(--text-body);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1588,8 +1589,12 @@ body[data-view="ask"] .footer {
   padding: 18px 0;
   border-bottom: 1px solid var(--line);
 }
+.connection-row > div {
+  min-width: 0;
+}
 .connection-row strong {
   display: block;
+  overflow-wrap: anywhere;
   font-size: 13px;
   font-weight: 550;
 }
@@ -2517,5 +2522,74 @@ dialog::backdrop {
   .work-search-input {
     gap: 8px;
     padding-left: 10px;
+  }
+}
+
+/* Tool setup and personal preferences follow the task in one readable column. */
+.connected-tools {
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.connection-row:last-child {
+  border-bottom: 0;
+}
+.connected-tools > h2 {
+  margin: 0 0 8px;
+  font-size: var(--text-body);
+}
+.connection-options {
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-control);
+}
+.connection-options > summary {
+  font-size: var(--text-body);
+  font-weight: 600;
+  cursor: pointer;
+}
+.connection-options[open] > summary {
+  margin-bottom: 16px;
+}
+.connection-options > select {
+  min-width: 160px;
+}
+.connection-options > .muted {
+  margin-bottom: 16px;
+}
+.connection-options .setting-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.connection-help {
+  margin-top: 20px;
+  font-size: var(--text-meta);
+}
+.processing-panel .setting-row {
+  padding: 18px 0;
+  border: 0;
+}
+#settings-view .section-copy p {
+  max-width: 64ch;
+}
+#sharing-form .setting-row {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+#settings-view .form-footer {
+  justify-content: flex-start;
+}
+#settings-view .form-footer > .button:last-child {
+  margin-left: 0;
+}
+#settings-view .form-footer > [role="status"] {
+  flex: 0 1 auto;
+  order: 1;
+}
+#settings-view .settings-tabs {
+  gap: 24px;
+}
+@media (max-width: 560px) {
+  #settings-view .settings-tabs {
+    gap: 16px;
   }
 }
