@@ -1,7 +1,7 @@
 [project]
 name = "litemem"
 version = "0.1.0"
-description = "A Slack and web research agent grounded in shared product memories"
+description = "Private, queryable work history for your team, built with Ente and LiteLLM"
 requires-python = ">=3.12"
 dependencies = [
   "openai-agents>=0.3",
@@ -15,10 +15,28 @@ dependencies = [
   "aiosqlite>=0.21",
   "beautifulsoup4>=4.13",
   "python-multipart>=0.0.20",
+  "pynacl>=1.6.2",
+  "pyyaml>=6.0.3",
+  "mcp>=2.2.0",
+  "logfire>=5.1.0",
+  "tomlkit>=0.15.1",
+  "tzdata>=2025.2",
 ]
 
 [dependency-groups]
 dev = ["pytest>=8.3", "pytest-asyncio>=0.25", "ruff>=0.11"]
+
+[project.scripts]
+litemem-connector = "moegent.connector:main"
+litemem-transfer = "moegent.transfer_cli:main"
+litemem-evaluate = "moegent.evaluation:main"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["moegent*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

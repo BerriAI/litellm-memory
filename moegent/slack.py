@@ -63,7 +63,7 @@ class Slack:
             raise RuntimeError("Slack is not installed yet")
         async with httpx.AsyncClient(timeout=20) as client:
             kwargs = {"headers": {"Authorization": f"Bearer {token}"}}
-            if method in {"conversations.replies", "conversations.info"}:
+            if method in {"conversations.replies", "conversations.info", "conversations.members", "users.info"}:
                 response = await client.get(f"https://slack.com/api/{method}", params=payload, **kwargs)
             else:
                 response = await client.post(f"https://slack.com/api/{method}", json=payload, **kwargs)
@@ -211,9 +211,13 @@ class Slack:
         payload = {"team": team, "channel": channel, "user": event["user"], "thread_ts": thread,
                    "channel_type": event.get("channel_type"), "message_ts": event["ts"],
                    "question": text[:16000], "prior_questions": prior[-8:]}
+        payload = await self.prepare_payload(payload)
         job_id = await self.store.enqueue(principal.identity, "slack", payload, dedupe)
         if text.lower().strip(".!") in {"stop", "cancel", "stop please", "please stop"}:
             await self.store.cancel(job_id)
+
+    async def prepare_payload(self, payload):
+        return payload
 
     async def history(self, job):
         p = job["payload"]

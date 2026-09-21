@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Transfer history · litemem</title>
+    <link rel="stylesheet" href="/static/memory.css" />
+    <script type="module" src="/static/migration.js?v=1"></script>
+  </head>
+  <body data-transfer-sender>
+    <main class="auth-card">
+      <a href="/">← Back to litemem</a>
+      <p class="eyebrow">Your data</p>
+      <h1>Confirm your destination</h1>
+      <p><strong id="send-destination"></strong></p>
+      <p id="send-identity" class="muted"></p>
+      <p id="send-status" role="status">Checking your Slack sign-in…</p>
+      <a id="send-login" class="button primary" href="/auth/slack" hidden
+        >Continue with Slack</a
+      >
+      <button id="send-confirm" class="button primary" hidden>
+        Send my history
+      </button>
+      <button id="send-cancel" class="button quiet" hidden>
+        Cancel transfer
+      </button>
+      <p>
+        <a id="send-receipt" href="/" hidden
+          >View the destination’s import status</a
+        >
+      </p>
+      <p class="fine-print">
+        Protected during transfer. No export password needed. Imported history
+        stays private.
+      </p>
+    </main>
+  </body>
+</html>
