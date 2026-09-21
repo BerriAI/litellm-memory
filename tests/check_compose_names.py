@@ -20,14 +20,8 @@ def main():
         assert primary['volumes'][volume]['name'] != restored['volumes'][volume]['name'], volume
     assert primary['services']['postgres']['environment']['POSTGRES_DB'] == 'litellm_memory'
     assert 'litellm-memory' in primary['services']
-    legacy = config('litemem', MEMORY_STATE_VOLUME='litemem_litemem-state',
-                    MEMORY_DB_NAME='litemem', MEMORY_DB_USER='litemem')
-    assert legacy['volumes']['litellm-memory-state']['name'] == 'litemem_litemem-state'
-    assert legacy['volumes']['postgres-data']['name'] == 'litemem_postgres-data'
-    assert legacy['services']['postgres']['environment']['POSTGRES_DB'] == 'litemem'
-    assert legacy['services']['postgres']['environment']['POSTGRES_USER'] == 'litemem'
-    assert legacy['services']['litellm-memory']['environment']['DATABASE_URL'].startswith('postgresql://litemem:')
-    print('Fresh, restored and legacy deployment bindings verified.')
+    print('Primary and restored deployment state are isolated.')
+
 
 
 if __name__ == '__main__':

@@ -30,7 +30,7 @@ For real-history query evaluation, use the [private answer-quality workflow](doc
 - `connector.py`, `imports.py`, `transfer.py`, `migration.py`: capture, historical imports, encrypted files and temporary recipient-key browser transfers.
 - `static/`: the dashboard and progressive setup flow, without a frontend build step.
 
-All application code lives in `litellm_memory`. The original `litellm_memory/app.py` is the legacy assistant; the current entry point is `litellm_memory.application:app`. Compatibility for older launch commands is documented in [upgrading](docs/upgrading.md).
+All application code lives in `litellm_memory`. The entry point is `litellm_memory.application:app`.
 
 ## Interface standards
 

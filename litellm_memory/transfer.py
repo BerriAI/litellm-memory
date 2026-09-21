@@ -7,7 +7,6 @@ from nacl import bindings, pwhash, utils
 from .crypto import b64, encode, unb64
 
 FORMAT = 'litellm-memory-transfer'
-SUPPORTED_FORMATS = (FORMAT, 'litemem-transfer')
 MAX_LINE = 1_000_000
 
 
@@ -45,7 +44,7 @@ def read_export(file, passphrase):
     """Yield authenticated records; exhaust the iterator to verify completeness."""
     raw = file.readline(MAX_LINE + 1)
     header = json.loads(raw)
-    if (len(raw) > MAX_LINE or not isinstance(header, dict) or header.get('format') not in SUPPORTED_FORMATS
+    if (len(raw) > MAX_LINE or not isinstance(header, dict) or header.get('format') != FORMAT
             or header.get('version') != 1
             or header.get('kdf') != 'argon2id-interactive' or header.get('cipher') != 'secretstream-xchacha20poly1305'):
         raise ValueError('Unsupported memory export format.')

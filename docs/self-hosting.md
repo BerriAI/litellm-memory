@@ -1,7 +1,5 @@
 # Self-hosting LiteLLM Memory
 
-Upgrading an existing litemem installation? Follow the [upgrade guide](upgrading.md) before changing resource names.
-
 ## Deployment shape
 
 The supported starter topology is one LiteLLM Memory web container with a durable `/data` volume and one PostgreSQL 17 service. The web container supervises the app and a private Ente Museum process on loopback port 9080. Only the web port is published. Museum stores encrypted entities in PostgreSQL; app state, wrapped keys, access policies, encrypted jobs and the encrypted local search source live on `/data`.

@@ -52,7 +52,7 @@ jobs:
       POSTGRES_PASSWORD: ci_disposable_database_only
     steps:
       - uses: actions/checkout@v4
-      - name: Verify isolated and legacy state bindings
+      - name: Verify isolated deployment state
         run: python3 tests/check_compose_names.py
       - name: Build and start the documented stack
         run: docker compose up --build --wait --wait-timeout 240 -d

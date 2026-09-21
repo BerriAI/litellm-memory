@@ -92,7 +92,7 @@ def test_slack_dedupe_and_public_vs_allowlist(tmp_path):
 def sign_in(client, user_id, team_id="T1"):
     session = {"principal": {"user_id": user_id, "team_id": team_id}, "browser_id": "test-browser"}
     cookie = TimestampSigner("test-only").sign(b64encode(json.dumps(session).encode())).decode()
-    client.cookies.set("moegent_session", cookie)
+    client.cookies.set("litellm_memory_assistant_session", cookie)
 
 
 @pytest.mark.parametrize("user", ["UOWNER", "UTIN", "UKRRISH", "UISHAAN", "UOTHER"])
@@ -134,7 +134,6 @@ def test_web_pages_require_login_and_preserve_source_target(tmp_path):
             assert response.headers["cache-control"] == "no-store"
         assert client.get("/health").status_code == 200
         assert client.get("/static/litellm-memory-icon.jpg").status_code == 200
-        assert client.get("/static/moegent-icon.jpg").content == client.get("/static/litellm-memory-icon.jpg").content
         assert client.get("/api/jobs/example").status_code == 401
         assert client.post("/api/jobs/example/cancel").status_code == 401
 

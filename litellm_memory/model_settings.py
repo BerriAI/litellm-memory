@@ -24,7 +24,7 @@ class ModelConfiguration(BaseModel):
 
 class ModelSettingsService:
     # Stable storage key: changing it would discard saved model choices on upgrade.
-    key = "litemem:model-configuration"
+    key = "litellm-memory:model-configuration"
 
     def __init__(self, settings, store, gateway, archive):
         self.settings, self.store, self.gateway, self.archive = settings, store, gateway, archive
