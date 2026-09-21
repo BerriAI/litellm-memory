@@ -151,26 +151,28 @@ Joining adds the enrolled person's Slack name/avatar to People. Leaving revokes 
 
 ## 6. Dashboard and interaction design
 
-Use a clean, restrained web interface with a chronological feed and clear actions. Slightly social means recognizable people and shared work, not reaction counts, engagement rankings or an imitation social network. Do not use the rejected generated design reference.
+Use a clean, restrained internal workspace with a chronological feed and clear actions. A compact persistent sidebar contains Activity, Ask and People, with Connections and Settings below. Use neutral surfaces, compact readable typography, consistent spacing and simple native controls. The feed is the main content; the desktop context column contains enrolled people and Catch up. Slightly social means recognizable people and shared work, not reaction counts, engagement rankings or an imitation social network. Do not use the rejected generated design reference.
 
 | Surface | Required behavior |
 | --- | --- |
-| Home | Compact **Ask about your work…** input; chronological feed; My work / Shared views; search and metadata filters; visible capture/backfill health |
+| Activity | Compact **Ask about your work…** input; chronological feed; My work / Company views; search and metadata filters; visible capture/backfill health |
 | Ask | Full conversation, selected scope/person, actual model picker, progress/stop/retry, linked citations and clear private-scope label |
 | People | Enrolled Slack identities, permitted current updates and **Ask about…**. No private memory counts or inferred productivity |
 | Person/project | Current permitted state, dated updates, decisions and unresolved questions; source coverage and last refresh |
 | Memory detail | Concise entry, work date, source attribution, types, project/source metadata, original evidence for the owner, revision history and visibility controls |
 | Connections | MCP URL, client setup, continuous/explicit/import capability, last success, gaps, pause and revoke |
-| Settings | Private-topic rules, category sharing, exclusions, capture/agent controls, export, deletion, leaving |
+| Settings | Four sections: Privacy, Recording, Models and Your data. Private-topic rules, category sharing, capture/agent controls, export, deletion and leaving remain easy to find |
 | Admin | Setup/health, models, gateway credential rotation, Slack connection, enrollment/domain, quotas, job health and backup status; no private-content inspector |
 
-Every private item displays a small lock and the word **Private**, including feed cards, results, detail views and citations. Do not rely on color or an icon alone. A company-public item displays **Shared with company**. Show the effective audience beside the Ask composer and Slack answer scope when needed.
+Every private item displays a small lock and the word **Private**, including feed cards, results and detail views opened from citations. Do not rely on color or an icon alone. A company-public item displays **Company**, with **shared with your company** in the sharing explanation and confirmation. Show the effective audience beside the Ask composer and Slack answer scope when needed.
 
 Changing an Ask scope starts a fresh conversation context or rebuilds it from still-permitted sources. Never carry private earlier turns into a public conversation because a dropdown changed. Keep browser content in memory or explicitly encrypted server storage; do not persist private chat/history in plaintext localStorage. Sensitive responses use `Cache-Control: no-store` and are excluded from service-worker caches.
 
 Feeds sort by occurrence time, newest first, with explicit handling for unknown dates. Backfills retain old dates. Empty states describe what to connect or add; do not seed fake coworkers or synthetic work in production. Use stable cursor pagination and preserve filters in non-sensitive navigation state.
 
 Provide keyboard navigation, visible focus, labeled controls, sensible dialog focus management, readable contrast and mobile layouts. Render Markdown through a sanitizer. Titles and metadata never become executable HTML or unsafe citation URLs.
+
+Use native dialogs for confirmations with Cancel focused initially. Errors belong beside the form that failed, including inside a dialog. Preserve drafts and stable request IDs/timestamps on retries after interrupted responses. A successful correction creates one private revision and preserves the original evidence. Ignore stale responses when the person, source or session changes. A 401 removes private content from the page and requires Slack sign-in. The current implementation and concrete review evidence are recorded in [the interface review](ui-review.md).
 
 Members can choose which permitted people, projects, sources and memory types appear in their feed or default Ask scope. These are personal inclusion/exclusion preferences, not grants to read other people's private content. Keep **What I see/use** separate in wording from **What I share**. A UI preference cannot widen access.
 

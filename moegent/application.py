@@ -6,6 +6,7 @@ import hashlib
 import json
 import secrets
 from contextlib import asynccontextmanager
+from datetime import datetime
 from html import escape
 from typing import Literal
 from urllib.parse import urlsplit
@@ -87,6 +88,8 @@ class Correction(BaseModel):
     content: str = Field(min_length=1, max_length=200000)
     title: str = Field(default='', max_length=300)
     reason: str = Field(default='', max_length=2000)
+    request_id: UUID | None = None
+    occurred_at: datetime | None = None
 
 
 def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, agent_fn=answer_work):

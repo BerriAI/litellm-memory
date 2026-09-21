@@ -4,6 +4,8 @@ This file distinguishes implementation from verified deployment. It is not a cla
 
 ## Verified on September 20, 2026
 
+- The redesigned interface has a [20-area review record](ui-review.md), with actual local screenshots of Activity, Ask, privacy settings and source details. Browser checks used synthetic records and responses, including interrupted saves after persistence, scope changes, 401/503 responses and 320px/390px layouts. The local suite passes **108 tests**, Ruff and all four frontend module checks. These checks do not establish live pilot readiness.
+- The current gateway reports LiteLLM **1.102.0**, while the documented built-in TypeSafe Jev integration starts in **v1.103.0-rc**. Its TypeSafe route returns 404. The typed probe now explains the version/route requirement and gateway-side `TYPESAFE_API_KEY` setup; no direct provider fallback was added.
 - The implementation branch's initial suite passed **74 tests**, Ruff and JavaScript syntax checks locally and on Linux CI.
 - [CI run 35532804507](https://github.com/moe-berri/litemem/actions/runs/35532804507) subsequently passed **83 tests** and a complete Docker backup/restore into fresh PostgreSQL and app volumes. The restored installation preserved member keys, exact evidence and deletion tombstones.
 - [CI run 35533964981](https://github.com/moe-berri/litemem/actions/runs/35533964981) passed **88 tests** and the full Docker restore again, including recovery-mode denial of Slack/MCP before explicitly resuming the restored synthetic instance. Admin key rotation/transfer, shared query capacity and the Slack partial-profile correction passed. Current branch checks are visible on [draft PR #1](https://github.com/moe-berri/litemem/pull/1).

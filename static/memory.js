@@ -2,6 +2,7 @@ import { initializeSetup } from "./setup.js?v=2";
 import { initializeTransfer } from "./migration.js?v=1";
 import { marked } from "./vendor/marked.esm.js";
 import DOMPurify from "./vendor/purify.es.mjs";
+import { element as el, busy, confirmAction, copyText } from "./ui.js";
 
 // Private content lives in this tab's memory only, never local/session storage.
 const $ = (id) => document.getElementById(id);
@@ -21,8 +22,25 @@ const state = {
   chatVersion: 0,
   toastTimer: null,
   overviewVersion: 0,
+  memoryVersion: 0,
+  settingsLoaded: false,
+  cancelRequested: false,
+  settingsSection: "privacy",
+  chatScope: "mine",
+  chatRequest: null,
+  captureRequest: null,
+  sessionVersion: 0,
 };
 const icons = {
+  activity:
+    '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8m-8 4h4"/>',
+  chat: '<path d="M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z"/>',
+  connection:
+    '<path d="m10 14 4-4M8 16l-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m4 0 2-2a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0" transform="translate(1 -1)"/>',
+  settings:
+    '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="currentColor" stroke="none"/><circle cx="15" cy="17" r="3" fill="currentColor" stroke="none"/>',
+  chevron: '<path d="m8 10 4 4 4-4"/>',
+  close: '<path d="m6 6 12 12M6 18 18 6"/>',
   lock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
   arrow: '<path d="M12 20V4m-6 6 6-6 6 6"/>',
@@ -36,12 +54,6 @@ function icon(name) {
   span.className = "icon";
   span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.lock}</svg>`;
   return span;
-}
-function el(tag, text = "", cls = "") {
-  const n = document.createElement(tag);
-  n.textContent = text;
-  if (cls) n.className = cls;
-  return n;
 }
 function show(id, value = true) {
   $(id).hidden = !value;
@@ -58,6 +70,7 @@ function explain(error) {
     : "Something went wrong. Please try again.";
 }
 async function api(path, data, method) {
+  const sessionVersion = state.sessionVersion;
   const options = {
     credentials: "same-origin",
     headers: { Accept: "application/json" },
@@ -76,6 +89,9 @@ async function api(path, data, method) {
       "Could not connect. Your changes are still here; try again.",
     );
   }
+  if (sessionVersion !== state.sessionVersion)
+    throw new Error("Your session expired. Sign in with Slack to continue.");
+  if (response.status === 401 && state.me?.enrolled) expireSession();
   let body;
   try {
     body = await response.json();
@@ -84,6 +100,8 @@ async function api(path, data, method) {
       "The server could not finish this request. Please try again.",
     );
   }
+  if (sessionVersion !== state.sessionVersion)
+    throw new Error("Your session expired. Sign in with Slack to continue.");
   if (!response.ok)
     throw new Error(
       typeof body.detail === "string"
@@ -91,15 +109,6 @@ async function api(path, data, method) {
         : "This request could not be completed.",
     );
   return body;
-}
-async function busy(button, fn) {
-  if (button.disabled) return;
-  button.disabled = true;
-  try {
-    return await fn();
-  } finally {
-    button.disabled = false;
-  }
 }
 function date(value, withTime = false) {
   if (!value) return "Date not recorded";
@@ -130,13 +139,19 @@ function safeImage(url) {
 function avatar(person = {}) {
   const n = el("span", "", "avatar");
   const url = safeImage(person.avatar);
+  const initial = (person.name || "?").trim().slice(0, 1).toUpperCase();
   if (url) {
     const img = el("img");
+    img.addEventListener(
+      "error",
+      () => n.replaceChildren(document.createTextNode(initial)),
+      { once: true },
+    );
     img.src = url;
     img.alt = "";
     img.referrerPolicy = "no-referrer";
     n.append(img);
-  } else n.textContent = (person.name || "?").trim().slice(0, 1).toUpperCase();
+  } else n.textContent = initial;
   return n;
 }
 function privacy(value) {
@@ -183,22 +198,106 @@ function markdown(target, text) {
     }
   });
 }
-function setView(view) {
-  state.view = view;
-  for (const name of ["home", "ask", "people", "connections", "settings"])
-    show(name + "-view", name === view);
-  document.querySelectorAll(".nav-link").forEach((b) => {
-    b.classList.toggle("active", b.dataset.view === view);
-    b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false");
+function expireSession() {
+  state.sessionVersion++;
+  state.feedVersion++;
+  state.chatVersion++;
+  state.memoryVersion++;
+  state.overviewVersion++;
+  state.previousJob = null;
+  state.job = null;
+  state.people = [];
+  state.models = [];
+  state.me = null;
+  state.settingsLoaded = false;
+  state.captureRequest = null;
+  state.chatRequest = null;
+  state.modelSettings = null;
+  document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  document.querySelectorAll("input, textarea").forEach((input) => {
+    input.value = "";
   });
+  for (const id of [
+    "feed",
+    "messages",
+    "people-list",
+    "source-body",
+    "source-actions",
+    "source-visibility",
+    "rule-list",
+    "overview-content",
+  ])
+    $(id).replaceChildren();
+  for (const id of [
+    "workspace",
+    "workspace-bar",
+    "navigation",
+    "header-actions",
+  ])
+    show(id, false);
+  document.body.classList.remove("workspace-ready");
+  show("welcome");
+  $("welcome-error").textContent =
+    "Your session expired. Sign in with Slack to continue.";
+}
+const viewNames = {
+  home: "Activity",
+  ask: "Ask",
+  people: "People",
+  connections: "Connections",
+  settings: "Settings",
+};
+function setView(view, { navigate = true } = {}) {
+  if (!viewNames[view]) view = "home";
+  const changed = state.view !== view;
+  state.view = view;
+  document.body.dataset.view = view;
+  document.title = `${viewNames[view]} · litemem`;
+  $("current-view-label").textContent = viewNames[view];
+  for (const name of Object.keys(viewNames))
+    show(name + "-view", name === view);
+  document.querySelectorAll(".nav-link").forEach((button) => {
+    const active = button.dataset.view === view;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  closeAccountMenu();
+  if (navigate && location.hash !== `#${view}`)
+    history.pushState(null, "", `/#${view}`);
+  if (view === "connections")
+    loadConnections().catch((error) => toast(explain(error)));
+  if (view === "settings" && !state.settingsLoaded)
+    loadSettings().catch((error) => {
+      $("settings-status").textContent = explain(error);
+    });
+  if (view === "people") renderPeople();
+  if (changed) {
+    window.scrollTo({ top: 0, behavior: "instant" });
+    if (view === "ask") $("question").focus({ preventScroll: true });
+    else $("main").focus({ preventScroll: true });
+  }
+}
+function closeAccountMenu() {
   show("account-menu", false);
   $("account-button").setAttribute("aria-expanded", "false");
-  if (view === "connections") loadConnections().catch((e) => toast(explain(e)));
-  if (view === "settings") loadSettings().catch((e) => toast(explain(e)));
-  if (view === "people") renderPeople();
-  if (view === "ask") $("question").focus();
-  window.scrollTo({ top: 0, behavior: "instant" });
 }
+function selectSettings(section) {
+  if (section === "models" && !state.me?.is_admin) section = "privacy";
+  state.settingsSection = section;
+  document.querySelectorAll("[data-settings-section]").forEach((group) => {
+    group.hidden = group.dataset.settingsSection !== section;
+  });
+  document.querySelectorAll("[data-settings]").forEach((button) => {
+    button.setAttribute(
+      "aria-pressed",
+      String(button.dataset.settings === section),
+    );
+  });
+}
+window.addEventListener("popstate", () => {
+  if (state.me?.enrolled) setView(location.hash.slice(1), { navigate: false });
+});
 function showEmpty(container, title, description, action) {
   const box = el("div", "", "empty-state");
   box.append(el("h2", title), el("p", description));
@@ -212,11 +311,17 @@ function showEmpty(container, title, description, action) {
 function renderCoverage(stats) {
   if (!stats) return;
   state.me.stats = stats;
-  $("processing-status").textContent = stats.pending
-    ? `${stats.pending} organizing`
-    : stats.failed
-      ? `${stats.failed} need attention`
+  $("add-memory").disabled = state.me.capture_enabled === false;
+  $("add-memory").title =
+    state.me.capture_enabled === false
+      ? "Enable recording in Settings to add work."
       : "";
+  $("processing-status").textContent = [
+    stats.pending ? `${stats.pending} processing` : "",
+    stats.failed ? `${stats.failed} need attention` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
   $("processing-summary").replaceChildren(
     el("strong", `${stats.ready} of ${stats.total} memories organized`),
     el(
@@ -231,13 +336,43 @@ function renderCoverage(stats) {
   $("retry-processing").disabled = !stats.failed;
 }
 async function loadFeed(append = false) {
-  show("work-overview", state.feed === "mine" || !!state.person);
-  if (!append && $("work-overview").open) loadOverview();
+  if (!state.me?.enrolled) return;
+  const hasOverview = state.feed === "mine" || !!state.person;
+  show("work-overview", hasOverview);
+  $("home-question").placeholder =
+    state.person && state.person !== state.me.id
+      ? `Ask about ${profile(state.person).name}’s shared work…`
+      : "Ask about your work…";
+  if (!append) {
+    state.overviewVersion++;
+    $("overview-content").replaceChildren();
+    if (hasOverview && $("work-overview").open) loadOverview();
+  }
   const version = ++state.feedVersion;
   show("page-error", false);
+  show("retry-feed", false);
+  const filterCount = [
+    "filter-kind",
+    "filter-source",
+    "filter-from",
+    "filter-before",
+  ].filter((id) => $(id).value).length;
+  $("filter-count").textContent = filterCount;
+  show("filter-count", filterCount > 0);
   const query = $("search-query").value.trim();
+  const filtered = Boolean(query || filterCount);
+  if (
+    $("filter-from").value &&
+    $("filter-before").value &&
+    $("filter-from").value >= $("filter-before").value
+  ) {
+    $("page-error").textContent = "Choose an end date after the start date.";
+    show("page-error");
+    return;
+  }
+  $("feed").setAttribute("aria-busy", "true");
   if (!append) {
-    $("feed").replaceChildren(el("p", "Loading memories…", "muted"));
+    $("feed").replaceChildren(el("p", "Loading memories…", "feed-loading"));
     show("load-more", false);
   }
   try {
@@ -246,6 +381,7 @@ async function loadFeed(append = false) {
       owner: state.person || (state.feed === "mine" ? state.me.id : null),
       visibility: state.feed === "shared" ? "public" : null,
       kind: $("filter-kind").value || null,
+      source: $("filter-source").value.trim() || null,
       created_from: $("filter-from").value || null,
       created_before: $("filter-before").value || null,
       offset: append ? state.next || 0 : 0,
@@ -261,19 +397,21 @@ async function loadFeed(append = false) {
     if (!result.total)
       showEmpty(
         $("feed"),
-        query
+        filtered
           ? "No matching memories"
           : state.feed === "shared"
             ? "A quiet start"
             : "Your work belongs here",
-        query
+        filtered
           ? "Try another phrase or clear your filters."
           : state.feed === "shared"
             ? "Work appears here when someone chooses to share it with the company."
             : "Connect your AI tools to record your work, or add your first memory.",
-        !query && state.feed === "mine"
-          ? { label: "Connect your tools", run: () => setView("connections") }
-          : null,
+        filtered
+          ? { label: "Clear filters", run: clearFilters }
+          : state.feed === "mine"
+            ? { label: "Connect your tools", run: () => setView("connections") }
+            : null,
       );
     $("feed-caption").replaceChildren();
     if (state.person) {
@@ -298,7 +436,22 @@ async function loadFeed(append = false) {
     if (!append) $("feed").replaceChildren();
     $("page-error").textContent = explain(error);
     show("page-error");
+    show("retry-feed");
+  } finally {
+    if (version === state.feedVersion) $("feed").removeAttribute("aria-busy");
   }
+}
+function sourceName(source) {
+  return (
+    {
+      manual: "Added manually",
+      codex: "Codex",
+      claude: "Claude Code",
+      claude_code: "Claude Code",
+      legacy: "Imported",
+      correction: "Correction",
+    }[source] || source
+  );
 }
 function feedCard(memory) {
   const card = el("article", "", "feed-card");
@@ -306,36 +459,30 @@ function feedCard(memory) {
   card.append(avatar(person));
   const body = el("div", "", "feed-body");
   const line = el("div", "", "feed-byline");
-  const who = el("button", memory.owner === state.me.id ? "You" : person.name);
-  who.onclick = () => openPerson(memory.owner);
-  line.append(
-    who,
-    el("span", date(memory.created_at || memory.captured_at)),
-    privacy(memory.visibility),
+  const who = el(
+    "button",
+    memory.owner === state.me.id ? "You" : person.name,
+    "person-link",
   );
+  who.onclick = () => openPerson(memory.owner);
+  const when = memory.created_at || memory.captured_at;
+  const timestamp = el("time", date(when));
+  if (when) timestamp.dateTime = when;
+  timestamp.title = date(when, true);
+  line.append(who, privacy(memory.visibility), timestamp);
   body.append(line);
   const heading = el("h2");
-  const title = el("button", memory.title || "Recorded work");
+  const title = el("button", memory.title || "Recorded work", "memory-title");
   title.onclick = () => openMemory(memory.id).catch((e) => toast(explain(e)));
   heading.append(title);
   body.append(heading, el("p", memory.excerpt));
-  const meta = el("div", "", "feed-meta");
-  meta.append(
-    el(
-      "span",
-      [
-        memory.kind,
-        memory.source,
-        memory.status !== "ready"
-          ? memory.status === "failed"
-            ? "Needs attention"
-            : "Organizing"
-          : null,
-      ]
-        .filter(Boolean)
-        .join(" · "),
-    ),
-  );
+  const meta = el("div", "", "memory-meta");
+  if (memory.kind) meta.append(el("span", memory.kind, "kind-label"));
+  if (memory.source) meta.append(el("span", sourceName(memory.source)));
+  if (memory.status !== "ready")
+    meta.append(
+      el("span", memory.status === "failed" ? "Needs attention" : "Processing"),
+    );
   body.append(meta);
   card.append(body);
   return card;
@@ -345,14 +492,13 @@ function openPerson(id) {
   state.feed = id === state.me.id ? "mine" : "shared";
   document
     .querySelectorAll("[data-feed]")
-    .forEach((b) =>
-      b.classList.toggle("selected", b.dataset.feed === state.feed),
-    );
+    .forEach((b) => updateFeedTab(b, b.dataset.feed === state.feed));
   setView("home");
   loadFeed().catch((e) => toast(explain(e)));
 }
 
 async function loadOverview() {
+  if (!state.me?.enrolled || $("work-overview").hidden) return;
   const version = ++state.overviewVersion;
   const target = $("overview-content");
   target.replaceChildren(el("p", "Loading overview…", "muted"));
@@ -420,137 +566,242 @@ async function loadOverview() {
   }
 }
 async function openMemory(id) {
-  const m = await api("/api/memories/" + encodeURIComponent(id));
-  $("source-visibility").replaceChildren(privacy(m.visibility));
-  const body = $("source-body");
-  body.replaceChildren(
-    el("h1", m.title),
-    el(
-      "p",
-      `${profile(m.owner).name} · ${date(m.created_at || m.captured_at, true)} · ${m.source}`,
-      "source-meta",
-    ),
-  );
-  if (m.summary) body.append(el("p", m.summary));
-  if (m.original && m.visibility === "public") {
-    body.append(privacy("private"), el("h3", "Original evidence · only you"));
-  }
-  body.append(el("div", m.content, "source-content"));
-  if (m.original) {
-    const details = el("details");
-    details.append(
-      el("summary", "Original evidence & metadata"),
-      el("pre", JSON.stringify(m.original, null, 2)),
+  const version = ++state.memoryVersion;
+  $("source-error").textContent = "";
+  $("source-body").replaceChildren(el("p", "Loading memory…", "muted"));
+  $("source-actions").replaceChildren();
+  $("source-visibility").replaceChildren();
+  if (!$("source-dialog").open) $("source-dialog").showModal();
+  try {
+    const m = await api("/api/memories/" + encodeURIComponent(id));
+    if (version !== state.memoryVersion || !$("source-dialog").open) return;
+    $("source-visibility").replaceChildren(privacy(m.visibility));
+    const body = $("source-body");
+    body.replaceChildren(
+      el("h1", m.title),
+      el(
+        "p",
+        `${profile(m.owner).name} · ${date(m.created_at || m.captured_at, true)} · ${sourceName(m.source)}`,
+        "source-meta",
+      ),
     );
-    body.append(details);
-  }
-  for (const revision of m.revisions || []) {
-    const newer = revision.previous_id === id;
-    const link = el("button", newer ? "Read later correction" : "Read original entry", "button quiet small");
-    link.onclick = () => openMemory(newer ? revision.record_id : revision.previous_id).catch(e => toast(explain(e)));
-    body.append(link);
-  }
-  const actions = $("source-actions");
-  actions.replaceChildren();
-  if (m.owner === state.me.id) {
-    const correct = el("button", "Add correction", "button secondary");
-    correct.onclick = () => {
-      const form = el("form", undefined, "correction-form");
-      const label = el("label", "What should this say now?");
-      const input = el("textarea"); input.required = true; input.maxLength = 200000; input.rows = 5;
-      label.append(input);
-      const explanation = el("p", "The original stays searchable. This adds a private, dated correction and withdraws the original from sharing.", "fine-print");
-      const submit = el("button", "Save correction", "button primary");
-      const cancel = el("button", "Cancel", "button quiet"); cancel.type = "button";
-      cancel.onclick = () => { form.remove(); correct.disabled = false; };
-      form.append(label, explanation, submit, cancel);
-      correct.disabled = true; body.append(form); input.focus();
-      form.onsubmit = event => {
-        event.preventDefault();
-        busy(submit, async () => {
-          try {
-            const saved = await api(`/api/memories/${encodeURIComponent(id)}/corrections`, {content:input.value});
-            await openMemory(saved.id); await loadFeed(); toast("Private correction added. Original evidence preserved.");
-          } catch (error) { toast(explain(error)); }
-        });
-      };
-    };
-    actions.append(correct);
-    if (state.me.sharing_enabled) {
-      const share = el(
-        "button",
-        m.visibility === "public" ? "Make private" : "Preview sharing",
-        "button secondary",
+    if (m.summary && m.summary.trim() !== (m.content || "").trim()) {
+      body.append(el("h2", "Summary"), el("p", m.summary));
+      body.append(
+        el(
+          "h2",
+          m.visibility === "public" && m.original
+            ? "Original evidence · only you"
+            : "Original evidence",
+        ),
       );
-      share.onclick = () =>
-        busy(share, async () => {
-          try {
-            if (m.visibility !== "public") {
-              const preview = await api(
-                `/api/memories/${encodeURIComponent(id)}/sharing-preview`,
+    }
+    if (m.original && m.visibility === "public") {
+      body.append(privacy("private"), el("h3", "Original evidence · only you"));
+    }
+    body.append(el("div", m.content, "source-content"));
+    if (m.original) {
+      const details = el("details");
+      details.append(
+        el("summary", "Original evidence & metadata"),
+        el("pre", JSON.stringify(m.original, null, 2)),
+      );
+      body.append(details);
+    }
+    for (const revision of m.revisions || []) {
+      const newer = revision.previous_id === id;
+      const link = el(
+        "button",
+        newer ? "Read later correction" : "Read original entry",
+        "button quiet small",
+      );
+      link.onclick = () =>
+        openMemory(newer ? revision.record_id : revision.previous_id).catch(
+          (e) => toast(explain(e)),
+        );
+      body.append(link);
+    }
+    const actions = $("source-actions");
+    actions.replaceChildren();
+    if (m.owner === state.me.id) {
+      const correct = el("button", "Add correction", "button secondary");
+      correct.onclick = () => {
+        let correctionRequest = null;
+        const form = el("form", undefined, "correction-form");
+        const label = el("label", "What should this say now?");
+        const input = el("textarea");
+        input.required = true;
+        input.maxLength = 200000;
+        input.rows = 5;
+        label.append(input);
+        const explanation = el(
+          "p",
+          "The original stays searchable. This adds a private, dated correction and withdraws the original from sharing.",
+          "fine-print",
+        );
+        const submit = el("button", "Save correction", "button primary");
+        const cancel = el("button", "Cancel", "button quiet");
+        cancel.type = "button";
+        cancel.onclick = () => {
+          form.remove();
+          correct.disabled = false;
+          correct.focus();
+        };
+        form.append(label, explanation, submit, cancel);
+        correct.disabled = true;
+        body.append(form);
+        input.focus();
+        form.onsubmit = (event) => {
+          event.preventDefault();
+          if (!input.value.trim()) {
+            $("source-error").textContent =
+              "Add the corrected information first.";
+            input.focus();
+            return;
+          }
+          busy(submit, async () => {
+            if (correctionRequest?.content !== input.value)
+              correctionRequest = {
+                content: input.value,
+                request_id: crypto.randomUUID(),
+                occurred_at: new Date().toISOString(),
+              };
+            input.disabled = true;
+            cancel.disabled = true;
+            try {
+              const saved = await api(
+                `/api/memories/${encodeURIComponent(id)}/corrections`,
+                correctionRequest,
               );
-              if (!preview.can_share) {
-                toast(preview.notice);
-                return;
-              }
-              if (
-                !confirm(
-                  `${preview.title}\n\n${preview.summary}\n\n${preview.notice}\n\nShare this summary with the company?`,
-                )
-              )
-                return;
+              await openMemory(saved.id);
+              await loadFeed();
+              toast("Private correction added. Original evidence preserved.");
+            } catch (error) {
+              $("source-error").textContent = explain(error);
+            } finally {
+              input.disabled = false;
+              cancel.disabled = false;
             }
+          });
+        };
+      };
+      actions.append(correct);
+      if (state.me.sharing_enabled) {
+        const share = el(
+          "button",
+          m.visibility === "public" ? "Make private" : "Preview sharing",
+          "button secondary",
+        );
+        share.onclick = () =>
+          busy(share, async () => {
+            try {
+              if (m.visibility !== "public") {
+                const preview = await api(
+                  `/api/memories/${encodeURIComponent(id)}/sharing-preview`,
+                );
+                if (!preview.can_share) {
+                  $("source-error").textContent = preview.notice;
+                  return;
+                }
+                if (
+                  !(await confirmAction({
+                    title: "Share with your company?",
+                    description: preview.notice,
+                    confirm: "Share summary",
+                    preview,
+                  }))
+                )
+                  return;
+              }
+              await api(
+                `/api/memories/${encodeURIComponent(id)}/visibility`,
+                {
+                  visibility: m.visibility === "public" ? "private" : "public",
+                },
+                "PUT",
+              );
+              $("source-dialog").close();
+              toast(
+                m.visibility === "public"
+                  ? "This memory is private."
+                  : "Sharing requested. Privacy checks run before publication.",
+              );
+              await loadFeed();
+            } catch (e) {
+              $("source-error").textContent = explain(e);
+            }
+          });
+        actions.append(share);
+      } else actions.append(privacy("private"));
+      const remove = el("button", "Delete memory", "button quiet danger");
+      remove.onclick = async () => {
+        if (
+          !(await confirmAction({
+            title: "Delete this memory?",
+            description:
+              "This deletes the memory and its original evidence. It cannot be undone.",
+            confirm: "Delete memory",
+            danger: true,
+          }))
+        )
+          return;
+        await busy(remove, async () => {
+          try {
             await api(
-              `/api/memories/${encodeURIComponent(id)}/visibility`,
-              { visibility: m.visibility === "public" ? "private" : "public" },
-              "PUT",
+              `/api/memories/${encodeURIComponent(id)}`,
+              undefined,
+              "DELETE",
             );
             $("source-dialog").close();
-            toast(
-              m.visibility === "public"
-                ? "This memory is private."
-                : "Sharing requested. Privacy checks run before publication.",
-            );
+            toast("Memory deleted.");
             await loadFeed();
           } catch (e) {
-            toast(explain(e));
+            $("source-error").textContent = explain(e);
           }
         });
-      actions.append(share);
-    } else actions.append(privacy("private"));
-    const remove = el("button", "Delete memory", "button quiet danger");
-    remove.onclick = async () => {
-      if (
-        !confirm(
-          "Delete this memory and its original evidence? This cannot be undone.",
-        )
-      )
-        return;
-      await busy(remove, async () => {
-        try {
-          await api(
-            `/api/memories/${encodeURIComponent(id)}`,
-            undefined,
-            "DELETE",
-          );
-          $("source-dialog").close();
-          toast("Memory deleted.");
-          await loadFeed();
-        } catch (e) {
-          toast(explain(e));
-        }
-      });
-    };
-    actions.append(remove);
+      };
+      actions.append(remove);
+    }
+    if (document.activeElement === document.body)
+      $("close-source").focus({ preventScroll: true });
+  } catch (error) {
+    if (version !== state.memoryVersion || !$("source-dialog").open) return;
+    $("source-body").replaceChildren(el("h2", "Memory unavailable"));
+    $("source-error").textContent = explain(error);
+    const retry = el("button", "Try again", "button secondary");
+    retry.onclick = () => openMemory(id);
+    $("source-actions").append(retry);
   }
-  if (!$("source-dialog").open) $("source-dialog").showModal();
+}
+function renderHomePeople() {
+  const target = $("home-people");
+  target.replaceChildren();
+  for (const person of state.people.slice(0, 5)) {
+    const button = el("button", "", "rail-person");
+    button.append(
+      avatar(person),
+      el("span", person.name + (person.is_self ? " (you)" : "")),
+    );
+    button.onclick = () => openPerson(person.id);
+    target.append(button);
+  }
+  if (!state.people.length)
+    target.append(
+      el("p", "Your teammates appear here when they join.", "fine-print"),
+    );
 }
 function renderPeople() {
   const list = $("people-list");
   list.replaceChildren();
-  for (const person of state.people) {
-    const row = el("button", "", "person-row");
-    row.append(avatar(person));
+  const query = $("people-search").value.trim().toLocaleLowerCase();
+  const people = state.people.filter((person) =>
+    person.name.toLocaleLowerCase().includes(query),
+  );
+  $("people-count").textContent =
+    `${people.length} ${people.length === 1 ? "person" : "people"}`;
+  for (const person of people) {
+    const row = el("article", "", "person-row");
+    const identity = el("button", "", "person-identity");
     const name = el("span");
     name.append(
       el("strong", person.name + (person.is_self ? " (you)" : "")),
@@ -559,19 +810,35 @@ function renderPeople() {
         person.is_self ? "Your private and shared work" : "Company-shared work",
       ),
     );
-    row.append(name, el("span", "↗", "arrow"));
-    row.onclick = () => openPerson(person.id);
+    identity.append(avatar(person), name);
+    identity.onclick = () => openPerson(person.id);
+    const askPerson = el("button", "Ask", "button secondary small");
+    askPerson.setAttribute("aria-label", `Ask about ${person.name}’s work`);
+    askPerson.onclick = async () => {
+      if (!(await changeScope(person.is_self ? "mine" : `person:${person.id}`)))
+        return;
+      setView("ask");
+    };
+    row.append(identity, askPerson);
     list.append(row);
   }
-  if (!state.people.length)
+  if (!people.length)
     showEmpty(
       list,
-      "Your team, in time",
-      "People appear here after they join with Slack.",
+      query ? "No matching people" : "Your team, in time",
+      query
+        ? "Try another name."
+        : "People appear here after they join with Slack.",
     );
 }
 function populateSelect(select, models, selected, { inherit = false } = {}) {
   select.replaceChildren();
+  if (!models.length && !inherit) {
+    const unavailable = el("option", "No models available");
+    unavailable.value = "";
+    unavailable.disabled = true;
+    select.append(unavailable);
+  }
   if (inherit) {
     const option = el("option", "Use default agent");
     option.value = "";
@@ -591,6 +858,9 @@ function populateSelect(select, models, selected, { inherit = false } = {}) {
   select.value = selected || "";
 }
 async function loadModels() {
+  show("chat-model-error", false);
+  show("home-model-error", false);
+  show("retry-chat-models", false);
   const result = await api("/api/models");
   const current = $("model").value;
   state.models = result.data;
@@ -599,7 +869,66 @@ async function loadModels() {
     result.data,
     result.data.some((m) => m.id === current) ? current : result.default,
   );
-  $("send-question").disabled = !result.data.length;
+  if (!result.data.length)
+    throw new Error(
+      "No chat models are available to this LiteLLM key. Ask your administrator to enable one.",
+    );
+  chatBusy(Boolean(state.job));
+}
+function updateScope() {
+  const scope = $("chat-scope").value;
+  state.chatScope = scope;
+  $("scope-icon").replaceChildren(icon(scope === "mine" ? "lock" : "shared"));
+  $("chat-privacy").replaceChildren(
+    icon("lock"),
+    document.createTextNode(" Your question and answer stay private."),
+  );
+  const person = scope.startsWith("person:")
+    ? profile(scope.slice(7)).name
+    : null;
+  $("question").placeholder = person
+    ? `Ask about ${person}’s shared work…`
+    : "Ask about your work…";
+  $("chat-scope-description").textContent = person
+    ? `Answers use only the work ${person} has shared with you.`
+    : scope === "shared"
+      ? "Explore the updates and decisions shared with your company."
+      : "Ask about your work, a teammate’s updates, or a decision worth revisiting.";
+  const suggestions = document.querySelectorAll(".suggestions button");
+  suggestions[0].textContent = person
+    ? `What has ${person} been working on?`
+    : scope === "shared"
+      ? "What has the team been working on this week?"
+      : "What have I been working on this week?";
+  suggestions[1].textContent = person
+    ? `What decisions has ${person} shared?`
+    : scope === "shared"
+      ? "What decisions has the team shared recently?"
+      : "What decisions did I make recently?";
+}
+async function changeScope(scope) {
+  if (state.job) {
+    toast("Stop the current answer before changing memories.");
+    return false;
+  }
+  if (
+    scope !== state.chatScope &&
+    ($("messages").children.length || $("question").value.trim())
+  ) {
+    if (
+      !(await confirmAction({
+        title: "Start a new conversation?",
+        description:
+          "Changing whose memories you use starts a fresh conversation. This conversation will be cleared from this tab.",
+        confirm: "Start new conversation",
+      }))
+    )
+      return false;
+    newChat();
+  }
+  $("chat-scope").value = scope;
+  updateScope();
+  return true;
 }
 function newChat() {
   if (state.job) {
@@ -608,13 +937,17 @@ function newChat() {
   }
   state.chatVersion++;
   state.previousJob = null;
+  state.chatRequest = null;
   $("messages").replaceChildren();
   show("chat-empty");
   $("question").value = "";
+  $("question").style.height = "";
+  $("question").focus();
 }
 function addMessage(role, text) {
   show("chat-empty", false);
   const message = el("article", "", "chat-message");
+  message.dataset.role = role;
   message.append(
     el("div", role === "user" ? "You" : "litemem", "message-author"),
   );
@@ -628,7 +961,13 @@ function addMessage(role, text) {
   return { message, body, phase };
 }
 function chatBusy(value) {
-  $("send-question").disabled = value;
+  $("send-question").disabled = value || !state.models.length;
+  $("home-ask-form").querySelector("button").disabled =
+    value || !state.models.length;
+  $("model").disabled = value || !state.models.length;
+  document.querySelectorAll(".suggestions button").forEach((button) => {
+    button.disabled = value || !state.models.length;
+  });
   show("stop-answer", value);
   $("chat-scope").disabled = value;
   $("new-chat").disabled = value;
@@ -642,15 +981,27 @@ async function ask(question) {
     return;
   }
   setView("ask");
+  state.cancelRequested = false;
   const generation = state.chatVersion;
   addMessage("user", question);
   const answer = addMessage("assistant", "");
   answer.phase.textContent = "Starting…";
+  answer.phase.dataset.working = "true";
   chatBusy(true);
   $("question").value = "";
+  $("question").style.height = "";
+  answer.message.scrollIntoView({ block: "nearest", behavior: "instant" });
   state.job = "starting";
   try {
     const scope = $("chat-scope").value;
+    const fingerprint = JSON.stringify([
+      question,
+      model,
+      scope,
+      state.previousJob,
+    ]);
+    if (state.chatRequest?.fingerprint !== fingerprint)
+      state.chatRequest = { fingerprint, id: crypto.randomUUID() };
     const result = await api("/api/chat", {
       question,
       model,
@@ -662,14 +1013,25 @@ async function ask(question) {
             : null,
       audience: scope === "shared" ? "public" : "owner",
       previous_job_id: state.previousJob,
-      request_id: crypto.randomUUID(),
+      request_id: state.chatRequest.id,
     });
     state.job = result.id;
+    if (state.cancelRequested)
+      await api(`/api/jobs/${encodeURIComponent(result.id)}/cancel`, {});
     while (generation === state.chatVersion) {
       const job = await api("/api/jobs/" + encodeURIComponent(result.id));
       answer.phase.textContent = job.phase || "Working…";
-      if (job.partial || job.answer)
+      if (job.partial || job.answer) {
+        const nearBottom =
+          window.innerHeight + window.scrollY >=
+          document.documentElement.scrollHeight - 160;
         markdown(answer.body, job.answer || job.partial);
+        if (nearBottom && state.view === "ask")
+          window.scrollTo({
+            top: document.documentElement.scrollHeight,
+            behavior: "instant",
+          });
+      }
       if (["done", "failed", "cancelled"].includes(job.status)) {
         answer.phase.textContent =
           job.status === "done"
@@ -677,7 +1039,11 @@ async function ask(question) {
             : job.status === "cancelled"
               ? "Stopped."
               : job.error || "Could not finish this answer. Try again.";
-        if (job.status === "done") state.previousJob = result.id;
+        state.chatRequest = null;
+        if (job.status === "done") {
+          state.previousJob = result.id;
+          $("announce").textContent = "Answer ready.";
+        } else if (job.status === "failed") $("question").value = question;
         break;
       }
       await new Promise((resolve) => setTimeout(resolve, 900));
@@ -687,6 +1053,7 @@ async function ask(question) {
     $("question").value = question;
   } finally {
     state.job = null;
+    answer.phase.dataset.working = "false";
     chatBusy(false);
   }
 }
@@ -760,15 +1127,26 @@ async function loadRules() {
 }
 async function loadModelSettings(refresh = false) {
   if (!state.me.is_admin) return;
-  show("model-settings");
-  api("/api/admin/connection").then(connection => {
-    $("current-gateway-url").textContent = connection.base_url;
-  }).catch(error => { $("current-gateway-url").textContent = explain(error); });
-  const candidates = state.people.filter(person => person.id !== state.me.id);
-  show("admin-transfer-panel", state.me.registration_mode !== "owner_only" && candidates.length > 0);
-  $("next-admin").replaceChildren(...candidates.map(person => {
-    const option = el("option", person.name); option.value = person.id; return option;
-  }));
+  show("models-tab");
+  api("/api/admin/connection")
+    .then((connection) => {
+      $("current-gateway-url").textContent = connection.base_url;
+    })
+    .catch((error) => {
+      $("current-gateway-url").textContent = explain(error);
+    });
+  const candidates = state.people.filter((person) => person.id !== state.me.id);
+  show(
+    "admin-transfer-panel",
+    state.me.registration_mode !== "owner_only" && candidates.length > 0,
+  );
+  $("next-admin").replaceChildren(
+    ...candidates.map((person) => {
+      const option = el("option", person.name);
+      option.value = person.id;
+      return option;
+    }),
+  );
   $("model-settings-status").textContent = "Loading available models…";
   try {
     const config = await api(
@@ -797,20 +1175,33 @@ async function loadModelSettings(refresh = false) {
   }
 }
 async function loadSettings() {
-  state.me = await api("/api/me");
-  $("capture-enabled").checked = state.me.capture_enabled;
-  $("agent-enabled").checked = state.me.agent_enabled;
-  show("sharing-note", !state.me.sharing_enabled);
-  show("sharing-form", state.me.sharing_enabled);
-  show("workspace-sharing-control", state.me.is_admin);
-  $("workspace-sharing-enabled").checked = state.me.sharing_enabled;
-  const sharing = await api("/api/sharing-preferences");
-  document.querySelectorAll('[name="sharing-type"]').forEach((input) => {
-    input.checked = sharing.allowed_types.includes(input.value);
+  $("settings-status").textContent = "Loading settings…";
+  document.querySelectorAll("[data-settings-section]").forEach((group) => {
+    group.inert = true;
   });
-  $("auto-share").checked = sharing.auto_share;
-  renderCoverage(state.me.stats);
-  await Promise.all([loadRules(), loadModelSettings()]);
+  try {
+    state.me = await api("/api/me");
+    $("capture-enabled").checked = state.me.capture_enabled;
+    $("agent-enabled").checked = state.me.agent_enabled;
+    show("sharing-note", !state.me.sharing_enabled);
+    show("sharing-form", state.me.sharing_enabled);
+    show("workspace-sharing-control", state.me.is_admin);
+    $("workspace-sharing-enabled").checked = state.me.sharing_enabled;
+    const sharing = await api("/api/sharing-preferences");
+    document.querySelectorAll('[name="sharing-type"]').forEach((input) => {
+      input.checked = sharing.allowed_types.includes(input.value);
+    });
+    $("auto-share").checked = sharing.auto_share;
+    renderCoverage(state.me.stats);
+    await Promise.all([loadRules(), loadModelSettings()]);
+    state.settingsLoaded = true;
+    selectSettings(state.settingsSection);
+    $("settings-status").textContent = "";
+  } finally {
+    document.querySelectorAll("[data-settings-section]").forEach((group) => {
+      group.inert = false;
+    });
+  }
 }
 async function signOut() {
   try {
@@ -832,6 +1223,7 @@ async function initialize() {
     if (await initializeSetup({ api, show, el, busy, populateSelect })) return;
     state.me = await api("/api/me");
     if (!state.me.signed_in) {
+      show("welcome");
       if (!state.me.login_available) {
         const welcome = $("welcome");
         welcome.querySelector("a").hidden = true;
@@ -843,12 +1235,15 @@ async function initialize() {
     if (!state.me.enrolled) {
       if (state.me.can_rejoin) {
         $("member-setup-title").textContent = "Welcome back.";
-        $("member-setup-description").textContent = "Restore your private history. Previous connections stay revoked, sharing stays off, and recording stays paused until you enable it.";
+        $("member-setup-description").textContent =
+          "Restore your private history. Previous connections stay revoked, sharing stays off, and recording stays paused until you enable it.";
         $("finish-signup").textContent = "Restore my account";
       }
       show("setup");
       return;
     }
+    document.body.classList.add("workspace-ready");
+    show("workspace-bar");
     show("workspace");
     show("navigation");
     show("header-actions");
@@ -856,16 +1251,48 @@ async function initialize() {
       Object.assign(avatar(state.me.profile), { id: "my-avatar" }),
     );
     $("account-name").textContent = state.me.profile.name;
-    const people = await api("/api/people");
-    state.people = people.people;
-    await Promise.all([
-      loadFeed(),
-      loadModels().catch((e) => toast(explain(e))),
-    ]);
+    $("sidebar-name").textContent = state.me.profile.name;
+    $("search-shortcut").textContent = /Mac|iPhone|iPad/.test(
+      navigator.platform,
+    )
+      ? "⌘ K"
+      : "Ctrl K";
+    show("workspace-error", false);
+    try {
+      const people = await api("/api/people");
+      state.people = people.people;
+    } catch (error) {
+      if (!state.me) return;
+      $("workspace-error-message").textContent =
+        "Couldn’t load the team directory. " + explain(error);
+      show("workspace-error");
+    }
+    renderHomePeople();
+    updateScope();
+    $("chat-scope")
+      .querySelectorAll('[value^="person:"]')
+      .forEach((option) => option.remove());
+    for (const person of state.people.filter((person) => !person.is_self)) {
+      const option = el("option", person.name + "’s shared work");
+      option.value = "person:" + person.id;
+      $("chat-scope").append(option);
+    }
+    await Promise.all([loadFeed(), loadModels().catch(modelError)]);
+    if (!state.me?.enrolled) return;
+    setView(location.hash.slice(1) || "home", { navigate: false });
     const match = location.pathname.match(/^\/memory\/([^/]+)$/);
     if (match) await openMemory(decodeURIComponent(match[1]));
   } catch (error) {
-    toast(explain(error));
+    if (state.me?.enrolled) {
+      $("workspace-error-message").textContent = explain(error);
+      show("workspace-error");
+    } else {
+      show("welcome");
+      $("welcome-error").textContent = explain(error);
+      show("retry-initialize");
+    }
+  } finally {
+    show("boot-status", false);
   }
 }
 
@@ -878,7 +1305,7 @@ document.querySelectorAll("[data-feed]").forEach((b) =>
     state.person = null;
     document
       .querySelectorAll("[data-feed]")
-      .forEach((t) => t.classList.toggle("selected", t === b));
+      .forEach((t) => updateFeedTab(t, t === b));
     loadFeed();
   }),
 );
@@ -886,6 +1313,7 @@ $("account-button").onclick = () => {
   const open = $("account-menu").hidden;
   show("account-menu", open);
   $("account-button").setAttribute("aria-expanded", String(open));
+  if (open) $("account-menu").querySelector("button").focus();
 };
 document.addEventListener("click", (e) => {
   if (
@@ -904,6 +1332,11 @@ function focusSearch() {
 $("global-search-button").onclick = focusSearch;
 $("feed-search-button").onclick = focusSearch;
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("account-menu").hidden) {
+    closeAccountMenu();
+    $("account-button").focus();
+  }
+  if (document.querySelector("dialog[open]")) return;
   if ((e.metaKey || e.ctrlKey) && e.key === "k" && state.me?.enrolled) {
     e.preventDefault();
     focusSearch();
@@ -914,17 +1347,35 @@ $("filter-button").onclick = () => {
   show("filters", open);
   $("filter-button").setAttribute("aria-expanded", String(open));
 };
-$("clear-filters").onclick = () => {
+function clearFilters() {
+  $("filter-button").focus();
   for (const id of [
     "filter-kind",
+    "filter-source",
     "filter-from",
     "filter-before",
     "search-query",
   ])
     $(id).value = "";
   loadFeed();
+}
+$("clear-filters").onclick = clearFilters;
+$("close-search").onclick = () => {
+  $("search-query").value = "";
+  show("search-form", false);
+  $("feed-search-button").focus();
+  loadFeed();
 };
-for (const id of ["filter-kind", "filter-from", "filter-before"])
+$("retry-feed").onclick = () => loadFeed();
+$("search-query").addEventListener("search", () => {
+  if (!$("search-query").value) loadFeed();
+});
+for (const id of [
+  "filter-kind",
+  "filter-source",
+  "filter-from",
+  "filter-before",
+])
   $(id).onchange = () => loadFeed();
 $("search-form").onsubmit = (e) => {
   e.preventDefault();
@@ -942,11 +1393,17 @@ $("overview-form").onsubmit = (event) => {
   event.preventDefault();
   loadOverview();
 };
-$("home-ask-form").onsubmit = (e) => {
-  e.preventDefault();
-  const question = $("home-question").value;
+$("home-ask-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const question = $("home-question").value.trim();
+  if (!question || state.job || !state.models.length) return;
+  const scope =
+    state.person && state.person !== state.me.id
+      ? `person:${state.person}`
+      : "mine";
+  if (!(await changeScope(scope))) return;
   $("home-question").value = "";
-  ask(question);
+  await ask(question);
 };
 $("chat-form").onsubmit = (e) => {
   e.preventDefault();
@@ -962,9 +1419,18 @@ document
   .querySelectorAll(".suggestions button")
   .forEach((b) => (b.onclick = () => ask(b.textContent)));
 $("new-chat").onclick = newChat;
-$("chat-scope").onchange = newChat;
+$("chat-scope").onchange = async () => {
+  const desired = $("chat-scope").value;
+  $("chat-scope").value = state.chatScope;
+  await changeScope(desired);
+};
+$("question").oninput = () => {
+  $("question").style.height = "auto";
+  $("question").style.height = Math.min($("question").scrollHeight, 180) + "px";
+};
 $("stop-answer").onclick = () =>
   busy($("stop-answer"), async () => {
+    state.cancelRequested = true;
     if (state.job && state.job !== "starting") {
       try {
         await api("/api/jobs/" + encodeURIComponent(state.job) + "/cancel", {});
@@ -973,26 +1439,60 @@ $("stop-answer").onclick = () =>
       }
     }
   });
-$("add-memory").onclick = () => $("capture-dialog").showModal();
+$("add-memory").onclick = () => {
+  $("capture-error").textContent = "";
+  $("capture-dialog").showModal();
+};
 $("close-capture").onclick = () => $("capture-dialog").close();
 $("close-source").onclick = () => $("source-dialog").close();
 $("capture-form").onsubmit = async (e) => {
   e.preventDefault();
   await busy(e.submitter, async () => {
+    $("capture-error").textContent = "";
+    const content = $("capture-content").value;
+    if (!content.trim()) {
+      $("capture-error").textContent = "Add something you want to remember.";
+      $("capture-content").focus();
+      return;
+    }
+    const fingerprint = JSON.stringify([$("capture-title").value, content]);
+    if (state.captureRequest?.fingerprint !== fingerprint)
+      state.captureRequest = {
+        fingerprint,
+        id: crypto.randomUUID(),
+        occurredAt: new Date().toISOString(),
+      };
+    const fields = [...$("capture-form").querySelectorAll("input, textarea")];
+    fields.forEach((field) => {
+      field.disabled = true;
+    });
     try {
       await api("/api/memories", {
-        source_id: crypto.randomUUID(),
+        source_id: state.captureRequest.id,
         title: $("capture-title").value,
         content: $("capture-content").value,
-        occurred_at: new Date().toISOString(),
+        occurred_at: state.captureRequest.occurredAt,
         source: "manual",
       });
+      state.captureRequest = null;
       $("capture-form").reset();
       $("capture-dialog").close();
       toast("Memory saved privately.");
+      state.feed = "mine";
+      state.person = null;
+      document
+        .querySelectorAll("[data-feed]")
+        .forEach((button) =>
+          updateFeedTab(button, button.dataset.feed === "mine"),
+        );
+      setView("home");
       await loadFeed();
     } catch (e) {
-      toast(explain(e));
+      $("capture-error").textContent = explain(e);
+    } finally {
+      fields.forEach((field) => {
+        field.disabled = false;
+      });
     }
   });
 };
@@ -1011,11 +1511,12 @@ $("rule-form").onsubmit = async (e) => {
   await busy(e.submitter, async () => {
     try {
       await api("/api/privacy-rules", { instruction: $("rule-input").value });
+      $("rule-error").textContent = "";
       $("rule-input").value = "";
       await loadRules();
       toast("Rule saved. Existing and future work will be checked.");
     } catch (e) {
-      toast(explain(e));
+      $("rule-error").textContent = explain(e);
     }
   });
 };
@@ -1033,11 +1534,9 @@ $("sharing-form").onsubmit = async (event) => {
         },
         "PUT",
       );
-      toast(
-        "Sharing preferences saved. Cached classifications will be reused.",
-      );
+      $("sharing-status").textContent = "Sharing preferences saved.";
     } catch (error) {
-      toast(explain(error));
+      $("sharing-status").textContent = explain(error);
     }
   });
 };
@@ -1046,9 +1545,12 @@ $("workspace-sharing-enabled").onchange = async () => {
   const desired = input.checked;
   if (
     !desired &&
-    !confirm(
-      "Turn off company sharing? Existing publications become private and won't be restored automatically.",
-    )
+    !(await confirmAction({
+      title: "Turn off company sharing?",
+      description:
+        "Existing publications become private and won’t be restored automatically.",
+      confirm: "Turn off sharing",
+    }))
   ) {
     input.checked = true;
     return;
@@ -1097,13 +1599,15 @@ $("retry-processing").onclick = () =>
     }
   });
 $("copy-mcp").onclick = async () => {
-  try {
-    await navigator.clipboard.writeText(state.me.mcp_url);
-    toast("MCP URL copied.");
-  } catch {
+  if (!(await copyText(state.me.mcp_url, $("copy-mcp"))))
     toast("Select the connection URL to copy it.");
-  }
 };
+document.querySelectorAll("[data-copy]").forEach((button) => {
+  button.onclick = async () => {
+    if (!(await copyText($(button.dataset.copy).textContent, button)))
+      toast("Select the command to copy it.");
+  };
+});
 $("model-settings-form").onsubmit = async (e) => {
   e.preventDefault();
   await busy(e.submitter, async () => {
@@ -1135,20 +1639,32 @@ $("model-settings-form").onsubmit = async (e) => {
 };
 $("reload-models").onclick = () =>
   busy($("reload-models"), () => loadModelSettings(true));
+async function downloadExport(options, filename) {
+  const sessionVersion = state.sessionVersion;
+  const response = await fetch("/api/export", {
+    method: "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options),
+  });
+  if (response.status === 401 && state.me?.enrolled) expireSession();
+  if (!response.ok)
+    throw new Error("Export could not be completed. Try again.");
+  const blob = await response.blob();
+  if (sessionVersion !== state.sessionVersion)
+    throw new Error("Your session expired. Sign in with Slack to continue.");
+  const url = URL.createObjectURL(blob);
+  const link = el("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 $("export-data").onclick = () =>
   busy($("export-data"), async () => {
     try {
-      const response = await fetch("/api/export", {
-        method: "POST",
-        credentials: "same-origin",
-      });
-      if (!response.ok) throw new Error("Export could not be completed.");
-      const url = URL.createObjectURL(await response.blob());
-      const a = el("a");
-      a.href = url;
-      a.download = "my-memory-export.jsonl";
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await downloadExport({ encrypted: false }, "my-memory-export.jsonl");
       toast("Export downloaded. This file contains your readable memories.");
     } catch (e) {
       toast(explain(e));
@@ -1156,31 +1672,42 @@ $("export-data").onclick = () =>
   });
 $("encrypted-export").onclick = () => $("export-dialog").showModal();
 $("close-export").onclick = () => $("export-dialog").close();
-$("export-dialog").onclose = () => { $("encrypted-export-form").reset(); $("export-status").textContent = ""; };
-$("encrypted-export-form").onsubmit = async event => {
+$("export-dialog").onclose = () => {
+  $("encrypted-export-form").reset();
+  $("export-status").textContent = "";
+};
+$("encrypted-export-form").onsubmit = async (event) => {
   event.preventDefault();
   if ($("export-passphrase").value !== $("export-passphrase-confirm").value) {
-    $("export-status").textContent = "The passphrases do not match."; return;
+    $("export-status").textContent = "The passphrases do not match.";
+    return;
   }
   await busy(event.submitter, async () => {
     $("export-status").textContent = "Preparing your encrypted export…";
     try {
-      const response = await fetch("/api/export", {method:"POST", credentials:"same-origin",
-        headers:{"Content-Type":"application/json"}, body:JSON.stringify({encrypted:true,passphrase:$("export-passphrase").value})});
-      if (!response.ok) throw new Error("Export could not be completed. Try again.");
-      const url = URL.createObjectURL(await response.blob());
-      const link = el("a"); link.href = url; link.download = "my-memory-export.litemem"; link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      await downloadExport(
+        {
+          encrypted: true,
+          passphrase: $("export-passphrase").value,
+        },
+        "my-memory-export.litemem",
+      );
       $("export-dialog").close();
       toast("Encrypted export downloaded. Keep its passphrase separately.");
-    } catch (error) { $("export-status").textContent = explain(error); }
+    } catch (error) {
+      $("export-status").textContent = explain(error);
+    }
   });
 };
 $("leave-workspace").onclick = async () => {
   if (
-    !confirm(
-      "Leave litemem? Your connections and agent access will be revoked. Export your data first if you want a copy.",
-    )
+    !(await confirmAction({
+      title: "Leave this workspace?",
+      description:
+        "Your connections and agent access will be revoked. Export your data first if you want a copy.",
+      confirm: "Leave workspace",
+      danger: true,
+    }))
   )
     return;
   await busy($("leave-workspace"), async () => {
@@ -1194,26 +1721,66 @@ $("leave-workspace").onclick = async () => {
 };
 $("sign-out").onclick = signOut;
 $("menu-sign-out").onclick = signOut;
-$("rotate-gateway-form").onsubmit = event => {
+$("rotate-gateway-form").onsubmit = (event) => {
   event.preventDefault();
   busy(event.currentTarget.querySelector("button"), async () => {
     $("gateway-rotation-status").textContent = "Checking your models and Jev…";
     try {
-      await api("/api/admin/connection/key", {api_key:$("replacement-gateway-key").value}, "PUT");
+      await api(
+        "/api/admin/connection/key",
+        { api_key: $("replacement-gateway-key").value },
+        "PUT",
+      );
       $("replacement-gateway-key").value = "";
-      $("gateway-rotation-status").textContent = "Key updated. Your model choices are unchanged.";
-    } catch (error) { $("gateway-rotation-status").textContent = explain(error); }
+      $("gateway-rotation-status").textContent =
+        "Key updated. Your model choices are unchanged.";
+    } catch (error) {
+      $("gateway-rotation-status").textContent = explain(error);
+    }
   });
 };
-$("admin-transfer-form").onsubmit = event => {
+$("admin-transfer-form").onsubmit = async (event) => {
   event.preventDefault();
+  const submitter = event.submitter;
   const select = $("next-admin");
-  if (!select.value || !confirm(`Transfer workspace settings to ${select.selectedOptions[0].textContent}? You will no longer be the administrator.`)) return;
-  busy(event.currentTarget.querySelector("button"), async () => {
+  if (
+    !select.value ||
+    !(await confirmAction({
+      title: "Transfer administration?",
+      description: `${select.selectedOptions[0].textContent} will manage workspace settings. You will no longer be the administrator.`,
+      confirm: "Transfer administration",
+    }))
+  )
+    return;
+  busy(submitter, async () => {
     try {
-      await api("/api/admin/transfer", {owner:select.value});
+      await api("/api/admin/transfer", { owner: select.value });
       location.reload();
-    } catch (error) { toast(explain(error)); }
+    } catch (error) {
+      toast(explain(error));
+    }
   });
 };
+function updateFeedTab(button, active) {
+  button.classList.toggle("selected", active);
+  button.setAttribute("aria-pressed", String(active));
+}
+function modelError(error) {
+  state.models = [];
+  populateSelect($("model"), [], "");
+  chatBusy(Boolean(state.job));
+  $("chat-model-error").textContent = explain(error);
+  $("home-model-error").textContent = "Ask is unavailable. " + explain(error);
+  show("home-model-error");
+  show("chat-model-error");
+  show("retry-chat-models");
+}
+$("retry-chat-models").onclick = () =>
+  busy($("retry-chat-models"), () => loadModels().catch(modelError));
+$("people-search").oninput = renderPeople;
+$("retry-workspace").onclick = () => busy($("retry-workspace"), initialize);
+$("retry-initialize").onclick = () => busy($("retry-initialize"), initialize);
+document.querySelectorAll("[data-settings]").forEach((button) => {
+  button.onclick = () => selectSettings(button.dataset.settings);
+});
 initialize();

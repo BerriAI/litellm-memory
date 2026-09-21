@@ -458,17 +458,20 @@ class Archive:
         # queued for cleanup, including a publication created before a crash.
         await self.purge_record(record_id)
 
-    async def correct(self, owner, record_id, content, title='', reason=''):
+    async def correct(self, owner, record_id, content, title='', reason='', request_id=None, occurred_at=None):
         original = await self.read(Reader(owner), record_id)
         if original['owner'] != owner:
             raise PermissionError('Only the author can add a correction to this memory.')
         if not content.strip():
             raise ValueError('Describe the correction.')
+        if request_id and occurred_at is None:
+            raise ValueError('A retryable correction requires its original timestamp.')
         # This is new evidence with a new timestamp. It never rewrites the old
         # source bytes or silently makes the replacement public.
-        saved = await self.capture(owner, WorkInput(source_id='correction:' + str(uuid.uuid4()),
+        source_id = 'correction:' + record_id + ':' + str(request_id or uuid.uuid4())
+        saved = await self.capture(owner, WorkInput(source_id=source_id,
             content=content, title=title or ('Correction: ' + original['title'])[:300], source='correction',
-            occurred_at=now(), metadata={'supersedes': record_id, 'reason': reason, 'role': 'user'}))
+            occurred_at=occurred_at or now(), metadata={'supersedes': record_id, 'reason': reason, 'role': 'user'}))
         return saved
 
     async def purge_record(self, record_id):

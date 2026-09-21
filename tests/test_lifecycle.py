@@ -1,4 +1,6 @@
+import asyncio
 from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,6 +12,44 @@ from moegent.config import Settings
 from moegent.memory_slack import MemorySlack
 
 archive = archive_fixture
+
+
+@pytest.mark.asyncio
+async def test_correction_retries_preserve_one_record_date_and_relation(archive):
+    original = await archive.capture('T1:A', WorkInput(source_id='retry-original', content='Original'))
+    request_id = uuid4()
+    stamp = '2026-09-20T17:04:01+00:00'
+    args = ('T1:A', original['id'], 'Corrected once')
+    first, second = await asyncio.gather(
+        archive.correct(*args, request_id=request_id, occurred_at=stamp),
+        archive.correct(*args, request_id=request_id, occurred_at=stamp))
+    assert first['id'] == second['id']
+    assert sorted([first['duplicate'], second['duplicate']]) == [False, True]
+    saved = await archive.read(Reader('T1:A'), first['id'])
+    assert saved['original']['occurred_at'] == '2026-09-20T17:04:01Z'
+    assert len((await archive.read(Reader('T1:A'), original['id']))['revisions']) == 1
+    with pytest.raises(ValueError, match='cannot replace'):
+        await archive.correct('T1:A', original['id'], 'Changed on retry', request_id=request_id, occurred_at=stamp)
+    # An idempotency key never aliases a correction to another original.
+    other = await archive.capture('T1:A', WorkInput(source_id='other-original', content='Other'))
+    different = await archive.correct('T1:A', other['id'], 'Corrected once', request_id=request_id, occurred_at=stamp)
+    assert different['id'] != first['id']
+
+
+def test_correction_api_validates_retry_identity_and_accepts_exact_replay(tmp_path):
+    app = application(tmp_path, [])
+    with TestClient(app) as client:
+        enroll(client, app)
+        saved = client.post('/api/memories', json={'source_id': 'original', 'content': 'Original'}).json()
+        endpoint = '/api/memories/' + saved['id'] + '/corrections'
+        payload = {'content': 'Correction', 'request_id': str(uuid4())}
+        assert client.post(endpoint, json=payload).status_code == 400
+        payload['occurred_at'] = '2026-09-20T17:04:01Z'
+        first = client.post(endpoint, json=payload)
+        replay = client.post(endpoint, json=payload)
+        assert first.status_code == replay.status_code == 200
+        assert first.json()['id'] == replay.json()['id']
+        assert replay.json()['duplicate'] is True
 
 
 @pytest.mark.asyncio

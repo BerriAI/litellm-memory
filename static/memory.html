@@ -1,58 +1,83 @@
 <!doctype html>
+
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="theme-color" content="#faf9f6" />
+    <meta content="width=device-width,initial-scale=1" name="viewport" />
+    <meta content="#ffffff" name="theme-color" />
     <title>litemem</title>
     <link
-      rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect rx='16' width='64' height='64' fill='%232b302b'/%3E%3Cpath d='M22 15v34h23' fill='none' stroke='%23faf9f6' stroke-width='7'/%3E%3C/svg%3E"
+      rel="icon"
     />
-    <link rel="stylesheet" href="/static/memory.css" />
-    <script type="module" src="/static/memory.js?v=2"></script>
+    <link href="/static/memory.css" rel="stylesheet" />
+    <script src="/static/memory.js?v=3" type="module"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
-    <header class="masthead">
-      <div class="masthead-inner">
-        <a href="/" class="brand" aria-label="litemem home"
-          >litemem<span class="brand-dot"></span
-        ></a>
-        <nav aria-label="Main navigation" id="navigation" hidden>
-          <button data-view="home" class="nav-link active">Home</button
-          ><button data-view="ask" class="nav-link">Ask</button
-          ><button data-view="people" class="nav-link">People</button>
-        </nav>
-        <div class="header-end" id="header-actions" hidden>
-          <button
-            id="global-search-button"
-            class="icon-button"
-            aria-label="Search memories"
-          >
-            <span data-icon="search"></span><kbd>⌘ K</kbd></button
-          ><button
-            id="account-button"
-            class="avatar-button"
-            aria-label="Account and settings"
-            aria-expanded="false"
-            aria-controls="account-menu"
-          >
-            <span id="my-avatar" class="avatar"></span>
+    <aside aria-label="Workspace" class="sidebar">
+      <a aria-label="litemem home" class="brand" href="/"
+        ><span aria-hidden="true" class="brand-symbol"
+          ><span></span><span></span><span></span></span
+        >litemem</a
+      >
+      <nav aria-label="Main navigation" hidden="" id="navigation">
+        <span class="nav-caption">Workspace</span>
+        <button class="nav-link active" data-view="home">
+          <span data-icon="activity"></span>Activity
+        </button>
+        <button class="nav-link" data-view="ask">
+          <span data-icon="chat"></span>Ask
+        </button>
+        <button class="nav-link" data-view="people">
+          <span data-icon="shared"></span>People
+        </button>
+        <div class="nav-bottom">
+          <button class="nav-link" data-view="connections">
+            <span data-icon="connection"></span>Connections</button
+          ><button class="nav-link" data-view="settings">
+            <span data-icon="settings"></span>Settings
           </button>
         </div>
+      </nav>
+      <div class="sidebar-account" hidden="" id="header-actions">
+        <button
+          aria-controls="account-menu"
+          aria-expanded="false"
+          aria-label="Account menu"
+          class="account-button"
+          id="account-button"
+        >
+          <span class="avatar" id="my-avatar"></span
+          ><span id="sidebar-name">Your account</span
+          ><span data-icon="chevron"></span>
+        </button>
       </div>
-      <div id="account-menu" class="account-menu" hidden>
+      <div class="account-menu" hidden="" id="account-menu">
         <p id="account-name"></p>
-        <button data-view="settings">Settings</button
-        ><button data-view="connections">Connections</button
-        ><button id="menu-sign-out">Sign out</button>
+        <button id="menu-sign-out">Sign out</button>
       </div>
+    </aside>
+    <header class="workspace-bar" hidden="" id="workspace-bar">
+      <span class="workspace-name"
+        >litemem <span aria-hidden="true">/</span>
+        <strong id="current-view-label">Activity</strong></span
+      ><button
+        aria-label="Search memories"
+        class="global-search"
+        id="global-search-button"
+      >
+        <span data-icon="search"></span><span>Search memories</span
+        ><kbd id="search-shortcut">⌘ K</kbd>
+      </button>
     </header>
     <main id="main" tabindex="-1">
-      <section id="welcome" class="welcome">
+      <div class="auth-card" id="boot-status" role="status">
+        <p class="muted">Opening litemem…</p>
+      </div>
+      <section class="welcome" hidden="" id="welcome">
         <p class="eyebrow">A LiteLLM Labs product</p>
-        <h1>A little memory<br />for all your work.</h1>
+        <h1>Your team’s memory.</h1>
         <p class="welcome-copy">
           Find the decisions, ideas, and work you don’t want to lose.<br />Private
           to you. Shared when you choose.
@@ -61,14 +86,16 @@
           >Continue with Slack <span aria-hidden="true">↗</span></a
         >
         <p class="fine-print">Built with Ente and LiteLLM.</p>
+        <p class="inline-error" id="welcome-error" role="alert"></p>
+        <button class="button secondary" hidden="" id="retry-initialize">
+          Try again
+        </button>
       </section>
-      <section id="deployment-setup" class="deployment-setup" hidden>
+      <section class="deployment-setup" hidden="" id="deployment-setup">
         <p class="eyebrow">Welcome to litemem</p>
-        <h1>A home for your team’s work.</h1>
-        <p class="section-intro">
-          Connect your models and Slack. We’ll take care of the rest.
-        </p>
-        <form id="claim-form" class="setup-panel">
+        <h1>Set up your workspace</h1>
+        <p class="section-intro">Connect LiteLLM and Slack to get started.</p>
+        <form class="setup-panel" id="claim-form">
           <h2>Claim your installation</h2>
           <p>
             Use the setup code in your deployment’s private settings. This keeps
@@ -76,48 +103,58 @@
           </p>
           <label
             >Setup code<input
-              id="claim-code"
-              type="password"
               autocomplete="off"
-              required /></label
+              id="claim-code"
+              required=""
+              type="password" /></label
           ><button class="button primary">Continue</button>
-          <p id="claim-error" class="inline-error" role="alert"></p>
+          <p class="inline-error" id="claim-error" role="alert"></p>
         </form>
-        <div id="setup-content" hidden>
+        <div hidden="" id="setup-content">
           <section class="setup-panel" id="gateway-panel">
             <div class="setup-heading">
               <h2>LiteLLM</h2>
-              <span id="gateway-badge" class="setup-badge">Not connected</span>
+              <span class="setup-badge" id="gateway-badge">Not connected</span>
             </div>
             <p>One connection for your agent, embeddings, and TypeSafe Jev.</p>
+            <div class="connection-summary" hidden="" id="gateway-summary">
+              <span id="gateway-summary-url"></span
+              ><button class="text-button" id="edit-gateway" type="button">
+                Change
+              </button>
+            </div>
             <form id="gateway-form">
               <label
                 >Gateway URL<input
-                  id="gateway-url"
-                  type="url"
-                  placeholder="https://your-gateway.example.com"
                   autocomplete="url"
-                  required /></label
+                  id="gateway-url"
+                  placeholder="https://your-gateway.example.com"
+                  required=""
+                  type="url" /></label
               ><label
                 >API key<input
-                  id="gateway-key"
-                  type="password"
                   autocomplete="off"
-                  placeholder="Your LiteLLM key" /></label
+                  id="gateway-key"
+                  placeholder="Your LiteLLM key"
+                  type="password" /></label
               ><button class="button primary">Connect LiteLLM</button>
-              <p id="gateway-error" class="inline-error" role="alert"></p>
+              <p class="inline-error" id="gateway-error" role="alert"></p>
             </form>
-            <div id="setup-models" hidden>
-              <div id="jev-status" class="setup-check" role="status"></div>
-              <button id="setup-recheck-jev" class="button quiet small" hidden>
+            <div hidden="" id="setup-models">
+              <div class="setup-check" id="jev-status" role="status"></div>
+              <button
+                class="button quiet small"
+                hidden=""
+                id="setup-recheck-jev"
+              >
                 Check Jev again</button
               ><a
-                id="jev-help"
                 class="text-link"
+                hidden=""
                 href="https://docs.litellm.ai/docs/pass_through/typesafe"
-                target="_blank"
+                id="jev-help"
                 rel="noopener noreferrer"
-                hidden
+                target="_blank"
                 >Gateway setup instructions ↗</a
               >
               <form id="setup-model-form">
@@ -125,12 +162,12 @@
                   <label
                     >Default agent<select
                       id="setup-agent_model"
-                      required
+                      required=""
                     ></select></label
                   ><label
                     >Embeddings<select
                       id="setup-embedding_model"
-                      required
+                      required=""
                     ></select
                   ></label>
                 </div>
@@ -149,8 +186,8 @@
                       >TypeSafe Jev model<input
                         id="setup-classifier_model"
                         maxlength="200"
+                        required=""
                         value="jev-latest"
-                        required
                     /></label>
                   </div>
                   <p>
@@ -166,10 +203,10 @@
               </form>
             </div>
           </section>
-          <section id="slack-panel" class="setup-panel" hidden>
+          <section class="setup-panel" hidden="" id="slack-panel">
             <div class="setup-heading">
               <h2>Slack</h2>
-              <span id="slack-badge" class="setup-badge">Not connected</span>
+              <span class="setup-badge" id="slack-badge">Not connected</span>
             </div>
             <p>
               Your team signs in with Slack. The same agent answers in the web
@@ -177,10 +214,10 @@
             </p>
             <label
               >Company email domain<input
-                id="setup-domain"
-                value="berri.ai"
                 autocomplete="off"
+                id="setup-domain"
                 placeholder="your-company.com"
+                value="berri.ai"
             /></label>
             <p class="fine-print">
               Only verified accounts from this domain and your Slack workspace
@@ -188,10 +225,10 @@
             </p>
             <div id="slack-create-options">
               <a
-                id="create-slack-app"
                 class="button secondary"
-                target="_blank"
+                id="create-slack-app"
                 rel="noopener noreferrer"
+                target="_blank"
                 >Create app in Slack ↗</a
               >
               <details class="advanced">
@@ -199,10 +236,10 @@
                 <form id="auto-slack-form">
                   <label
                     >Slack app configuration token<input
-                      id="slack-config-token"
-                      type="password"
                       autocomplete="off"
-                      required /></label
+                      id="slack-config-token"
+                      required=""
+                      type="password" /></label
                   ><button class="button secondary">
                     Create app automatically
                   </button>
@@ -221,54 +258,58 @@
                   <div class="model-grid">
                     <label
                       >App ID<input
+                        autocomplete="off"
                         id="slack-app-id"
-                        required
-                        autocomplete="off" /></label
+                        required="" /></label
                     ><label
                       >Client ID<input
+                        autocomplete="off"
                         id="slack-client-id"
-                        required
-                        autocomplete="off" /></label
+                        required="" /></label
                     ><label
                       >Client secret<input
+                        autocomplete="off"
                         id="slack-client-secret"
-                        type="password"
-                        required
-                        autocomplete="off" /></label
+                        required=""
+                        type="password" /></label
                     ><label
                       >Signing secret<input
-                        id="slack-signing-secret"
-                        type="password"
-                        required
                         autocomplete="off"
+                        id="slack-signing-secret"
+                        required=""
+                        type="password"
                     /></label>
                   </div>
                   <button class="button secondary">Connect app</button>
                 </form>
               </details>
             </div>
-            <button id="install-slack" class="button primary" hidden>
+            <button class="button primary" hidden="" id="install-slack">
               Install in Slack ↗</button
-            ><button id="verify-slack-identity" class="button primary" hidden>
+            ><button
+              class="button primary"
+              hidden=""
+              id="verify-slack-identity"
+            >
               Confirm with Slack ↗
             </button>
-            <p id="slack-setup-error" class="inline-error" role="alert"></p>
+            <p class="inline-error" id="slack-setup-error" role="alert"></p>
           </section>
-          <div id="setup-finish" class="setup-panel" hidden>
+          <div class="setup-panel" hidden="" id="setup-finish">
             <h2>You’re almost in.</h2>
             <p>
               Your memories start private. There’s no separate password or
               encryption key for your team to remember.
             </p>
-            <p id="storage-status" class="fine-print"></p>
-            <button id="finish-deployment" class="button primary">
+            <p class="fine-print" id="storage-status"></p>
+            <button class="button primary" id="finish-deployment">
               Open litemem
             </button>
-            <p id="finish-error" class="inline-error" role="alert"></p>
+            <p class="inline-error" id="finish-error" role="alert"></p>
           </div>
         </div>
       </section>
-      <section id="setup" class="auth-card" hidden>
+      <section class="auth-card" hidden="" id="setup">
         <p class="eyebrow">Welcome to litemem</p>
         <h1 id="member-setup-title">Your memory starts here.</h1>
         <p id="member-setup-description">
@@ -276,154 +317,243 @@
           answer questions about it. Sign-in and connections use Slack; there’s
           no separate key to remember.
         </p>
-        <button id="finish-signup" class="button primary">
+        <button class="button primary" id="finish-signup">
           Create my memory
         </button>
         <p id="setup-error" role="alert"></p>
       </section>
-      <div id="workspace" hidden>
-        <section id="home-view" class="page">
+      <div hidden="" id="workspace">
+        <div
+          class="workspace-error"
+          hidden=""
+          id="workspace-error"
+          role="alert"
+        >
+          <span id="workspace-error-message"></span
+          ><button class="button secondary small" id="retry-workspace">
+            Try again
+          </button>
+        </div>
+        <section class="page" id="home-view">
           <div class="page-heading">
             <div>
-              <p id="today" class="eyebrow"></p>
+              <p class="page-date" id="today"></p>
               <h1 id="feed-title">Activity</h1>
             </div>
-            <button id="add-memory" class="button quiet">
+            <button class="button quiet" id="add-memory">
               <span data-icon="plus"></span> Add memory
             </button>
           </div>
-          <form id="home-ask-form" class="home-ask">
-            <label class="sr-only" for="home-question"
-              >Ask about your work</label
-            ><input
-              id="home-question"
-              placeholder="Ask about your work…"
-              autocomplete="off"
-              maxlength="16000"
-            /><button type="submit" class="send-button" aria-label="Ask">
-              <span data-icon="arrow"></span>
-            </button>
-            <p class="ask-privacy">
-              <span data-icon="lock"></span> Your private memories are included.
-            </p>
-          </form>
-          <div class="feed-tools">
-            <div class="segmented" role="group" aria-label="Feed visibility">
-              <button id="mine-tab" class="selected" data-feed="mine">
-                My work <span data-icon="lock"></span></button
-              ><button id="shared-tab" data-feed="shared">Shared</button>
-            </div>
-            <div class="feed-tools-end">
-              <button
-                id="feed-search-button"
-                class="icon-button"
-                aria-label="Search this feed"
-              >
-                <span data-icon="search"></span></button
-              ><button
-                id="filter-button"
-                class="button quiet small"
-                aria-expanded="false"
-                aria-controls="filters"
-              >
-                <span data-icon="filter"></span> Filter
+          <div class="activity-layout">
+            <div class="activity-main">
+              <form class="home-ask" id="home-ask-form">
+                <label class="sr-only" for="home-question"
+                  >Ask about your work</label
+                ><input
+                  autocomplete="off"
+                  id="home-question"
+                  maxlength="16000"
+                  placeholder="Ask about your work…"
+                /><button aria-label="Ask" class="send-button" type="submit">
+                  <span data-icon="arrow"></span>
+                </button>
+                <p class="ask-privacy" id="home-privacy">
+                  <span data-icon="lock"></span> Your question and answer stay
+                  private.
+                </p>
+              </form>
+              <p
+                class="inline-error"
+                hidden=""
+                id="home-model-error"
+                role="alert"
+              ></p>
+              <div class="feed-tools">
+                <div
+                  aria-label="Feed visibility"
+                  class="segmented"
+                  role="group"
+                >
+                  <button
+                    aria-pressed="true"
+                    class="selected"
+                    data-feed="mine"
+                    id="mine-tab"
+                  >
+                    My work <span data-icon="lock"></span></button
+                  ><button
+                    aria-pressed="false"
+                    data-feed="shared"
+                    id="shared-tab"
+                  >
+                    Company
+                  </button>
+                </div>
+                <div class="feed-tools-end">
+                  <button
+                    aria-label="Search this feed"
+                    class="icon-button"
+                    id="feed-search-button"
+                  >
+                    <span data-icon="search"></span></button
+                  ><button
+                    aria-controls="filters"
+                    aria-expanded="false"
+                    class="button quiet small"
+                    id="filter-button"
+                  >
+                    <span data-icon="filter"></span> Filter
+                    <span class="count" hidden="" id="filter-count"></span>
+                  </button>
+                </div>
+              </div>
+              <form class="search-form" hidden="" id="search-form">
+                <span data-icon="search"></span
+                ><input
+                  aria-label="Search memories"
+                  id="search-query"
+                  maxlength="2000"
+                  placeholder="Search your work, decisions, and ideas"
+                  type="search"
+                /><button class="button quiet small" type="submit">
+                  Search
+                </button>
+                <button
+                  aria-label="Close search and clear query"
+                  class="icon-button"
+                  id="close-search"
+                  type="button"
+                >
+                  <span data-icon="close"></span>
+                </button>
+              </form>
+              <div class="filters" hidden="" id="filters">
+                <label
+                  >Type<select id="filter-kind">
+                    <option value="">Any type</option>
+                    <option>decision</option>
+                    <option>progress</option>
+                    <option>finding</option>
+                    <option>blocker</option>
+                    <option>plan</option>
+                  </select></label
+                ><label
+                  >Source<input
+                    id="filter-source"
+                    list="source-options"
+                    maxlength="100"
+                    placeholder="Any source"
+                  /><datalist id="source-options">
+                    <option value="codex">Codex</option>
+                    <option value="claude">Claude Code</option>
+                    <option value="manual">Added manually</option>
+                    <option value="legacy">Imported</option>
+                  </datalist></label
+                ><label>From<input id="filter-from" type="date" /></label
+                ><label>Before<input id="filter-before" type="date" /></label
+                ><button class="button quiet small" id="clear-filters">
+                  Clear
+                </button>
+              </div>
+              <div class="feed-meta">
+                <span id="feed-caption">Latest first</span
+                ><span id="processing-status" role="status"></span>
+              </div>
+              <p
+                class="inline-error"
+                hidden=""
+                id="page-error"
+                role="alert"
+              ></p>
+              <button class="button secondary small" hidden="" id="retry-feed">
+                Try again
+              </button>
+              <div aria-live="polite" class="feed" id="feed"></div>
+              <button class="button quiet load-more" hidden="" id="load-more">
+                Show more
               </button>
             </div>
+            <aside aria-label="Workspace context" class="activity-rail">
+              <section class="rail-section">
+                <div class="rail-heading">
+                  <h2>People</h2>
+                  <button class="text-button" data-view="people">
+                    View all
+                  </button>
+                </div>
+                <div id="home-people"></div>
+                <p class="fine-print">
+                  Only work people choose to share appears for your team.
+                </p>
+              </section>
+              <details class="work-overview" id="work-overview">
+                <summary>Catch up</summary>
+                <p class="muted">
+                  Decisions, progress, and open questions, linked to the
+                  original work.
+                </p>
+                <form class="filters" id="overview-form">
+                  <label
+                    >View<select id="overview-kind">
+                      <option value="current">Current work</option>
+                      <option value="daily">Daily catch-up</option>
+                    </select></label
+                  >
+                  <label hidden="" id="overview-date-label"
+                    >Day<input id="overview-day" type="date"
+                  /></label>
+                  <label
+                    >Project<input
+                      id="overview-project"
+                      maxlength="200"
+                      placeholder="All projects"
+                  /></label>
+                  <button class="button quiet small">Refresh</button>
+                </form>
+                <div aria-live="polite" id="overview-content"></div>
+              </details>
+            </aside>
           </div>
-          <form id="search-form" class="search-form" hidden>
-            <span data-icon="search"></span
-            ><input
-              id="search-query"
-              type="search"
-              placeholder="Search your work, decisions, and ideas"
-              aria-label="Search memories"
-            /><button class="button quiet small" type="submit">Search</button>
-          </form>
-          <div id="filters" class="filters" hidden>
-            <label
-              >Type<select id="filter-kind">
-                <option value="">Any type</option>
-                <option>decision</option>
-                <option>progress</option>
-                <option>finding</option>
-                <option>blocker</option>
-                <option>plan</option>
-              </select></label
-            ><label>From<input id="filter-from" type="date" /></label
-            ><label>Before<input id="filter-before" type="date" /></label
-            ><button id="clear-filters" class="button quiet small">
-              Clear
-            </button>
-          </div>
-          <div class="feed-meta">
-            <span id="feed-caption">Latest first</span
-            ><span id="processing-status" role="status"></span>
-          </div>
-          <p id="page-error" class="inline-error" role="alert" hidden></p>
-          <details id="work-overview" class="work-overview">
-            <summary>Catch up</summary>
-            <p class="muted">
-              Decisions, progress, and open questions, linked to the original work.
-            </p>
-            <form id="overview-form" class="filters">
-              <label
-                >View<select id="overview-kind">
-                  <option value="current">Current work</option>
-                  <option value="daily">Daily catch-up</option>
-                </select></label
-              >
-              <label id="overview-date-label" hidden
-                >Day<input id="overview-day" type="date"
-              /></label>
-              <label
-                >Project<input
-                  id="overview-project"
-                  maxlength="200"
-                  placeholder="All projects"
-              /></label>
-              <button class="button quiet small">Refresh</button>
-            </form>
-            <div id="overview-content" aria-live="polite"></div>
-          </details>
-          <div id="feed" class="feed" aria-live="polite"></div>
-          <button id="load-more" class="button quiet load-more" hidden>
-            Show more
-          </button>
         </section>
-        <section id="ask-view" class="page ask-page" hidden>
+        <section class="page ask-page" hidden="" id="ask-view">
           <div class="page-heading">
             <div>
-              <p class="eyebrow">Your memory, in conversation</p>
               <h1>Ask</h1>
             </div>
-            <button id="new-chat" class="button quiet small">
+            <button class="button quiet small" id="new-chat">
               <span data-icon="plus"></span> New conversation
             </button>
           </div>
-          <div id="chat-empty" class="chat-empty">
-            <div class="chat-mark" aria-hidden="true">l.</div>
-            <h2>What would you like to know?</h2>
-            <p>
-              Follow a thread. Revisit a decision. Pick up where you left off.
+          <div class="chat-empty" id="chat-empty">
+            <h2>What would you like to find?</h2>
+            <p id="chat-scope-description">
+              Ask about your work, a teammate’s updates, or a decision worth
+              revisiting.
             </p>
             <div class="suggestions">
               <button>What have I been working on this week?</button
               ><button>What decisions did I make recently?</button>
             </div>
           </div>
-          <div id="messages" class="messages" aria-live="polite"></div>
-          <form id="chat-form" class="chat-composer">
+          <div
+            aria-label="Conversation"
+            aria-live="off"
+            class="messages"
+            id="messages"
+          ></div>
+          <form class="chat-composer" id="chat-form">
             <label class="sr-only" for="question">Ask a question</label
             ><textarea
+              aria-describedby="chat-privacy"
               id="question"
-              rows="2"
               maxlength="16000"
               placeholder="Ask about your work…"
+              rows="2"
             ></textarea>
             <div class="composer-controls">
               <label class="scope-control"
-                ><span data-icon="lock"></span
-                ><select id="chat-scope" aria-label="Memory scope">
+                ><span data-icon="lock" id="scope-icon"></span
+                ><select aria-label="Memory scope" id="chat-scope">
                   <option value="mine">My memories</option>
                   <option value="all">All accessible memories</option>
                   <option value="shared">Shared memories only</option>
@@ -431,44 +561,66 @@
               >
               <div class="model-and-send">
                 <label class="sr-only" for="model">LiteLLM model</label
-                ><select id="model" aria-label="LiteLLM model">
+                ><select aria-label="LiteLLM model" id="model">
                   <option value="">Loading models…</option></select
                 ><button
+                  class="button quiet small"
+                  hidden=""
                   id="stop-answer"
                   type="button"
-                  class="button quiet small"
-                  hidden
                 >
                   Stop</button
                 ><button
+                  aria-label="Send question"
+                  class="send-button"
                   id="send-question"
                   type="submit"
-                  class="send-button"
-                  aria-label="Send question"
                 >
                   <span data-icon="arrow"></span>
                 </button>
               </div>
             </div>
-            <p id="chat-privacy" class="fine-print">
+            <p class="fine-print" id="chat-privacy">
               <span data-icon="lock"></span> Visible only to you.
             </p>
+            <p
+              class="inline-error"
+              hidden=""
+              id="chat-model-error"
+              role="alert"
+            ></p>
+            <button
+              class="text-button"
+              hidden=""
+              id="retry-chat-models"
+              type="button"
+            >
+              Reload models
+            </button>
           </form>
         </section>
-        <section id="people-view" class="page" hidden>
+        <section class="page" hidden="" id="people-view">
           <div class="page-heading">
             <div>
-              <p class="eyebrow">The people behind the work</p>
               <h1>People</h1>
             </div>
           </div>
           <p class="muted">See what people have chosen to share.</p>
-          <div id="people-list" class="people-list"></div>
+          <div class="people-toolbar">
+            <label class="search-field"
+              ><span data-icon="search"></span
+              ><input
+                aria-label="Find a teammate"
+                id="people-search"
+                placeholder="Find a teammate"
+                type="search" /></label
+            ><span class="muted" id="people-count" role="status"></span>
+          </div>
+          <div class="people-list" id="people-list"></div>
         </section>
-        <section id="connections-view" class="page" hidden>
+        <section class="page" hidden="" id="connections-view">
           <div class="page-heading">
             <div>
-              <p class="eyebrow">Bring your work along</p>
               <h1>Connections</h1>
             </div>
           </div>
@@ -480,22 +632,36 @@
             <h2>Your MCP connection</h2>
             <div class="copy-row">
               <code id="mcp-url"></code
-              ><button id="copy-mcp" class="button quiet small">
+              ><button class="button quiet small" id="copy-mcp">
                 Copy URL
               </button>
             </div>
             <h3>Codex</h3>
             <pre id="codex-command"></pre>
+            <button
+              class="button secondary small"
+              data-copy="codex-command"
+              type="button"
+            >
+              Copy Codex commands
+            </button>
             <h3>Claude Code</h3>
             <pre id="claude-command"></pre>
+            <button
+              class="button secondary small"
+              data-copy="claude-command"
+              type="button"
+            >
+              Copy Claude Code command
+            </button>
             <p class="fine-print">
               MCP provides recording and search tools. Enable capture hooks for
               continuous recording. Your existing memory connection stays in
               place until you choose to remove it.
             </p>
             <a
-              href="/api/connector/setup"
               class="text-link"
+              href="/api/connector/setup"
               id="capture-setup-link"
               >Set up continuous capture →</a
             >
@@ -503,24 +669,43 @@
           <h2 class="section-heading">Connected clients</h2>
           <div id="connection-list"></div>
         </section>
-        <section id="settings-view" class="page" hidden>
+        <section class="page" hidden="" id="settings-view">
           <div class="page-heading">
             <div>
-              <p class="eyebrow">Make it yours</p>
               <h1>Settings</h1>
             </div>
           </div>
-          <div class="settings-group">
+          <nav aria-label="Settings sections" class="settings-tabs">
+            <button aria-pressed="true" data-settings="privacy">Privacy</button
+            ><button aria-pressed="false" data-settings="recording">
+              Recording</button
+            ><button
+              aria-pressed="false"
+              data-settings="models"
+              hidden=""
+              id="models-tab"
+            >
+              Models</button
+            ><button aria-pressed="false" data-settings="data">
+              Your data
+            </button>
+          </nav>
+          <p class="inline-status" id="settings-status" role="status"></p>
+          <div
+            class="settings-group"
+            data-settings-section="privacy"
+            id="privacy-settings"
+          >
             <h2>Privacy</h2>
             <p>
               Your private memories carry a lock. Shared means visible to your
               company, never the open internet.
             </p>
-            <div id="sharing-note" class="quiet-note">
-              <span data-icon="lock"></span> Sharing is off for this rollout.
-              Everything stays private.
+            <div class="quiet-note" id="sharing-note">
+              <span data-icon="lock"></span> Company sharing is off. Your work
+              stays private.
             </div>
-            <form id="sharing-form" hidden>
+            <form hidden="" id="sharing-form">
               <h3>What may be shared</h3>
               <p class="muted">
                 Only these types are eligible. If an entry has several types,
@@ -530,30 +715,30 @@
                 <legend class="sr-only">Shareable memory types</legend>
                 <label
                   ><input
-                    type="checkbox"
                     name="sharing-type"
+                    type="checkbox"
                     value="progress"
                   />
                   Progress</label
                 >
                 <label
                   ><input
-                    type="checkbox"
                     name="sharing-type"
+                    type="checkbox"
                     value="decision"
                   />
                   Decisions</label
                 >
                 <label
-                  ><input type="checkbox" name="sharing-type" value="finding" />
+                  ><input name="sharing-type" type="checkbox" value="finding" />
                   Findings</label
                 >
                 <label
-                  ><input type="checkbox" name="sharing-type" value="blocker" />
+                  ><input name="sharing-type" type="checkbox" value="blocker" />
                   Blockers</label
                 >
                 <label
-                  ><input type="checkbox" name="sharing-type" value="plan" />
+                  ><input name="sharing-type" type="checkbox" value="plan" />
                   Plans</label
                 >
               </fieldset>
@@ -564,11 +749,12 @@
                     >Eligible summaries only. Historical imports stay
                     private.</small
                   ></span
-                ><input id="auto-share" type="checkbox" role="switch"
+                ><input id="auto-share" role="switch" type="checkbox"
               /></label>
               <button class="button secondary">Save sharing preferences</button>
+              <p class="inline-status" id="sharing-status" role="status"></p>
             </form>
-            <div id="workspace-sharing-control" hidden>
+            <div hidden="" id="workspace-sharing-control">
               <label class="setting-row"
                 ><span
                   ><strong>Company sharing</strong
@@ -578,28 +764,34 @@
                   ></span
                 ><input
                   id="workspace-sharing-enabled"
-                  type="checkbox"
                   role="switch"
+                  type="checkbox"
               /></label>
             </div>
             <h3>Keep these topics private</h3>
             <p class="muted">
-              Describe a topic in plain English. Jev checks existing and future
-              records once per rule. Uncertain matches stay private.
+              Add anything you want to keep private. We’ll check new work and
+              your existing history before it can be shared.
             </p>
-            <form id="rule-form" class="inline-form">
+            <form class="inline-form" id="rule-form">
               <input
+                aria-label="Private topic"
                 id="rule-input"
                 maxlength="1000"
                 placeholder="For example, personal finances or customer details"
-                aria-label="Private topic"
-                required
+                required=""
               /><button class="button secondary">Add rule</button>
             </form>
+            <p class="inline-error" id="rule-error" role="alert"></p>
             <div id="rule-list"></div>
           </div>
-          <div class="settings-group">
-            <h2>Recording & processing</h2>
+          <div
+            class="settings-group"
+            data-settings-section="recording"
+            hidden=""
+            id="recording-settings"
+          >
+            <h2>Recording &amp; processing</h2>
             <label class="setting-row"
               ><span
                 ><strong>Record new work</strong
@@ -608,8 +800,8 @@
                 ></span
               ><input
                 id="capture-enabled"
-                type="checkbox"
-                role="switch" /></label
+                role="switch"
+                type="checkbox" /></label
             ><label class="setting-row"
               ><span
                 ><strong>Personal agent access</strong
@@ -617,16 +809,21 @@
                   >Allow your agent to organize and answer questions about your
                   records.</small
                 ></span
-              ><input id="agent-enabled" type="checkbox" role="switch"
+              ><input id="agent-enabled" role="switch" type="checkbox"
             /></label>
             <div class="setting-row">
               <span id="processing-summary"></span
-              ><button id="retry-processing" class="button quiet small">
+              ><button class="button quiet small" id="retry-processing">
                 Retry failed items
               </button>
             </div>
           </div>
-          <div id="model-settings" class="settings-group" hidden>
+          <div
+            class="settings-group"
+            data-settings-section="models"
+            hidden=""
+            id="model-settings"
+          >
             <h2>Models</h2>
             <p>
               All models run through your LiteLLM gateway. Slack and background
@@ -637,12 +834,12 @@
                 <label
                   >Default agent<select
                     id="setting-agent_model"
-                    required
+                    required=""
                   ></select></label
                 ><label
                   >Embeddings<select
                     id="setting-embedding_model"
-                    required
+                    required=""
                   ></select></label
                 ><label
                   >Slack agent<select id="setting-slack_model"></select></label
@@ -655,9 +852,9 @@
                 <label
                   >TypeSafe Jev model<input
                     id="setting-classifier_model"
-                    value="jev-latest"
                     maxlength="200"
-                    required
+                    required=""
+                    value="jev-latest"
                 /></label>
                 <p class="fine-print">
                   Jev is required and is checked through your gateway before
@@ -670,44 +867,85 @@
                 ><span id="model-settings-status" role="status"></span>
               </div>
             </form>
-            <button id="reload-models" class="button quiet small">
+            <button class="button quiet small" id="reload-models">
               Refresh available models
             </button>
             <details class="advanced">
               <summary>LiteLLM connection</summary>
-              <p id="current-gateway-url" class="fine-print"></p>
+              <p class="fine-print" id="current-gateway-url"></p>
               <form id="rotate-gateway-form">
-                <label>New LiteLLM key<input id="replacement-gateway-key" type="password" autocomplete="off" required maxlength="8000"></label>
-                <p class="fine-print">Every configured model and Jev are checked before the current key is replaced.</p>
-                <button class="button secondary">Check &amp; replace key</button>
+                <label
+                  >New LiteLLM key<input
+                    autocomplete="off"
+                    id="replacement-gateway-key"
+                    maxlength="8000"
+                    required=""
+                    type="password"
+                /></label>
+                <p class="fine-print">
+                  Every configured model and Jev are checked before the current
+                  key is replaced.
+                </p>
+                <button class="button secondary">
+                  Check &amp; replace key
+                </button>
                 <p id="gateway-rotation-status" role="status"></p>
               </form>
             </details>
-            <details class="advanced" id="admin-transfer-panel" hidden>
+            <details class="advanced" hidden="" id="admin-transfer-panel">
               <summary>Transfer workspace administration</summary>
               <form id="admin-transfer-form">
-                <label>New administrator<select id="next-admin" required></select></label>
-                <p class="fine-print">Only workspace settings move. Each person's private memory stays with them.</p>
-                <button class="button secondary">Transfer administration</button>
+                <label
+                  >New administrator<select id="next-admin" required=""></select
+                ></label>
+                <p class="fine-print">
+                  Only workspace settings move. Each person's private memory
+                  stays with them.
+                </p>
+                <button class="button secondary">
+                  Transfer administration
+                </button>
               </form>
             </details>
           </div>
-          <div class="settings-group">
+          <div
+            class="settings-group"
+            data-settings-section="data"
+            hidden=""
+            id="data-settings"
+          >
             <h2>Your data</h2>
             <div class="setting-row">
-              <span><strong>Copy to another litemem</strong><small>Transfer your history securely. Sign in with Slack on both installations; no export password needed.</small></span>
-              <button id="transfer-data" class="button secondary">Transfer history</button>
+              <span
+                ><strong>Copy to another litemem</strong
+                ><small
+                  >Transfer your history securely. Sign in with Slack on both
+                  installations; no export password needed.</small
+                ></span
+              >
+              <button class="button secondary" id="transfer-data">
+                Transfer history
+              </button>
             </div>
-            <p class="fine-print"><a href="/transfer/receive">View recent imports</a></p>
+            <p class="fine-print">
+              <a href="/transfer/receive">View recent imports</a>
+            </p>
             <div class="setting-row">
               <span
                 ><strong>Export your memories</strong
                 ><small
-                  >Download your records and original evidence. Choose an encrypted
-                  backup or readable JSONL.</small
+                  >Download your records and original evidence. Choose an
+                  encrypted backup or readable JSONL.</small
                 ></span
-              ><div class="export-actions"><button id="encrypted-export" class="button secondary">Encrypted export</button>
-              <button id="export-data" class="button quiet small">Readable JSONL</button></div>
+              >
+              <div class="export-actions">
+                <button class="button secondary" id="encrypted-export">
+                  Encrypted export
+                </button>
+                <button class="button quiet small" id="export-data">
+                  Readable JSONL
+                </button>
+              </div>
             </div>
             <div class="setting-row">
               <span
@@ -716,58 +954,67 @@
                   >Revoke your connections and agent access. Export first if you
                   want a copy.</small
                 ></span
-              ><button id="leave-workspace" class="button quiet danger">
+              ><button class="button quiet danger" id="leave-workspace">
                 Leave
               </button>
             </div>
           </div>
-          <button id="sign-out" class="button quiet">Sign out</button>
+          <button class="button quiet" id="sign-out">Sign out</button>
         </section>
       </div>
     </main>
     <footer class="footer">
       <span>litemem</span
       ><span
-        >LiteLLM Labs <span aria-hidden="true">·</span> Built with Ente &
+        >LiteLLM Labs <span aria-hidden="true">·</span> Built with Ente &amp;
         LiteLLM</span
       >
     </footer>
-    <dialog id="source-dialog" class="source-dialog">
+    <dialog aria-label="Memory" class="source-dialog" id="source-dialog">
       <div class="dialog-top">
         <span id="source-visibility"></span
         ><button
-          id="close-source"
-          class="icon-button"
           aria-label="Close memory"
+          class="icon-button"
+          id="close-source"
         >
-          ×
+          <span data-icon="close"></span>
         </button>
       </div>
       <div id="source-body"></div>
-      <div id="source-actions" class="dialog-actions"></div>
+      <p class="inline-error" id="source-error" role="alert"></p>
+      <div class="dialog-actions memory-actions" id="source-actions"></div>
     </dialog>
-    <dialog id="capture-dialog" class="capture-dialog">
+    <dialog
+      aria-label="Add a memory"
+      class="capture-dialog"
+      id="capture-dialog"
+    >
       <div class="dialog-top">
         <h2>Add a memory</h2>
-        <button id="close-capture" class="icon-button" aria-label="Close">
-          ×
+        <button aria-label="Close" class="icon-button" id="close-capture">
+          <span data-icon="close"></span>
         </button>
       </div>
       <form id="capture-form">
         <label
           >Title<input
+            autofocus=""
             id="capture-title"
             maxlength="300"
             placeholder="What happened?" /></label
         ><label
           >Memory<textarea
+            aria-describedby="capture-error"
             id="capture-content"
-            rows="8"
             maxlength="200000"
-            required
+            minlength="1"
             placeholder="A decision, an update, a finding. Keep the context that matters."
+            required=""
+            rows="8"
           ></textarea>
         </label>
+        <p class="inline-error" id="capture-error" role="alert"></p>
         <div class="dialog-actions">
           <span class="privacy private"
             ><span data-icon="lock"></span> Private</span
@@ -775,26 +1022,79 @@
         </div>
       </form>
     </dialog>
-    <dialog id="export-dialog" class="capture-dialog">
-      <div class="dialog-top"><h2>Protect your export</h2><button id="close-export" class="icon-button" aria-label="Close export">×</button></div>
-      <p>This passphrase protects the downloaded file. Keep it separately; you will need it to restore the export.</p>
+    <dialog
+      aria-label="Protect your export"
+      class="capture-dialog"
+      id="export-dialog"
+    >
+      <div class="dialog-top">
+        <h2>Protect your export</h2>
+        <button aria-label="Close export" class="icon-button" id="close-export">
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <p>
+        This passphrase protects the downloaded file. Keep it separately; you
+        will need it to restore the export.
+      </p>
       <form id="encrypted-export-form">
-        <label>Export passphrase<input id="export-passphrase" type="password" minlength="12" maxlength="1024" autocomplete="new-password" required></label>
-        <label>Confirm passphrase<input id="export-passphrase-confirm" type="password" minlength="12" maxlength="1024" autocomplete="new-password" required></label>
+        <label
+          >Export passphrase<input
+            autocomplete="new-password"
+            id="export-passphrase"
+            maxlength="1024"
+            minlength="12"
+            required=""
+            type="password"
+        /></label>
+        <label
+          >Confirm passphrase<input
+            autocomplete="new-password"
+            id="export-passphrase-confirm"
+            maxlength="1024"
+            minlength="12"
+            required=""
+            type="password"
+        /></label>
         <p id="export-status" role="status"></p>
         <button class="button primary">Download encrypted export</button>
       </form>
     </dialog>
-    <dialog id="transfer-dialog" class="capture-dialog">
-      <div class="dialog-top"><h2>Copy your history</h2><button id="close-transfer" class="icon-button" aria-label="Close transfer">×</button></div>
-      <p>Sign in to the destination with your same Slack account. You’ll return here to confirm before any history moves.</p>
+    <dialog
+      aria-label="Copy your history"
+      class="capture-dialog"
+      id="transfer-dialog"
+    >
+      <div class="dialog-top">
+        <h2>Copy your history</h2>
+        <button
+          aria-label="Close transfer"
+          class="icon-button"
+          id="close-transfer"
+        >
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <p>
+        Sign in to the destination with your same Slack account. You’ll return
+        here to confirm before any history moves.
+      </p>
       <form id="transfer-connect">
-        <label>Destination address<input id="transfer-url" type="url" maxlength="2000" placeholder="https://memory.example.com" required></label>
-        <button id="transfer-connect-button" class="button secondary">Connect destination</button>
+        <label
+          >Destination address<input
+            id="transfer-url"
+            maxlength="2000"
+            placeholder="https://memory.example.com"
+            required=""
+            type="url"
+        /></label>
+        <button class="button secondary" id="transfer-connect-button">
+          Connect destination
+        </button>
       </form>
       <p id="transfer-status" role="status"></p>
     </dialog>
-    <div id="toast" class="toast" role="status" hidden></div>
-    <div id="announce" class="sr-only" aria-live="polite"></div>
+    <div class="toast" hidden="" id="toast" role="status"></div>
+    <div aria-live="polite" class="sr-only" id="announce"></div>
   </body>
 </html>

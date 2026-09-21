@@ -8,9 +8,9 @@ This is a work archive you query deliberately. It does not search old memories o
 
 > **Release status:** the implementation is on `codex/litemem-implementation`. Deployment verification is in progress. The existing hosted assistant has not been switched to this application. See the [release checklist](docs/release-checklist.md) for verified behavior and remaining gates.
 
-![The implemented litemem dashboard with Home Ask, a chronological feed and private lock labels](docs/assets/dashboard.jpg)
+![The implemented litemem Activity view with Ask, a chronological feed and private lock labels](docs/assets/dashboard.jpg)
 
-The actual dashboard, shown with synthetic local records.
+The actual application, shown with synthetic local records. See [Ask](docs/assets/ask.jpg), [privacy settings](docs/assets/settings.jpg), and the [20-area interface review](docs/ui-review.md) for more screenshots and verification details.
 
 ## What it does
 

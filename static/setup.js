@@ -6,6 +6,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
   if (!status.required) return false;
   show("welcome", false);
   show("deployment-setup");
+  show("boot-status", false);
   let modelState = null;
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const error = (id, e) =>
@@ -49,6 +50,9 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
     show("setup-content", status.claimed);
     if (!status.claimed) return;
     $("gateway-url").value = status.base_url || "";
+    show("gateway-form", !status.gateway_connected);
+    show("gateway-summary", status.gateway_connected);
+    $("gateway-summary-url").textContent = status.base_url || "";
     $("gateway-key").placeholder = status.gateway_connected
       ? "Saved securely. Leave empty to keep it."
       : "Your LiteLLM key";
@@ -109,6 +113,11 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
       error("setup-model-status", e);
     }
   }
+  $("edit-gateway").onclick = () => {
+    show("gateway-form");
+    show("gateway-summary", false);
+    $("gateway-url").focus();
+  };
   $("claim-form").onsubmit = async (e) => {
     e.preventDefault();
     await busy(e.submitter, async () => {

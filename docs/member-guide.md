@@ -10,17 +10,17 @@ In **Connections**, choose **Set up continuous capture** and follow the connecto
 
 Recording captures visible user and assistant messages; it excludes system instructions, tool dumps and hidden reasoning. Remote MCP by itself cannot see your conversations. Nothing searches your history on every coding turn.
 
-An encrypted local outbox retries uploads when you are offline. **Settings → Record new work** pauses hosted intake. To stop local buffering too, run `litemem-connector pause`. Resuming does not automatically sweep up the paused period; you can choose an explicit historical import later.
+An encrypted local outbox retries uploads when you are offline. **Settings → Recording → Record new work** pauses hosted intake. To stop local buffering too, run `litemem-connector pause`. Resuming does not automatically sweep up the paused period; you can choose an explicit historical import later.
 
 ## Browse and ask
 
-**Home** shows your work newest first. Private items have a lock and a **Private** label. **Shared** shows company publications, without a recommendation algorithm. Filters narrow by person, source, type and date; search also uses searchable metadata. Missing original dates stay unknown.
+**Activity** shows your work newest first. Private items have a lock and a **Private** label. **Company** shows company publications, without a recommendation algorithm. Filters narrow by person, source, type and date; search also uses searchable metadata. Missing original dates stay unknown.
 
-Use the question box on Home or open **Ask**. Choose a model from your gateway's available models, ask about your own work or choose a person, and open citations to inspect the evidence. You can ask follow-up questions within the same scope. Changing person or audience starts a fresh conversation.
+Use the question box on Activity or open **Ask**. Choose a model from your gateway's available models, ask about your own work or choose a person, and open citations to inspect the evidence. You can ask follow-up questions within the same scope. Changing person or audience asks before clearing an existing conversation. Browser Back returns to the previous view.
 
 **People** uses enrolled members' Slack profiles. You can see their shared activity and ask about evidence they have made available. Another person's private counts, source transcripts and metadata are not exposed.
 
-**Catch up** produces current, daily or project views from available evidence. These are derived views, with sources and coverage information; they do not rewrite the original messages. “Organizing” means processing is still pending, not that the source was lost. Settings shows failed work and a retry control.
+**Catch up** produces current, daily or project views from available evidence. These are derived views, with sources and coverage information; they do not rewrite the original messages. “Processing” means processing is still pending, not that the source was lost. Settings shows failed work and a retry control.
 
 In Slack, talk to **@litemem**. A verified personal DM can use your private history. Shared conversations use only company-public evidence that is safe for every participant. Slack membership failures or external/unknown participants cause the agent to withhold an answer. It cannot retract information someone already read.
 
@@ -28,11 +28,11 @@ In Slack, talk to **@litemem**. A verified personal DM can use your private hist
 
 Everything starts private. **Company-public** means eligible members of your installation, never the open internet. Sharing may be disabled for the whole workspace during a pilot.
 
-Open a memory to preview the separate summary that would be shared. The original evidence stays private. In Settings, choose shareable types and, if you want, enable automatic sharing for future work. Historical imports do not publish automatically.
+Open a memory to preview the separate summary that would be shared. The original evidence stays private. In **Settings → Privacy**, choose shareable types and, if you want, enable automatic sharing for future work. Historical imports do not publish automatically.
 
 Under **Keep these topics private**, describe a topic to exclude. Jev checks existing and future source chunks, caching each result for the criterion and classifier version. Adding a rule checks that new rule; it does not rerun previously completed rules. Uncertain matches remain private, and the rule withdraws existing publications while checks run.
 
-Use **Correct** to add dated corrective evidence without overwriting the original. Deleting a memory removes access immediately and schedules storage cleanup; its deletion marker prevents an old import from bringing it back.
+Use **Add correction** to add dated corrective evidence without overwriting the original. Deleting a memory removes access immediately and schedules storage cleanup; its deletion marker prevents an old import from bringing it back.
 
 ## Move or download your history
 
@@ -48,7 +48,7 @@ For a file, choose **Encrypted export** or **Readable JSONL**. Only the optional
 
 ## Leave or return
 
-**Settings → Leave** revokes your connections, capture and agent access and withdraws your publications. Export first if you want a copy. Leaving is not a permanent purge of every retained record.
+**Settings → Your data → Leave** revokes your connections, capture and agent access and withdraws your publications. Export first if you want a copy. Leaving is not a permanent purge of every retained record.
 
 If you are still eligible, signing in again offers an explicit restore of your departed account. Old credentials remain revoked and recording/sharing stay paused until you choose otherwise.
 
