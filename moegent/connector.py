@@ -189,7 +189,9 @@ class LocalCapture:
             except BlockingIOError:
                 return 0
             config = self.get("connection")
-            if not config or self.get("paused", False):
+            # Explicit read-only clients use limit=0 to refresh their OAuth
+            # connection without recording or uploading paused work.
+            if not config or (self.get("paused", False) and limit != 0):
                 return 0
             sent = 0
             try:

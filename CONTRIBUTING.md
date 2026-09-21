@@ -17,6 +17,8 @@ node --check static/migration.js
 
 The unit/API suite uses temporary synthetic data and mocked external services. It does not need Slack, Ente or model credentials. Docker deployment tests use disposable PostgreSQL/Ente containers; see `.github/workflows/verify.yml`. Use the documented Compose deployment for a complete local installation, with a separate test Slack workspace and gateway when exercising external integrations.
 
+For real-history query evaluation, use the [private answer-quality workflow](docs/answer-quality.md). It keeps question sets outside Git, uses the actual versioned API and requires reviewed judgments; synthetic tests do not satisfy the release quality gate.
+
 ## Where to work
 
 - `moegent/application.py`: web API, identity and authorization boundaries.

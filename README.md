@@ -85,7 +85,7 @@ uv run ruff check .
 
 The new app is `moegent.application:app`; the portable launcher is `python -m moegent.boot`. The Python package retains its original internal name to make migration easier. `moegent.app:app`, the original `Dockerfile`, and the vendored knowledge runtime are legacy migration paths, not dependencies of the new memory service.
 
-[Architecture](docs/architecture.md) · [Product specification](docs/product-implementation-spec.md) · [Release checklist](docs/release-checklist.md)
+[Architecture](docs/architecture.md) · [Product specification](docs/product-implementation-spec.md) · [Release checklist](docs/release-checklist.md) · [Answer-quality evaluation](docs/answer-quality.md)
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for local development, code orientation and review expectations.
 
