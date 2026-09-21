@@ -12,7 +12,7 @@ The home Ask form follows the selected feed: company-shared work, the user's own
 
 Keep the feed chronological. The useful title and work excerpt are more prominent than source, timestamp, and processing count. Author identity adds social context; it should not consume more space than the work. The private lock and text remain visible even when metadata wraps.
 
-The home Ask form has a visible label, concise placeholder, send control, and one short privacy line. Avoid a welcome hero, metric cards, progress rings, or recommendation panel above the first entry. The feed should appear within a normal viewport, not beneath an onboarding essay.
+The home Ask form has a visible label, concise placeholder and send control. Do not repeat a privacy reassurance underneath every composer. Avoid a welcome hero, metric cards, progress rings, or recommendation panel above the first entry. The feed should appear within a normal viewport, not beneath an onboarding essay.
 
 Search opens a native dialog near the top of the viewport, without navigating or rearranging the underlying page. Put query, explicit Company/My work/person scope, and results together. Search only on submission; typing, opening the panel and changing scope do not fetch work. Clear stale results when the input changes, retain the query on failure, and preserve the underlying page, scroll and keyboard focus on close. Source details can open above search and return to the selected result. Metadata filters remain scoped to the Activity feed; saved viewing exclusions in Settings → General apply to both and must be disclosed when active. Personal viewing exclusions do not change sharing.
 
@@ -26,7 +26,7 @@ For someone else's feed, show a compact identity header and Back to Company acti
 
 **Active:** user's question → truthful working state → emerging response → Stop. Avoid an intrusive full-page loading overlay. The person can still understand the selected scope and model.
 
-**Answered:** response and citations take priority. Keep model settings and privacy feedback compact below the writing area. Longer answers need readable headings/lists/code without escaping the content width.
+**Answered:** response and citations take priority. Keep scope and model controls compact below the writing area. Show an active-filter notice only when saved exclusions affect the answer. Longer answers need readable headings/lists/code without escaping the content width.
 
 Switching scope must respect the existing conversation-reset confirmation. A person's shared memory scope is not their private memory. Choosing All accessible memories is a query choice, not a share/publication action. Ask remains private to the person asking in the web UI.
 

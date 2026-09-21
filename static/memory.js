@@ -901,17 +901,13 @@ function updateScope() {
   const scope = $("chat-scope").value;
   state.chatScope = scope;
   $("scope-icon").replaceChildren(icon(scope === "mine" ? "lock" : "shared"));
-  $("chat-privacy").replaceChildren(
-    icon("lock"),
-    document.createTextNode(" Your question and answer stay private."),
+  show(
+    "chat-filter-notice",
+    Boolean(
+      state.viewPreferences &&
+      Object.values(state.viewPreferences).some((values) => values.length),
+    ),
   );
-  if (
-    state.viewPreferences &&
-    Object.values(state.viewPreferences).some((values) => values.length)
-  )
-    $("chat-privacy").append(
-      document.createTextNode(" Personal filters are on."),
-    );
   const person = scope.startsWith("person:")
     ? profile(scope.slice(7)).name
     : null;

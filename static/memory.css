@@ -593,19 +593,6 @@ body:not(.workspace-ready) .footer {
 .send-button:hover:not(:disabled) {
   background: #3c3e43;
 }
-.ask-privacy {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  width: 100%;
-  margin: 0;
-  font-size: var(--text-meta);
-  color: var(--muted);
-}
-.ask-privacy svg {
-  width: 12px;
-  height: 12px;
-}
 .feed-tools {
   display: flex;
   justify-content: space-between;

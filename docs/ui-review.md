@@ -14,7 +14,7 @@ Search opens a panel near the top of the window, keeping scope and results toget
 
 ![Search](assets/search.jpg)
 
-[View the compact header at 687px](assets/header.jpg).
+[View the compact header](assets/header.jpg).
 
 ## Activity
 
@@ -34,7 +34,7 @@ Connections provides inline tool setup, optional history import, and a server-co
 
 ## Ask
 
-Choose the memory scope and a gateway model. Responses include clickable source citations. Stop cancels work; changing scope confirms before clearing a conversation.
+Choose the memory scope and a gateway model. Responses include clickable source citations. Composers omit repeated privacy boilerplate; memory entries still show their audience. Stop cancels work; changing scope confirms before clearing a conversation.
 
 ![Ask](assets/ask.jpg)
 

@@ -11,7 +11,7 @@
       rel="icon"
     />
     <link href="/static/memory.css" rel="stylesheet" />
-    <script src="/static/memory.js?v=9" type="module"></script>
+    <script src="/static/memory.js?v=10" type="module"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -383,10 +383,6 @@
                 /><button aria-label="Ask" class="send-button" type="submit">
                   <span data-icon="arrow"></span>
                 </button>
-                <p class="ask-privacy" id="home-privacy">
-                  <span data-icon="lock"></span> Your questions and answers stay
-                  private.
-                </p>
               </form>
               <p
                 class="inline-error"
@@ -530,7 +526,6 @@
           <form class="chat-composer" id="chat-form">
             <label class="sr-only" for="question">Ask a question</label
             ><textarea
-              aria-describedby="chat-privacy"
               id="question"
               maxlength="16000"
               placeholder="Ask about your work…"
@@ -566,8 +561,8 @@
                 </button>
               </div>
             </div>
-            <p class="fine-print" id="chat-privacy">
-              <span data-icon="lock"></span> Visible only to you.
+            <p class="fine-print" id="chat-filter-notice" hidden>
+              Personal filters are on.
             </p>
             <p
               class="inline-error"
