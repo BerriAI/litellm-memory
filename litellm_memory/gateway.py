@@ -136,8 +136,10 @@ class Gateway:
         if kind == "generation":
             import json
             try:
-                result = await self.generate([{"role": "user", "content": 'Return JSON: {"ok": true}'}],
-                                             model=model, json_output=True)
+                result = await self.generate([
+                    {"role": "system", "content": "Describe the work briefly. Return a JSON object."},
+                    {"role": "user", "content": "Synthetic setup check: reviewed the workspace onboarding."},
+                ], model=model, json_output=True)
                 if not isinstance(json.loads(result), dict):
                     raise ValueError()
             except (ValueError, TypeError):
@@ -261,8 +263,13 @@ class Gateway:
     async def generate(self, messages: list[dict], *, model: str | None = None, json_output=False):
         with self.telemetry.operation(
                 'generation', model=model or self.settings.background_model or self.settings.litellm_model):
+            # A chat route may translate system messages into Responses instructions.
+            # JSON mode requires the word "JSON" in input messages as well, so a
+            # system-only instruction can fail on an otherwise working model.
+            inputs = [*messages, {"role": "user", "content": "Return only the requested JSON object."}] \
+                if json_output else messages
             body = {"model": model or self.settings.background_model or self.settings.litellm_model,
-                    "messages": messages, "no-log": True}
+                    "messages": inputs, "no-log": True}
             if json_output:
                 body["response_format"] = {"type": "json_object"}
             response = await self.http.post(self.root + "/v1/chat/completions", json=body)

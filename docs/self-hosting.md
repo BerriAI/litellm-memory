@@ -16,7 +16,9 @@ The root `render.yaml` and `Dockerfile` provision the complete starter topology.
 
 Open the deployed HTTPS URL and paste the setup code to claim it. The code is for installation administration, not for member sign-in. It rotates when claimed. If setup is interrupted, the browser retains a time-limited setup session; otherwise retrieve the current code from the private `/data/setup-code` file in Render's shell.
 
-The page keeps the gateway connection, model choices and Slack progress together. Provide only a LiteLLM URL/key for inference. The Slack app needs its normal Slack application credentials; LiteLLM Memory supplies a manifest/create link, validates the installation and returns to the same page. Complete sign-in using an eligible Slack account. Finish is enabled only after model, Jev, Slack identity and encrypted-storage checks pass.
+The page keeps the gateway connection, model choices and Slack progress together. Provide only a LiteLLM URL/key for inference. Setup discovers the models available to that key, requires agent and embedding candidates, and makes real requests to verify tool calling, structured background generation, embeddings and TypeSafe Jev. A model appearing in the list alone is not enough to pass setup. Failed checks leave the workspace inactive and show what needs attention.
+
+The Slack app needs its normal Slack application credentials; LiteLLM Memory supplies a manifest/create link, validates the installation and returns to the same page. Complete sign-in using an eligible Slack account. Activation requires model, Jev, Slack identity and encrypted-storage checks to pass.
 
 Render auto-deploy is disabled in the reusable Blueprint so an upstream commit cannot update other people's installations without their decision. The current private pilot is separate from this reusable deployment and remains owner-only with sharing disabled.
 

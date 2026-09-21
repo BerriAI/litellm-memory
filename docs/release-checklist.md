@@ -4,11 +4,15 @@ The implementation is on `main`, and the private Render service runs the new app
 
 ## Verification
 
-CI runs unit/API tests, Ruff, frontend syntax checks, real Codex/Claude hook dispatch against disposable fixtures, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. [Current checks](https://github.com/moe-berri/litellm-memory/pull/1/checks).
+CI runs unit/API tests, Ruff, frontend syntax checks, real Codex/Claude hook dispatch against disposable fixtures, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. [Current checks](https://github.com/moe-berri/litellm-memory/actions/workflows/verify.yml).
 
 The core-loop revision passed [CI run 35648509804](https://github.com/moe-berri/litellm-memory/actions/runs/35648509804), source `0da818f`: **153 tests**, Ruff, four frontend syntax checks, both real host-hook checks, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. Browser review uses synthetic records and simulated inference; [screenshots and review scope](ui-review.md). No synthetic check is a real-history quality score.
 
 Frontend format checks also pass. Browser checks cover first-use intake status, person browsing and routes, query scope, privacy preview, saved-filter recovery and 390px/320px layouts. Automated daily overview sweeps are removed; source processing and explicit Ask remain.
+
+The September 21 readiness revision passes **166 local tests**, Ruff and frontend syntax checks. Setup checks Jev, tool calling, JSON generation and embeddings through the configured gateway; regression cases cover absent agent/embedding routes, upstream TypeSafe authentication errors and a JSON-mode failure found with the live Luna route. Slack permission recovery was reviewed at desktop and 390px widths, including keyboard access and browser errors.
+
+A synthetic integration run inside Render passed capture, parallel processing, cached Jev classification, encrypted Ente storage, a private-topic exclusion, denial of peer access to originals, a cited Luna answer and preserved originals after reopening its temporary archive. This run used the candidate JSON-request fix with actual gateway/Ente services; all five temporary encrypted objects were deleted. It does not establish hosted Slack authentication, real-history answer quality or complete gateway logging suppression.
 
 ## Before the owner-only pilot
 

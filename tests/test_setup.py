@@ -1,6 +1,8 @@
 import json
 from base64 import b64decode, b64encode
 
+import httpx
+import pytest
 from fastapi.testclient import TestClient
 from itsdangerous import TimestampSigner
 from test_archive import FakeMuseum
@@ -109,6 +111,25 @@ def test_setup_detects_installed_slack_app_missing_required_scopes(tmp_path):
         assert 'PRIVATE_BOT_TOKEN' not in result.text
         client.portal.call(app.state.store.setting, 'slack_scopes', ','.join(BOT_SCOPES))
         assert client.get('/api/setup/status').json()['slack_missing_scopes'] == []
+
+
+@pytest.mark.parametrize('mode,missing', [('chat', 'embedding'), ('embedding', 'agent')])
+def test_setup_reports_missing_model_roles_before_activation(tmp_path, mode, missing):
+    app = application(tmp_path, [])
+
+    def handler(request):
+        if request.url.path == '/v1/models':
+            return httpx.Response(200, json={'data': [{'id': 'only-model'}]})
+        return httpx.Response(200, json={'data': [
+            {'model_name': 'only-model', 'model_info': {'mode': mode}}]})
+
+    app.state.gateway.transport = httpx.MockTransport(handler)
+    with TestClient(app) as client:
+        claim(client, app)
+        result = client.put('/api/setup/gateway', json={'base_url': 'https://gateway.example', 'api_key': 'secret'})
+        assert result.status_code == 400
+        assert f'no available {missing} model' in result.text
+        assert not app.state.deployment.complete
 
 
 def test_setup_rejects_cross_origin_and_credentials_in_gateway_url(tmp_path):
