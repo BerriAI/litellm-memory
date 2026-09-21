@@ -17,7 +17,7 @@ The actual application, shown with synthetic local records. See [Ask](docs/asset
 - A chronological activity feed, Slack profiles, private lock indicators, and an **Ask** interface with citations.
 - Saved personal filters for people, projects, sources and memory types, separate from sharing permissions. Your feed, Ask and catch-ups respect those choices.
 - Continuous capture with an encrypted local outbox; optional historical backfills preserve source text, original dates and metadata.
-- Plain-language work updates, current-work views, and daily catch-ups with source links and coverage information.
+- Plain-language work updates, current-work views, and daily catch-ups with source links and coverage information. Configure daily timing, workspace timezone and personal display timezone in Settings.
 - Private by default. Members can preview a shared summary, choose shareable types, and keep topics private. Company-public never means internet-public.
 - The same authorized query agent through the web, Slack, API and remote MCP. Shared Slack conversations use only company-public evidence safe for the conversation's participants.
 - All inference through **your LiteLLM gateway**. Model pickers use its `/v1/models`; agent, Slack, background, embedding and classification models are configurable.

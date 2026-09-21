@@ -20,6 +20,7 @@ from .crypto import decrypt_blob, encrypt_blob, new_key
 from .gateway import Gateway
 from .model_settings import ModelConfiguration, ModelSettingsService
 from .slack_manifest import BOT_SCOPES, slack_manifest
+from .time_settings import Timezone
 
 
 class DeploymentConfig:
@@ -55,10 +56,11 @@ class DeploymentConfig:
             os.close(directory)
 
     def save(self, *, config=None, **values):
-        self.values.update(values)
+        next_values = {**self.values, **values}
         if config:
-            self.values.setdefault("settings", {}).update(config)
-        self._atomic(self.path, self.vault.seal_operational(self.values))
+            next_values['settings'] = {**self.values.get('settings', {}), **config}
+        self._atomic(self.path, self.vault.seal_operational(next_values))
+        self.values = next_values
         if config:
             for field, value in config.items():
                 setattr(self.settings, field, value)
@@ -105,7 +107,7 @@ class SetupModels(BaseModel):
 
 class FinishSetup(BaseModel):
     allowed_email_domain: str = Field(default="berri.ai", pattern=r"^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
-    timezone: str = Field(default="UTC", max_length=100)
+    timezone: Timezone = 'UTC'
 
 
 def install_setup(app, api, deployment, settings, store, archive, gateway, model_service, slack, oauth, same_origin):
@@ -245,11 +247,6 @@ def install_setup(app, api, deployment, settings, store, archive, gateway, model
     @api.post("/setup/finish")
     async def finish(body: FinishSetup, request: Request):
         require(request)
-        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-        try:
-            ZoneInfo(body.timezone)
-        except ZoneInfoNotFoundError:
-            raise HTTPException(422, "Choose a valid timezone.") from None
         identity = request.session.get("identity", {})
         if (identity.get("team_id") != settings.slack_team_id
                 or identity.get("user_id") != settings.slack_owner_user_id

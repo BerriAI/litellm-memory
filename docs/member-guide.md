@@ -26,6 +26,10 @@ Project and source names match without regard to capitalization. Enter one per l
 
 **Catch up** produces current, daily or project views from available evidence. These are derived views, with sources and coverage information; they do not rewrite the original messages. “Processing” means processing is still pending, not that the source was lost. Settings shows failed work and a retry control.
 
+**Settings → General** lets you choose your display time zone or follow your device. Dates and feed date filters use that choice; original timestamps stay unchanged. A date without an original timezone is marked as incomplete and excluded from exact date ranges.
+
+Workspace administrators also set the daily catch-up time and workspace timezone there. The default is 02:00. Daily catch-ups cover the previous workspace day and show which timezone defines it. On spring-forward days, a skipped time moves forward by the clock gap; on fall-back days, the first occurrence runs once. Missed runs combine into the latest due catch-up. Late work remains searchable and can refresh the affected view without rewriting originals.
+
 In Slack, talk to **@litemem**. A verified personal DM can use your private history. Shared conversations use only company-public evidence that is safe for every participant. Slack membership failures or external/unknown participants cause the agent to withhold an answer. It cannot retract information someone already read.
 
 ## Control sharing

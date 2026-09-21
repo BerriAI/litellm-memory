@@ -40,6 +40,7 @@ from .query import answer_work
 from .query_worker import query_worker
 from .setup import DeploymentConfig, install_setup
 from .storage import QueueFull, Storage
+from .time_settings import DisplayPreferences, ScheduleUpdate, Timezone, date_boundary
 from .transfer import ExportStream
 from .view_preferences import ViewPreferences
 from .work_views import ViewRequest, WorkViews
@@ -69,8 +70,9 @@ class Search(BaseModel):
     kind: str | None = None
     source: str | None = None
     project: str | None = Field(default=None, max_length=200)
-    created_from: str | None = None
-    created_before: str | None = None
+    created_from: str | None = Field(default=None, max_length=50)
+    created_before: str | None = Field(default=None, max_length=50)
+    date_timezone: Timezone = 'UTC'
     mode: Literal["keywords", "hybrid"] = "hybrid"
     offset: int = Field(default=0, ge=0)
     limit: int = Field(default=30, ge=1, le=100)
@@ -341,6 +343,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
                 "agent_enabled": bool(member and member["agent_enabled"]),
                 "is_admin": identity["user_id"] == settings.slack_owner_user_id,
                 "stats": await archive.stats(owner) if member else None,
+                "display_timezone": (await archive.display_preferences(owner)).timezone if member else None,
                 "default_model": settings.litellm_model, "storage_ready": bool(museum),
                 "mcp_url": settings.public_base_url.rstrip("/") + "/mcp"}
 
@@ -475,13 +478,17 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     async def search(body: Search, request: Request):
         same_origin(request)
         reader = Reader(await account(request))
-        if body.created_from and body.created_before and body.created_from >= body.created_before:
+        start = date_boundary(body.created_from, body.date_timezone)
+        end = date_boundary(body.created_before, body.date_timezone)
+        if start and end and start >= end:
             raise HTTPException(422, "The end date must follow the start date.")
         vector = None
         if body.query.strip() and body.mode == "hybrid":
             with contextlib.suppress(Exception):
                 vector = (await gateway.embeddings([body.query]))[0]
-        filters = body.model_dump(exclude={"mode"})
+        filters = body.model_dump(exclude={"mode", "date_timezone"})
+        filters.update(created_from=start.isoformat() if start else None,
+                       created_before=end.isoformat() if end else None)
         return await archive.search(reader, **filters, vector=vector, embedding_model=settings.memory_embedding_model)
 
     @api.get("/memories/{record_id}")
@@ -526,6 +533,24 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     @api.get('/view-preferences')
     async def view_preferences(request: Request):
         return await archive.view_preferences(await account(request))
+
+    @api.get('/display-preferences')
+    async def display_preferences(request: Request):
+        return await archive.display_preferences(await account(request))
+
+    @api.put('/display-preferences')
+    async def save_display_preferences(body: DisplayPreferences, request: Request):
+        return await archive.save_display_preferences(await browser_account(request), body)
+
+    @api.get('/schedule')
+    async def schedule(request: Request):
+        await account(request)
+        return views.schedule_status()
+
+    @api.put('/admin/schedule')
+    async def save_schedule(body: ScheduleUpdate, request: Request):
+        await admin_account(request)
+        return await views.save_schedule(body)
 
     @api.put('/view-preferences')
     async def save_view_preferences(body: ViewPreferences, request: Request):

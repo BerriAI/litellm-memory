@@ -3,6 +3,7 @@
 import asyncio
 import json
 import uuid
+from datetime import datetime
 
 import httpx
 import yaml
@@ -14,6 +15,7 @@ from moegent.crypto import KeyVault, b64, decrypt_blob, encode, encrypt_blob, ne
 from moegent.ente import Museum
 from moegent.migration import Packet, Transfers
 from moegent.setup import DeploymentConfig
+from moegent.time_settings import DisplayPreferences, ScheduleSettings
 
 
 async def main():
@@ -44,6 +46,16 @@ async def main():
         try:
             await archive.enroll('CI:OWNER', {'name': 'Disposable CI fixture'})
             await archive.preferences('CI:OWNER', agent_enabled=False)
+            calendar_marker = settings.state_dir / 'ci-calendar-proof'
+            if not calendar_marker.exists():
+                config.save(timezone='America/Los_Angeles', daily_time='07:15', schedule_revision=1)
+                await archive.save_display_preferences('CI:OWNER', DisplayPreferences(timezone='Asia/Tokyo'))
+                calendar_marker.write_text('calendar-v1')
+            assert config.values['timezone'] == 'America/Los_Angeles' and config.values['daily_time'] == '07:15'
+            assert (await archive.display_preferences('CI:OWNER')).timezone == 'Asia/Tokyo'
+            # Zone data must be available inside the shipped image, including DST.
+            schedule = ScheduleSettings(timezone=config.values['timezone'])
+            assert schedule.next_run(datetime.fromisoformat('2026-03-08T09:59:00Z')) == '2026-03-08T10:00:00+00:00'
             saved = await archive.capture('CI:OWNER', WorkInput(source_id='persistent-proof',
                 content='DISPOSABLE_PERSISTENCE_CANARY', occurred_at='2026-01-01T00:00:00Z'))
             original = (await archive.read(Reader('CI:OWNER'), saved['id']))['original']

@@ -64,3 +64,7 @@ Saved personal viewing preferences added in the product-contract follow-up:
 For a release, rerun the relevant scenarios against the deployed owner-only pilot after the gateway and Slack prerequisites are satisfied. Record the actual released revision and CI evidence in the release checklist.
 
 The API contract follow-up switched the main web app and setup to `/api/v1`. Browser checks repeated personal type/person exclusions, save/reload, clearing exclusions and a complete synthetic Ask response. Compatibility aliases share the same handlers and rate limits. Local validation now passes **123 tests**. These checks do not replace the live integration gates.
+
+The scheduling review adds **General** settings for personal date display and admin-owned daily timing. Browser checks saved Tokyo display dates and a Los Angeles daily schedule, reloaded both, verified the feed’s calendar dates, and retried an injected 503 without losing the edited time. The source original and privacy labels stay intact. The General tab and stacked fields were also visually checked in a 390px frame. Local validation now passes **134 tests**, including DST, different-day cache isolation, late evidence, private settings, date bounds and failed persistence.
+
+![Daily schedule and personal time zone settings](assets/schedule.jpg)

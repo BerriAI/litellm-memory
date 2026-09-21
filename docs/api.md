@@ -7,6 +7,10 @@ The web app, Slack adapter and remote MCP share one API/backend. The public API 
 | Method / path | Purpose |
 | --- | --- |
 | `GET /api/v1/me` | Browser identity, enrollment and settings summary. |
+| `GET /api/v1/schedule` | Enrolled member reads workspace timezone, daily time, revision and next scheduled instant. |
+| `PUT /api/v1/admin/schedule` | Browser admin saves timezone/daily time with the current revision. |
+| `GET /api/v1/display-preferences` | Authenticated member reads their private display timezone; null follows the device. |
+| `PUT /api/v1/display-preferences` | Browser member changes their own display timezone, without changing access or sharing. |
 | `GET /api/v1/models` | Authorized chat model choices from the LiteLLM gateway. |
 | `POST /api/v1/memories` | Idempotent private source capture. Delayed automatic captures outside the resumed recording window return `status: skipped` without storing content. |
 | `POST /api/v1/memories/search` | Authorized feed, keyword or hybrid retrieval. |
@@ -71,7 +75,7 @@ Dates are original work dates, not import times. Unknown dates remain null. The 
 
 ## Search and queries
 
-Search accepts `query`, `owner`, `visibility`, `kind`, `source`, `project`, `created_from`, `created_before`, `mode`, `offset`, and `limit`. Date bounds are inclusive `from`, exclusive `before`; undated sources are omitted from date-filtered results. Hybrid search reports keyword fallback when embeddings are unavailable/incompatible. Metadata participates in keyword retrieval. Project matching uses permitted project metadata and derived project names, never another person's private original metadata. Source names accept the standard client labels as well as source IDs. Scope filters constrain permitted material; they never grant access.
+Search accepts `query`, `owner`, `visibility`, `kind`, `source`, `project`, `created_from`, `created_before`, `date_timezone`, `mode`, `offset`, and `limit`. Date bounds are inclusive `from`, exclusive `before`. Calendar-only bounds use `date_timezone` (IANA name, default UTC); full timestamps require an offset. Comparisons and chronology use actual instants across offsets. Undated or timezone-unknown sources are omitted from exact date ranges, while their originals remain unchanged. Hybrid search reports keyword fallback when embeddings are unavailable/incompatible. Metadata participates in keyword retrieval. Project matching uses permitted project metadata and derived project names, never another person's private original metadata. Source names accept the standard client labels as well as source IDs. Scope filters constrain permitted material; they never grant access.
 
 Personal viewing preferences have four arrays: `hidden_people`, `hidden_projects`, `hidden_sources`, and `hidden_types`. Empty arrays include all otherwise permitted work. They apply to web/API/MCP search and the shared query agent, including source reads inside an answer. Source links opened deliberately and exports still expose only their normally authorized originals, independent of viewing exclusions. A changed preference invalidates earlier query results/history; it does not modify publications, stored evidence or classification caches. Preferences persist encrypted with the member profile and are not part of the team directory. Filtered catch-ups have separate encrypted derived views and cannot replace another person's unfiltered view. Shared-audience search excludes private archive counts and personal-filter status.
 
@@ -100,3 +104,9 @@ Tools: `record_work`, `search_memories`, `read_memory`, `ask_memories`, `capture
 ## Retry rules
 
 Retry network errors, `429` after its indicated delay, and temporary `5xx` using the same source ID. Do not retry a validation failure with changed content under the same ID. Reauthenticate a revoked/expired connection; refreshing a consumed OAuth refresh token revokes that connection. Never treat a failed capture as proof that work was stored remotely—inspect the returned receipt and processing/storage status.
+
+## Scheduling and display
+
+`GET /api/v1/schedule` returns `timezone`, `daily_time` (`HH:MM`), `revision` and UTC `next_run_at`. Admin updates require the first three fields; stale revisions fail without changing the active schedule. An identical update is a no-op. Changing the workspace timezone creates a distinct daily view boundary; a queued view retains its original timezone. Daily overview responses include the timezone used. The scheduler coalesces missed runs and reuses identical synthesis inputs while rechecking current authorization.
+
+Display preferences are `{ "timezone": "Asia/Tokyo" }` or `{ "timezone": null }`. They are private, persist with the member profile and do not invalidate conversations, reclassify records or change anyone's access. `/api/v1/me` also returns the member's `display_timezone`.

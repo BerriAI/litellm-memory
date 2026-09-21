@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from .crypto import KeyVault, decrypt_blob, encode, encrypt_blob, new_key
 from .search_index import SearchIndex
+from .time_settings import DisplayPreferences
 from .view_preferences import ViewPreferences
 
 
@@ -352,6 +353,24 @@ class Archive:
         if not member:
             raise PermissionError('Account is unavailable')
         return ViewPreferences.model_validate(member['profile'].get('view_preferences', {}))
+
+    async def display_preferences(self, owner):
+        member = await self.member(owner)
+        if not member:
+            raise PermissionError('Account is unavailable')
+        return DisplayPreferences.model_validate(member['profile'].get('display_preferences', {}))
+
+    async def save_display_preferences(self, owner, preferences):
+        async with self.owner_lock(owner):
+            member = await self.member(owner)
+            if not member:
+                raise PermissionError('Account is unavailable')
+            profile = {**member['profile'], 'display_preferences': preferences.model_dump()}
+            # Presentation changes neither authorize content nor invalidate conversations.
+            await self.db.execute('UPDATE members SET profile=? WHERE id=?',
+                                  (self.vault.seal_operational(profile), owner))
+            await self.db.commit()
+        return preferences
 
     async def save_view_preferences(self, owner, preferences):
         async with self.owner_lock(owner):

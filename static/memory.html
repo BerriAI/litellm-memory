@@ -691,6 +691,8 @@
             <button aria-pressed="true" data-settings="privacy">Privacy</button
             ><button aria-pressed="false" data-settings="recording">
               Recording</button
+            ><button aria-pressed="false" data-settings="general">
+              General</button
             ><button
               aria-pressed="false"
               data-settings="models"
@@ -893,6 +895,68 @@
                 Retry failed items
               </button>
             </div>
+          </div>
+          <div
+            class="settings-group"
+            data-settings-section="general"
+            hidden
+            id="general-settings"
+          >
+            <h2>Dates &amp; catch-ups</h2>
+            <form id="display-settings-form">
+              <div class="model-grid">
+                <label
+                  >Your time zone<select id="display-timezone"></select
+                ></label>
+              </div>
+              <p>
+                Used for dates and feed filters. Daily catch-ups use the
+                workspace time zone below.
+              </p>
+              <div class="form-footer">
+                <button class="button secondary" id="save-display-settings">
+                  Save time zone
+                </button>
+                <span id="display-settings-status" role="status"></span>
+              </div>
+            </form>
+            <h3>Daily catch-ups</h3>
+            <p>
+              Organize the previous day's work. New work stays searchable
+              throughout the day.
+            </p>
+            <p id="schedule-summary" role="status">
+              Loading the workspace schedule…
+            </p>
+            <form id="schedule-settings-form" hidden>
+              <fieldset id="schedule-fields" disabled class="schedule-fields">
+                <div class="model-grid">
+                  <label
+                    >Workspace time zone<select id="workspace-timezone"></select
+                  ></label>
+                  <label
+                    >Daily refresh at<input
+                      type="time"
+                      id="daily-time"
+                      required
+                  /></label>
+                </div>
+                <div class="form-footer">
+                  <button class="button secondary" id="save-schedule-settings">
+                    Save schedule
+                  </button>
+                </div>
+              </fieldset>
+            </form>
+            <p id="schedule-settings-status" role="status"></p>
+            <button
+              type="button"
+              class="button quiet small"
+              id="reload-schedule"
+              hidden
+            >
+              Reload schedule
+            </button>
           </div>
           <div
             class="settings-group"

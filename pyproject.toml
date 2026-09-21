@@ -20,6 +20,7 @@ dependencies = [
   "mcp>=2.2.0",
   "logfire>=5.1.0",
   "tomlkit>=0.15.1",
+  "tzdata>=2025.2",
 ]
 
 [dependency-groups]

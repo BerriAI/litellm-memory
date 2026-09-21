@@ -4,6 +4,8 @@ This file distinguishes implementation from verified deployment. It is not a cla
 
 ## Verified on September 20, 2026
 
+- The scheduling/date audit passes **134 local tests**. Daily schedules and personal display zones are editable; daily views retain their timezone, late records refresh the relevant day, and unchanged synthesis is reused after access revalidation. The search index caches UTC ordering/boundaries while preserving originals. Browser checks covered save/reload, changed visible dates and an interrupted schedule save/retry. Configuration writes now retain the active state when persistence fails.
+
 - [CI run 35548067130](https://github.com/moe-berri/litemem/actions/runs/35548067130) passed on source `5e82228`: **123 tests**, Ruff, four frontend module checks, both actual CLI hook checks and full Docker/PostgreSQL/Ente build, restart and clean-volume recovery/restore. This source includes the versioned API and compatibility controls.
 
 - The API contract audit adds the documented `/api/v1` surface with unversioned compatibility aliases on one router. Local validation passes **123 tests**, including cross-alias capture idempotency, owner isolation, browser-only administration, CSRF, shared rate limits, body bounds, recovery denial and unique OpenAPI operations. The actual web app now uses versioned paths; browser checks confirmed saved filters, reload and a synthetic Ask response.
@@ -53,6 +55,8 @@ Reproduce multi-person measurements with `uv run python scripts/benchmark_search
 
 Reproduce the larger stress case with `uv run python scripts/benchmark_search.py --records 100000 --people 10 --cache-mb 512 --parallel 4`.
 
+The timezone-aware index was also measured with 10,000 records across ten people, half shared, and a 128 MB cache: 2.583 s cold, 0.059–0.071 s warm, and 0.799–0.800 s for two direct concurrent readers. The final cache estimate was 110.8 MB and Python process peak 461.7 MB. This is a new small synthetic fixture, not a replacement for the larger limits above; Ente and inference are excluded.
+
 ## Required before declaring the pilot ready
 
 - [ ] Enable/authorize TypeSafe Jev on the actual LiteLLM gateway and pass its typed probe. Current gateway returns 404; the configured key cannot administer pass-through routes (403). No direct-provider fallback is allowed.
@@ -66,7 +70,7 @@ Reproduce the larger stress case with `uv run python scripts/benchmark_search.py
 - [ ] Apply/verify needed Slack scopes and test owned-DM and least-audience shared-channel behavior without enrolling teammates or sending unsolicited messages.
 - [ ] Import approved Moe history, reconcile exact original hashes/counts, and prove rerun/restart behavior. The legacy preview alone is not a completed import.
 - [x] Verify bounded shared query capacity, server-owned history and citation-ID validation.
-- [ ] Complete the scheduling controls promised in the product contract. Workspace timezone is currently saved during setup; current/daily views are reconciled every five minutes. The configurable 02:00 daily refresh and editable workspace/member timezone controls still need implementation and verification.
+- [x] Implement editable daily scheduling/workspace timezone and private display timezone controls. Local/browser checks cover persistence, day-boundary isolation, DST, late work, failed saves and date filtering across offsets; the deployment restore check also asserts the saved settings.
 - [ ] Finish the real-history answer-quality evaluation and remaining full-pilot acceptance checks.
 - [x] Measure larger archives and multiple people/concurrent queries; document the cold-start and cache limits.
 - [ ] Deploy the integrated entry point to the private owner-only/sharing-off pilot, then prove actual capture → Ente → processing → explicit query → valid citation after restart.

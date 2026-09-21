@@ -32,6 +32,7 @@ const state = {
   sessionVersion: 0,
   viewPreferences: null,
   preferencesSaving: false,
+  schedule: null,
 };
 const icons = {
   activity:
@@ -114,21 +115,45 @@ async function api(path, data, method) {
 }
 function date(value, withTime = false) {
   if (!value) return "Date not recorded";
+  if (typeof value === "string" && !/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value))
+    return "Time zone not recorded";
   const d = new Date(value);
   if (Number.isNaN(+d)) return "Date not recorded";
+  const timeZone = displayZone();
+  const year = (value) =>
+    new Intl.DateTimeFormat("en", { year: "numeric", timeZone }).format(value);
   return d.toLocaleString(
     undefined,
     withTime
-      ? { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }
+      ? {
+          timeZone,
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        }
       : {
           month: "short",
           day: "numeric",
-          year:
-            d.getFullYear() !== new Date().getFullYear()
-              ? "numeric"
-              : undefined,
+          timeZone,
+          year: year(d) !== year(new Date()) ? "numeric" : undefined,
         },
   );
+}
+function displayZone() {
+  return (
+    state.me?.display_timezone ||
+    Intl.DateTimeFormat().resolvedOptions().timeZone ||
+    "UTC"
+  );
+}
+function renderToday() {
+  $("today").textContent = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: displayZone(),
+  });
 }
 function safeImage(url) {
   try {
@@ -216,6 +241,7 @@ function expireSession() {
   state.chatRequest = null;
   state.modelSettings = null;
   state.viewPreferences = null;
+  state.schedule = null;
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   document.querySelectorAll("input, textarea").forEach((input) => {
     input.value = "";
@@ -391,6 +417,7 @@ async function loadFeed(append = false) {
       project: $("filter-project").value.trim() || null,
       created_from: $("filter-from").value || null,
       created_before: $("filter-before").value || null,
+      date_timezone: displayZone(),
       offset: append ? state.next || 0 : 0,
       limit: 30,
       mode: query ? "hybrid" : "keywords",
@@ -537,6 +564,14 @@ async function loadOverview() {
     target.replaceChildren(
       privacy(result.audience === "owner" ? "private" : "public"),
     );
+    if (result.timezone)
+      target.append(
+        el(
+          "p",
+          `${result.request.day} · ${result.timezone.replaceAll("_", " ")}`,
+          "fine-print",
+        ),
+      );
     if (!result.view) {
       target.append(
         el(
@@ -1333,6 +1368,103 @@ $("view-preferences-form").onsubmit = async (event) => {
   });
 };
 
+function populateTimezones(select, selected, automatic = false) {
+  const zones = new Set(["UTC", displayZone(), selected].filter(Boolean));
+  if (Intl.supportedValuesOf) {
+    for (const zone of Intl.supportedValuesOf("timeZone")) zones.add(zone);
+  }
+  select.replaceChildren();
+  if (automatic) {
+    const option = el("option", "Use this device's time zone");
+    option.value = "";
+    select.append(option);
+  }
+  for (const zone of [...zones].sort()) {
+    const option = el("option", zone.replaceAll("_", " "));
+    option.value = zone;
+    select.append(option);
+  }
+  select.value = selected || "";
+}
+function renderSchedule() {
+  const schedule = state.schedule;
+  populateTimezones($("workspace-timezone"), schedule.timezone);
+  $("daily-time").value = schedule.daily_time;
+  const next = new Date(schedule.next_run_at).toLocaleString(undefined, {
+    timeZone: schedule.timezone,
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  $("schedule-summary").textContent =
+    `Every day at ${schedule.daily_time} · ${schedule.timezone.replaceAll("_", " ")}. Next: ${next}.`;
+  $("schedule-fields").disabled = false;
+}
+async function loadSchedule() {
+  state.schedule = null;
+  $("schedule-fields").disabled = true;
+  $("schedule-settings-status").textContent = "";
+  $("schedule-summary").textContent = "Loading the workspace schedule…";
+  show("reload-schedule", false);
+  show("schedule-settings-form", state.me.is_admin);
+  try {
+    state.schedule = await api("/api/v1/schedule");
+    renderSchedule();
+  } catch (error) {
+    $("schedule-summary").textContent =
+      "The workspace schedule is unavailable.";
+    $("schedule-settings-status").textContent = explain(error);
+    show("reload-schedule");
+  }
+}
+$("reload-schedule").onclick = () => loadSchedule();
+$("schedule-settings-form").onsubmit = async (event) => {
+  event.preventDefault();
+  if (!state.schedule) return;
+  const body = {
+    timezone: $("workspace-timezone").value,
+    daily_time: $("daily-time").value,
+    revision: state.schedule.revision,
+  };
+  await busy($("save-schedule-settings"), async () => {
+    $("schedule-fields").disabled = true;
+    $("schedule-settings-status").textContent = "";
+    try {
+      state.schedule = await api("/api/v1/admin/schedule", body, "PUT");
+      renderSchedule();
+      $("schedule-settings-status").textContent = "Workspace schedule saved.";
+      show("reload-schedule", false);
+      if ($("work-overview").open) await loadOverview();
+    } catch (error) {
+      $("schedule-settings-status").textContent = explain(error);
+      show("reload-schedule");
+    } finally {
+      $("schedule-fields").disabled = false;
+    }
+  });
+};
+$("display-settings-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const body = { timezone: $("display-timezone").value || null };
+  await busy($("save-display-settings"), async () => {
+    $("display-timezone").disabled = true;
+    $("display-settings-status").textContent = "";
+    try {
+      const result = await api("/api/v1/display-preferences", body, "PUT");
+      state.me.display_timezone = result.timezone;
+      renderToday();
+      $("display-settings-status").textContent = "Your time zone is saved.";
+      await loadFeed();
+      if ($("work-overview").open) await loadOverview();
+    } catch (error) {
+      $("display-settings-status").textContent = explain(error);
+    } finally {
+      $("display-timezone").disabled = false;
+    }
+  });
+};
+
 async function loadSettings() {
   $("settings-status").textContent = "Loading settings…";
   document.querySelectorAll("[data-settings-section]").forEach((group) => {
@@ -1340,6 +1472,7 @@ async function loadSettings() {
   });
   try {
     state.me = await api("/api/v1/me");
+    populateTimezones($("display-timezone"), state.me.display_timezone, true);
     $("capture-enabled").checked = state.me.capture_enabled;
     $("agent-enabled").checked = state.me.agent_enabled;
     show("sharing-note", !state.me.sharing_enabled);
@@ -1356,6 +1489,7 @@ async function loadSettings() {
       loadRules(),
       loadModelSettings(),
       loadViewPreferences(),
+      loadSchedule(),
     ]);
     state.settingsLoaded = true;
     selectSettings(state.settingsSection);
@@ -1377,14 +1511,11 @@ async function signOut() {
 async function initialize() {
   for (const span of document.querySelectorAll("[data-icon]"))
     span.replaceChildren(icon(span.dataset.icon));
-  $("today").textContent = new Date().toLocaleDateString(undefined, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+  renderToday();
   try {
     if (await initializeSetup({ api, show, el, busy, populateSelect })) return;
     state.me = await api("/api/v1/me");
+    renderToday();
     if (!state.me.signed_in) {
       show("welcome");
       if (!state.me.login_available) {

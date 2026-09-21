@@ -16,12 +16,14 @@ from array import array
 from collections import OrderedDict
 
 from .crypto import decrypt_blob, encode
+from .time_settings import date_boundary, instant
 from .view_preferences import projects_in, source_key, types_in
 
 
 class Partition:
     def __init__(self, rows, key, audience, fingerprint):
         self.fingerprint, self.documents, self.vectors, self.size = fingerprint, {}, {}, 0
+        self.dates = {}
         self.index = sqlite3.connect(':memory:')
         self.index.execute('PRAGMA temp_store=MEMORY')
         self.index.execute('CREATE VIRTUAL TABLE work USING fts5(id UNINDEXED,title,content,metadata)')
@@ -43,10 +45,14 @@ class Partition:
                           excerpt=(data.get('summary') or data['content'])[:500])
             result['metadata'] = {k: v for k, v in result.get('metadata', {}).items() if k != 'original_file'}
             self.documents[row['id']] = result
+            occurred = instant(data.get('created_at'))
+            latest = occurred or instant(data.get('captured_at'))
+            self.dates[row['id']] = (occurred, latest.timestamp() if latest else float('-inf'))
             # Conservative payload + FTS estimate; account for Python objects and
             # SQLite pages separately, without permitting plaintext disk spilling.
             self.size += len(encode(result)) * 3 + len(text.encode()) * 3 + len(metadata.encode()) * 3 + 1500
             self.size += len(data.get('embedding') or []) * 4
+            self.size += 160  # Cached UTC date and ordering key.
         self.index.commit()
         self.size += self.index.execute('PRAGMA page_count').fetchone()[0] * self.index.execute('PRAGMA page_size').fetchone()[0]
 
@@ -164,6 +170,7 @@ class SearchIndex:
         limit = max(1, min(limit, 100))
         stamp = await self.archive.policy_stamp(reader)
         preferences = await self.archive.view_preferences(reader.owner)
+        start, end = date_boundary(created_from), date_boundary(created_before)
         filtering = preferences.active
         terms = re.findall(r'[\w-]+', query, flags=re.UNICODE)[:30]
         expression = ' OR '.join('"' + t.replace('"', '""') + '"' for t in terms)
@@ -185,18 +192,19 @@ class SearchIndex:
             try:
                 allowed = {}
                 for record_id, d in partition.documents.items():
+                    occurred, latest = partition.dates[record_id]
                     if ((filtering and not preferences.includes(d))
                             or (visibility and d['visibility'] != visibility)
                             or (kind and kind.casefold() not in types_in(d))
                             or (source and source_key(d['source']) != source_key(source))
                             or (project and project.strip().casefold() not in projects_in(d))
-                            or (created_from and (not d.get('created_at') or d['created_at'] < created_from))
-                            or (created_before and (not d.get('created_at') or d['created_at'] >= created_before))):
+                            or (start and (occurred is None or occurred < start))
+                            or (end and (occurred is None or occurred >= end))):
                         continue
                     allowed[record_id] = d
                     if not query.strip():
                         total += 1
-                        keep(recent, d.get('created_at') or d.get('captured_at') or '', record_id, d, offset + limit)
+                        keep(recent, latest, record_id, d, offset + limit)
                 if query.strip():
                     if expression:
                         for record_id, score in partition.index.execute(

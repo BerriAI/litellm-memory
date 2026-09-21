@@ -74,6 +74,12 @@ In **Settings → Models → LiteLLM connection**, an administrator can rotate t
 
 Domain-mode workspaces can transfer administration to another enrolled, currently eligible Slack member from Settings. This transfers workspace configuration authority, without granting access to private memories. The owner-only pilot disables this control.
 
+## Daily schedule and dates
+
+After setup, **Settings → General** controls the workspace timezone and daily refresh time (default 02:00). The application owns the durable work queue; no host cron or external automation is needed. Current work is reconciled every five minutes, and the worker notices a newly due daily period on its next loop after any in-flight job. Missed periods coalesce into the latest due day. Repeated checks reuse unchanged synthesis; late evidence or policy changes are revalidated. Timezone changes create distinct daily views, including for in-flight work.
+
+Schedules live in encrypted deployment configuration. Personal display timezones live in encrypted member profiles, change presentation/date filters only, and stay out of the directory. Both survive normal backup/restore. IANA timezone data is included as a pinned dependency in the image. A skipped spring-forward time advances by the gap; repeated fall-back time uses its first occurrence.
+
 ## External Ente
 
 Set both `ENTE_BASE_URL` and `ENTE_AUTH_TOKEN` for a dedicated service account on a compatible Museum deployment. The app initializes the `memory` entity-key namespace through Ente's API, then stores per-member encrypted objects. Museum registration should be disabled after provisioning. You do not need Ente Photos, its web UI, or an object-storage bucket for litemem's entity API.

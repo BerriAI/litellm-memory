@@ -1189,6 +1189,12 @@ body[data-view="ask"] .footer {
 .settings-group {
   max-width: 760px;
 }
+.schedule-fields {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
 .settings-group > h2 {
   margin-bottom: 8px;
 }
