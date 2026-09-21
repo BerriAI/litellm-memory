@@ -47,8 +47,13 @@ An original source:
 
 ![Memory detail with a private label and original metadata disclosure](assets/memory.jpg)
 
+Saved personal viewing preferences added in the product-contract follow-up:
+
+![Personal viewing exclusions, separate from sharing preferences](assets/preferences.jpg)
+
 ## Validation and limits
 
+- A subsequent product-contract audit added saved personal people/project/source/type exclusions, a project search filter and filtered catch-up variants. Browser checks verified saving a type/person selection, persistence after reload, and removal of the selected person's work from the company feed. Eleven additional regression cases cover private persistence, retrieval/agent enforcement, unchanged sharing/evidence, separate catch-ups, scope changes and authoritative Jev type labels. Shared-agent search no longer returns the requester's private archive counts. The full local suite now passes **119 tests**.
 - Local automated suite: **108 passed**. Ruff and all four frontend module syntax checks passed. There is one pre-existing Starlette/AnyIO deprecation warning.
 - [CI run 35546428674](https://github.com/moe-berri/litemem/actions/runs/35546428674) passed on source `f77e76d`, including the same suite, real Codex/Claude Code capture-hook checks, and the Docker/PostgreSQL/Ente restart and clean-volume restore.
 - Browser checks exercised the real ASGI routes and encryption/archive implementation using temporary storage, fake Ente storage and a mock gateway. Delayed replies and 401/503 failures were injected only in the local test fixture.

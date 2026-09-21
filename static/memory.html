@@ -449,6 +449,11 @@
                     <option value="manual">Added manually</option>
                     <option value="legacy">Imported</option>
                   </datalist></label
+                ><label
+                  >Project<input
+                    id="filter-project"
+                    maxlength="200"
+                    placeholder="Any project" /></label
                 ><label>From<input id="filter-from" type="date" /></label
                 ><label>Before<input id="filter-before" type="date" /></label
                 ><button class="button quiet small" id="clear-filters">
@@ -459,6 +464,13 @@
                 <span id="feed-caption">Latest first</span
                 ><span id="processing-status" role="status"></span>
               </div>
+              <button
+                class="button quiet small"
+                id="personal-filters-note"
+                hidden
+              >
+                Personal filters are on · Edit
+              </button>
               <p
                 class="inline-error"
                 hidden=""
@@ -701,6 +713,70 @@
               Your private memories carry a lock. Shared means visible to your
               company, never the open internet.
             </p>
+            <details class="advanced" id="view-preferences-panel">
+              <summary>What I see and use</summary>
+              <p>
+                Hide selected work from your feed, Ask and catch-ups. These
+                choices are private and do not change what you share. Original
+                memories remain available through their links and in exports.
+              </p>
+              <form id="view-preferences-form">
+                <h3>Hide these types</h3>
+                <fieldset class="type-options" id="view-type-options">
+                  <legend class="sr-only">
+                    Types hidden from my feed and Ask
+                  </legend>
+                </fieldset>
+                <h3>Hide these people’s work</h3>
+                <fieldset
+                  class="type-options preference-people"
+                  id="view-person-options"
+                >
+                  <legend class="sr-only">
+                    People hidden from my feed and Ask
+                  </legend>
+                </fieldset>
+                <div class="model-grid">
+                  <label
+                    >Hide projects<textarea
+                      id="view-projects"
+                      rows="3"
+                      maxlength="20100"
+                      placeholder="One project per line"
+                    ></textarea>
+                  </label>
+                  <label
+                    >Hide sources<textarea
+                      id="view-sources"
+                      rows="3"
+                      maxlength="20100"
+                      placeholder="One source per line, e.g. Codex"
+                    ></textarea>
+                  </label>
+                </div>
+                <p>
+                  Leave everything empty to include all work you can access.
+                  Types use existing Jev classifications; saving these filters
+                  does not classify your memories again.
+                </p>
+                <div class="dialog-actions">
+                  <button class="button secondary" id="save-view-preferences">
+                    Save viewing preferences</button
+                  ><button
+                    class="button quiet"
+                    type="button"
+                    id="reset-view-preferences"
+                  >
+                    Clear selections
+                  </button>
+                </div>
+                <p
+                  class="inline-status"
+                  role="status"
+                  id="view-preferences-status"
+                ></p>
+              </form>
+            </details>
             <div class="quiet-note" id="sharing-note">
               <span data-icon="lock"></span> Company sharing is off. Your work
               stays private.

@@ -20,6 +20,10 @@ Use the question box on Activity or open **Ask**. Choose a model from your gatew
 
 **People** uses enrolled members' Slack profiles. You can see their shared activity and ask about evidence they have made available. Another person's private counts, source transcripts and metadata are not exposed.
 
+In **Settings → Privacy → What I see and use**, hide people's work, projects, sources or types from your feed, Ask and catch-ups. These personal filters are saved across sign-ins. They do not change anyone's access or your sharing choices, and originals remain available through their links and in exports. Activity shows **Personal filters are on · Edit** while exclusions apply. Clear the selections and save to include everything you can access again. Saving filters starts a fresh Ask conversation so earlier excluded material is not reused.
+
+Project and source names match without regard to capitalization. Enter one per line. Type filters use cached Jev classifications once available; changing these viewing choices does not rerun classification. A memory that matches any hidden type stays out of your selection.
+
 **Catch up** produces current, daily or project views from available evidence. These are derived views, with sources and coverage information; they do not rewrite the original messages. “Processing” means processing is still pending, not that the source was lost. Settings shows failed work and a retry control.
 
 In Slack, talk to **@litemem**. A verified personal DM can use your private history. Shared conversations use only company-public evidence that is safe for every participant. Slack membership failures or external/unknown participants cause the agent to withhold an answer. It cannot retract information someone already read.

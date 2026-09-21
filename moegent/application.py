@@ -41,6 +41,7 @@ from .query_worker import query_worker
 from .setup import DeploymentConfig, install_setup
 from .storage import QueueFull, Storage
 from .transfer import ExportStream
+from .view_preferences import ViewPreferences
 from .work_views import ViewRequest, WorkViews
 
 
@@ -67,6 +68,7 @@ class Search(BaseModel):
     visibility: Literal["private", "public"] | None = None
     kind: str | None = None
     source: str | None = None
+    project: str | None = Field(default=None, max_length=200)
     created_from: str | None = None
     created_before: str | None = None
     mode: Literal["keywords", "hybrid"] = "hybrid"
@@ -519,6 +521,14 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     @app.get("/api/privacy-rules")
     async def rules(request: Request):
         return {"rules": await archive.rules(await account(request))}
+
+    @app.get('/api/view-preferences')
+    async def view_preferences(request: Request):
+        return await archive.view_preferences(await account(request))
+
+    @app.put('/api/view-preferences')
+    async def save_view_preferences(body: ViewPreferences, request: Request):
+        return await archive.save_view_preferences(await browser_account(request), body)
 
     @app.get("/api/sharing-preferences")
     async def sharing_preferences(request: Request):

@@ -30,6 +30,8 @@ const state = {
   chatRequest: null,
   captureRequest: null,
   sessionVersion: 0,
+  viewPreferences: null,
+  preferencesSaving: false,
 };
 const icons = {
   activity:
@@ -213,6 +215,7 @@ function expireSession() {
   state.captureRequest = null;
   state.chatRequest = null;
   state.modelSettings = null;
+  state.viewPreferences = null;
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   document.querySelectorAll("input, textarea").forEach((input) => {
     input.value = "";
@@ -226,6 +229,8 @@ function expireSession() {
     "source-visibility",
     "rule-list",
     "overview-content",
+    "view-person-options",
+    "view-type-options",
   ])
     $(id).replaceChildren();
   for (const id of [
@@ -354,6 +359,7 @@ async function loadFeed(append = false) {
   const filterCount = [
     "filter-kind",
     "filter-source",
+    "filter-project",
     "filter-from",
     "filter-before",
   ].filter((id) => $(id).value).length;
@@ -382,6 +388,7 @@ async function loadFeed(append = false) {
       visibility: state.feed === "shared" ? "public" : null,
       kind: $("filter-kind").value || null,
       source: $("filter-source").value.trim() || null,
+      project: $("filter-project").value.trim() || null,
       created_from: $("filter-from").value || null,
       created_before: $("filter-before").value || null,
       offset: append ? state.next || 0 : 0,
@@ -394,24 +401,30 @@ async function loadFeed(append = false) {
     state.next = result.next_offset;
     show("load-more", state.next !== null);
     renderCoverage(result.coverage);
+    show("personal-filters-note", result.personal_filters_active);
     if (!result.total)
       showEmpty(
         $("feed"),
-        filtered
+        filtered || result.personal_filters_active
           ? "No matching memories"
           : state.feed === "shared"
             ? "A quiet start"
             : "Your work belongs here",
-        filtered
+        filtered || result.personal_filters_active
           ? "Try another phrase or clear your filters."
           : state.feed === "shared"
             ? "Work appears here when someone chooses to share it with the company."
             : "Connect your AI tools to record your work, or add your first memory.",
-        filtered
-          ? { label: "Clear filters", run: clearFilters }
-          : state.feed === "mine"
-            ? { label: "Connect your tools", run: () => setView("connections") }
-            : null,
+        result.personal_filters_active && !filtered
+          ? { label: "Edit personal filters", run: editViewPreferences }
+          : filtered
+            ? { label: "Clear filters", run: clearFilters }
+            : state.feed === "mine"
+              ? {
+                  label: "Connect your tools",
+                  run: () => setView("connections"),
+                }
+              : null,
       );
     $("feed-caption").replaceChildren();
     if (state.person) {
@@ -477,7 +490,13 @@ function feedCard(memory) {
   heading.append(title);
   body.append(heading, el("p", memory.excerpt));
   const meta = el("div", "", "memory-meta");
-  if (memory.kind) meta.append(el("span", memory.kind, "kind-label"));
+  const labels = Object.entries(memory.labels || {});
+  const types = labels.length
+    ? labels.filter(([, confidence]) => confidence >= 0.8).map(([name]) => name)
+    : memory.kind
+      ? [memory.kind]
+      : [];
+  for (const type of types) meta.append(el("span", type, "kind-label"));
   if (memory.source) meta.append(el("span", sourceName(memory.source)));
   if (memory.status !== "ready")
     meta.append(
@@ -883,6 +902,13 @@ function updateScope() {
     icon("lock"),
     document.createTextNode(" Your question and answer stay private."),
   );
+  if (
+    state.viewPreferences &&
+    Object.values(state.viewPreferences).some((values) => values.length)
+  )
+    $("chat-privacy").append(
+      document.createTextNode(" Personal filters are on."),
+    );
   const person = scope.startsWith("person:")
     ? profile(scope.slice(7)).name
     : null;
@@ -930,7 +956,7 @@ async function changeScope(scope) {
   updateScope();
   return true;
 }
-function newChat() {
+function newChat({ focus = true } = {}) {
   if (state.job) {
     toast("Stop the current answer before starting a new conversation.");
     return;
@@ -942,7 +968,7 @@ function newChat() {
   show("chat-empty");
   $("question").value = "";
   $("question").style.height = "";
-  $("question").focus();
+  if (focus) $("question").focus();
 }
 function addMessage(role, text) {
   show("chat-empty", false);
@@ -961,20 +987,21 @@ function addMessage(role, text) {
   return { message, body, phase };
 }
 function chatBusy(value) {
-  $("send-question").disabled = value || !state.models.length;
+  const locked = value || state.preferencesSaving;
+  $("send-question").disabled = locked || !state.models.length;
   $("home-ask-form").querySelector("button").disabled =
-    value || !state.models.length;
-  $("model").disabled = value || !state.models.length;
+    locked || !state.models.length;
+  $("model").disabled = locked || !state.models.length;
   document.querySelectorAll(".suggestions button").forEach((button) => {
-    button.disabled = value || !state.models.length;
+    button.disabled = locked || !state.models.length;
   });
   show("stop-answer", value);
-  $("chat-scope").disabled = value;
-  $("new-chat").disabled = value;
+  $("chat-scope").disabled = locked;
+  $("new-chat").disabled = locked;
 }
 async function ask(question) {
   question = question.trim();
-  if (!question || state.job) return;
+  if (!question || state.job || state.preferencesSaving) return;
   const model = $("model").value;
   if (!model) {
     toast("Choose an available LiteLLM model first.");
@@ -1174,6 +1201,138 @@ async function loadModelSettings(refresh = false) {
     $("model-settings-status").textContent = explain(error);
   }
 }
+function renderViewPreferences(preferences, { saved = true } = {}) {
+  if (saved) state.viewPreferences = preferences;
+  for (const [id, name, choices, selected] of [
+    [
+      "view-type-options",
+      "hidden_types",
+      [
+        ["progress", "Progress"],
+        ["decision", "Decisions"],
+        ["finding", "Findings"],
+        ["blocker", "Blockers"],
+        ["plan", "Plans"],
+      ],
+      preferences.hidden_types,
+    ],
+    [
+      "view-person-options",
+      "hidden_people",
+      state.people.map((person) => [person.id, person.name]),
+      preferences.hidden_people,
+    ],
+  ]) {
+    const fieldset = $(id);
+    fieldset.querySelectorAll("label").forEach((label) => label.remove());
+    const missing = selected.filter(
+      (value) => !choices.some(([key]) => key === value),
+    );
+    for (const [value, text] of [
+      ...choices,
+      ...missing.map((value) => [value, value]),
+    ]) {
+      const label = el("label");
+      const input = el("input");
+      input.type = "checkbox";
+      input.name = name;
+      input.value = value;
+      input.checked = selected.includes(value);
+      label.append(input, document.createTextNode(text));
+      fieldset.append(label);
+    }
+  }
+  $("view-projects").value = preferences.hidden_projects.join("\n");
+  $("view-sources").value = preferences.hidden_sources
+    .map(sourceName)
+    .join("\n");
+  if (saved) updateScope();
+}
+async function loadViewPreferences() {
+  renderViewPreferences(await api("/api/view-preferences"));
+}
+function editViewPreferences() {
+  setView("settings");
+  selectSettings("privacy");
+  $("view-preferences-panel").open = true;
+  $("view-preferences-panel").scrollIntoView({ block: "start" });
+  $("view-preferences-panel").querySelector("summary").focus();
+}
+$("personal-filters-note").onclick = editViewPreferences;
+$("reset-view-preferences").onclick = () =>
+  renderViewPreferences(
+    {
+      hidden_people: [],
+      hidden_types: [],
+      hidden_projects: [],
+      hidden_sources: [],
+    },
+    { saved: false },
+  );
+$("view-preferences-form").onsubmit = async (event) => {
+  event.preventDefault();
+  const status = $("view-preferences-status");
+  status.textContent = "";
+  if (state.job) {
+    status.textContent =
+      "Stop the current answer before changing viewing preferences.";
+    return;
+  }
+  if (
+    (state.previousJob ||
+      $("messages").children.length ||
+      $("question").value.trim()) &&
+    !(await confirmAction({
+      title: "Save filters and start a new conversation?",
+      description:
+        "Your new filters apply to future answers. This clears the current conversation and draft from this tab.",
+      confirm: "Save viewing preferences",
+    }))
+  )
+    return;
+  await busy(event.submitter, async () => {
+    const form = $("view-preferences-form");
+    state.preferencesSaving = true;
+    chatBusy(false);
+    const selected = (name) =>
+      [...form.querySelectorAll(`input[name="${name}"]:checked`)].map(
+        (input) => input.value,
+      );
+    const lines = (id) =>
+      $(id)
+        .value.split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+    const body = {
+      hidden_people: selected("hidden_people"),
+      hidden_types: selected("hidden_types"),
+      hidden_projects: lines("view-projects"),
+      hidden_sources: lines("view-sources"),
+    };
+    const fields = [
+      ...form.querySelectorAll("input, textarea, button[type='button']"),
+    ];
+    fields.forEach((field) => {
+      field.disabled = true;
+    });
+    try {
+      renderViewPreferences(await api("/api/view-preferences", body, "PUT"));
+      newChat({ focus: false });
+      await loadFeed();
+      status.textContent =
+        "Viewing preferences saved. Your sharing choices are unchanged.";
+    } catch (error) {
+      status.textContent = explain(error);
+    } finally {
+      state.preferencesSaving = false;
+      chatBusy(Boolean(state.job));
+      fields.forEach((field) => {
+        field.disabled = false;
+      });
+    }
+  });
+};
+
 async function loadSettings() {
   $("settings-status").textContent = "Loading settings…";
   document.querySelectorAll("[data-settings-section]").forEach((group) => {
@@ -1193,7 +1352,11 @@ async function loadSettings() {
     });
     $("auto-share").checked = sharing.auto_share;
     renderCoverage(state.me.stats);
-    await Promise.all([loadRules(), loadModelSettings()]);
+    await Promise.all([
+      loadRules(),
+      loadModelSettings(),
+      loadViewPreferences(),
+    ]);
     state.settingsLoaded = true;
     selectSettings(state.settingsSection);
     $("settings-status").textContent = "";
@@ -1277,7 +1440,11 @@ async function initialize() {
       option.value = "person:" + person.id;
       $("chat-scope").append(option);
     }
-    await Promise.all([loadFeed(), loadModels().catch(modelError)]);
+    await Promise.all([
+      loadFeed(),
+      loadModels().catch(modelError),
+      loadViewPreferences(),
+    ]);
     if (!state.me?.enrolled) return;
     setView(location.hash.slice(1) || "home", { navigate: false });
     const match = location.pathname.match(/^\/memory\/([^/]+)$/);
@@ -1352,6 +1519,7 @@ function clearFilters() {
   for (const id of [
     "filter-kind",
     "filter-source",
+    "filter-project",
     "filter-from",
     "filter-before",
     "search-query",
@@ -1373,6 +1541,7 @@ $("search-query").addEventListener("search", () => {
 for (const id of [
   "filter-kind",
   "filter-source",
+  "filter-project",
   "filter-from",
   "filter-before",
 ])

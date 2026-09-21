@@ -22,6 +22,8 @@ The web app, Slack adapter and remote MCP share one API/backend. The current API
 | `POST /api/jobs/{id}/cancel` | Cancel an owned query. |
 | `/api/privacy-rules` | Owner-managed private-topic criteria. |
 | `/api/sharing-preferences` | Allowed types and opt-in future auto-sharing. |
+| `GET /api/view-preferences` | The authenticated member's private retrieval exclusions. |
+| `PUT /api/view-preferences` | Browser-only update to personal people/project/source/type exclusions. |
 | `/api/connections` | View/revoke owned clients; browser-only creation. |
 | `POST /api/export` | Owned readable JSONL or passphrase-encrypted download; browser or personal bearer. |
 | `GET /api/transfers` | Browser-owned recent transfer status, without history contents. |
@@ -69,7 +71,11 @@ Dates are original work dates, not import times. Unknown dates remain null. The 
 
 ## Search and queries
 
-Search accepts `query`, `owner`, `visibility`, `kind`, `source`, `created_from`, `created_before`, `mode`, `offset`, and `limit`. Date bounds are inclusive `from`, exclusive `before`; undated sources are omitted from date-filtered results. Hybrid search reports keyword fallback when embeddings are unavailable/incompatible. Metadata participates in keyword retrieval. Scope filters constrain permitted material; they never grant access.
+Search accepts `query`, `owner`, `visibility`, `kind`, `source`, `project`, `created_from`, `created_before`, `mode`, `offset`, and `limit`. Date bounds are inclusive `from`, exclusive `before`; undated sources are omitted from date-filtered results. Hybrid search reports keyword fallback when embeddings are unavailable/incompatible. Metadata participates in keyword retrieval. Project matching uses permitted project metadata and derived project names, never another person's private original metadata. Source names accept the standard client labels as well as source IDs. Scope filters constrain permitted material; they never grant access.
+
+Personal viewing preferences have four arrays: `hidden_people`, `hidden_projects`, `hidden_sources`, and `hidden_types`. Empty arrays include all otherwise permitted work. They apply to web/API/MCP search and the shared query agent, including source reads inside an answer. Source links opened deliberately and exports still expose only their normally authorized originals, independent of viewing exclusions. A changed preference invalidates earlier query results/history; it does not modify publications, stored evidence or classification caches. Preferences persist encrypted with the member profile and are not part of the team directory. Filtered catch-ups have separate encrypted derived views and cannot replace another person's unfiltered view. Shared-audience search excludes private archive counts and personal-filter status.
+
+Once Jev labels are available, type matching and feed chips use those cached classifications at the 0.8 threshold. An unrelated summarizer's suggested `kind` cannot override a negative Jev result. Original type metadata remains the fallback for records not yet classified.
 
 Chat accepts a question, optional gateway model, optional person scope, audience (`owner`/`public`), and a previous owned job ID. The server loads history; clients cannot supply an arbitrary privileged transcript. Changing scope/audience requires a fresh conversation. Policy changes invalidate stale results.
 
@@ -83,7 +89,7 @@ Packets are immutable and duplicate uploads are idempotent. `frames` in status g
 
 `POST /api/export` without a body returns readable JSONL. For a protected download, send `{"encrypted":true,"passphrase":"at least twelve characters"}`. The passphrase applies only to the file and is not saved or used for sign-in. Restore with `litemem-transfer restore my-memory-export.litemem`; the CLI verifies the complete authenticated stream and original identity before any upload. Original source IDs, content, dates and metadata are preserved, imports remain private, and existing deletion tombstones prevent replay.
 
-Corrections accept `content`, optional `title` and `reason`. They create new dated evidence with a `supersedes` reference; original bytes remain unchanged. The original's publication is withdrawn immediately. Owner reads include available revision links. Export/restore rebuilds links when retaining the same Slack identity; cross-identity migration preserves the original provenance IDs but does not translate revision links.
+Corrections accept `content`, optional `title` and `reason`. For safe retries, also send a stable UUID `request_id` and the original `occurred_at` timestamp; reuse both with the unchanged content. The ID is scoped to the original record. They create new dated evidence with a `supersedes` reference; original bytes remain unchanged. The original's publication is withdrawn immediately. Owner reads include available revision links. Export/restore rebuilds links when retaining the same Slack identity; cross-identity migration preserves the original provenance IDs but does not translate revision links.
 
 ## Remote MCP
 

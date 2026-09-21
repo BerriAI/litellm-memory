@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from .archive import Reader, now
 from .crypto import decrypt_blob, encode, encrypt_blob
+from .view_preferences import ViewPreferences, projects_in
 
 log = logging.getLogger(__name__)
 
@@ -73,21 +74,26 @@ class WorkViews:
         policy = str(member['policy_version']) + ':' + str(member['agent_enabled'])
         return generation, policy
 
-    async def get(self, reader, owner, request):
+    async def get(self, reader, owner, request, *, preferences=None):
         audience = await self.authorize(reader, owner)
+        reader_stamp = await self.archive.policy_stamp(reader)
+        preferences = preferences if preferences is not None else await self.archive.view_preferences(reader.owner)
+        if owner in preferences.hidden_people:
+            raise ValueError('This person is excluded by your personal viewing preferences.')
         if request.kind == 'daily' and request.day is None:
             request = request.model_copy(update={'day': datetime.now(self.timezone()).date() - timedelta(days=1)})
         if request.kind == 'daily' and request.day > datetime.now(self.timezone()).date():
             raise ValueError('Choose today or an earlier date.')
         data = request.model_dump(mode='json')
-        view_id = hashlib.sha256(encode([owner, audience, data])).hexdigest()
+        stored_request = {**data, '_filters': preferences.model_dump()} if preferences.active else data
+        view_id = hashlib.sha256(encode([owner, audience, stored_request])).hexdigest()
         generation, policy = await self.generation(owner, audience)
         row = await (await self.archive.db.execute('SELECT * FROM work_views WHERE id=?', (view_id,))).fetchone()
         member = await self.archive.member(owner)
         can_process = bool(member['agent_enabled'])
         if not row:
             await self.archive.db.execute('INSERT INTO work_views(id,owner,audience,request) VALUES(?,?,?,?)', (
-                view_id, owner, audience, self.archive.vault.seal_operational(data)))
+                view_id, owner, audience, self.archive.vault.seal_operational(stored_request)))
             await self.archive.db.commit()
         elif (row['generation'] != generation or row['policy'] != policy) and row['status'] == 'ready' and can_process:
             await self.archive.db.execute("UPDATE work_views SET status='pending',next_attempt=0 WHERE id=?", (view_id,))
@@ -103,7 +109,10 @@ class WorkViews:
                 except LookupError:
                     view = None
                     break
+        if reader_stamp != await self.archive.policy_stamp(reader):
+            raise PermissionError('Access or viewing preferences changed. Please retry.')
         return {'id': view_id, 'owner': owner, 'audience': audience, 'request': data,
+                'personal_filters_active': preferences.active and reader.audience == 'owner',
                 'status': 'paused' if not can_process else row['status'] if row else 'pending',
                 'stale': not row or row['generation'] != generation or row['policy'] != policy,
                 'view': view}
@@ -111,7 +120,9 @@ class WorkViews:
     async def build(self, row):
         owner, audience = row['owner'], row['audience']
         await self.archive.key(owner, require_agent=True)
-        request = ViewRequest.model_validate(self.archive.vault.open_operational(row['request']))
+        stored_request = self.archive.vault.open_operational(row['request'])
+        request = ViewRequest.model_validate(stored_request)
+        preferences = ViewPreferences.model_validate(stored_request.get('_filters', {}))
         generation, policy = await self.generation(owner, audience)
         reader = Reader(owner, audience)
         selected, total, pending, undated = [], 0, 0, 0
@@ -123,7 +134,9 @@ class WorkViews:
             for link in rows:
                 corrections.setdefault(link['previous_id'], []).append(link['record_id'])
         async for record in self.archive.iter_records(reader, owner=owner):
-            if request.project and request.project.casefold() not in [p.casefold() for p in record.get('projects', [])]:
+            if not preferences.includes(record):
+                continue
+            if request.project and request.project.strip().casefold() not in projects_in(record):
                 continue
             timestamp = record.get('created_at')
             if request.kind == 'daily':
@@ -200,7 +213,7 @@ class WorkViews:
         for member in members:
             for audience in (['owner', 'public'] if self.archive.sharing_enabled else ['owner']):
                 for request in [ViewRequest(), ViewRequest(kind='daily', day=day)]:
-                    await self.get(Reader(member['id'], audience), member['id'], request)
+                    await self.get(Reader(member['id'], audience), member['id'], request, preferences=ViewPreferences())
 
     async def worker(self):
         last_scheduled = 0

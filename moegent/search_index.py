@@ -16,6 +16,7 @@ from array import array
 from collections import OrderedDict
 
 from .crypto import decrypt_blob, encode
+from .view_preferences import projects_in, source_key, types_in
 
 
 class Partition:
@@ -156,12 +157,14 @@ class SearchIndex:
         self.builds += 1
         return partition, self.keep(key, partition)
 
-    async def search(self, reader, query='', *, owner=None, visibility=None, kind=None, source=None,
+    async def search(self, reader, query='', *, owner=None, visibility=None, kind=None, source=None, project=None,
                      created_from=None, created_before=None, offset=0, limit=30, vector=None, embedding_model=None):
         if not 0 <= offset <= 10000:
             raise ValueError('Narrow the date range to browse beyond 10,000 results.')
         limit = max(1, min(limit, 100))
         stamp = await self.archive.policy_stamp(reader)
+        preferences = await self.archive.view_preferences(reader.owner)
+        filtering = preferences.active
         terms = re.findall(r'[\w-]+', query, flags=re.UNICODE)[:30]
         expression = ' OR '.join('"' + t.replace('"', '""') + '"' for t in terms)
         lexical, semantic, recent = [], [], []
@@ -176,13 +179,17 @@ class SearchIndex:
                 heapq.heapreplace(heap, item)
 
         async for key, fingerprints in self.partitions(reader, owner):
+            if key[0] in preferences.hidden_people:
+                continue
             partition, cached = await self.load(key, fingerprints)
             try:
                 allowed = {}
                 for record_id, d in partition.documents.items():
-                    if ((visibility and d['visibility'] != visibility)
-                            or (kind and d['kind'] != kind and d.get('labels', {}).get(kind, 0) < 0.8)
-                            or (source and d['source'] != source)
+                    if ((filtering and not preferences.includes(d))
+                            or (visibility and d['visibility'] != visibility)
+                            or (kind and kind.casefold() not in types_in(d))
+                            or (source and source_key(d['source']) != source_key(source))
+                            or (project and project.strip().casefold() not in projects_in(d))
                             or (created_from and (not d.get('created_at') or d['created_at'] < created_from))
                             or (created_before and (not d.get('created_at') or d['created_at'] >= created_before))):
                         continue
@@ -221,4 +228,6 @@ class SearchIndex:
             results = [d for _, _, d in sorted(recent, reverse=True)[offset:offset + limit]]
         return {'results': results, 'total': total, 'next_offset': offset + len(results)
                 if offset + len(results) < min(total, 10000) else None,
-                'mode': 'hybrid' if used_vectors else 'keywords', 'coverage': await self.archive.stats(reader.owner)}
+                'mode': 'hybrid' if used_vectors else 'keywords',
+                'coverage': await self.archive.stats(reader.owner) if reader.audience == 'owner' else None,
+                'personal_filters_active': filtering and reader.audience == 'owner'}

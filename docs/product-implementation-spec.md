@@ -176,6 +176,8 @@ Use native dialogs for confirmations with Cancel focused initially. Errors belon
 
 Members can choose which permitted people, projects, sources and memory types appear in their feed or default Ask scope. These are personal inclusion/exclusion preferences, not grants to read other people's private content. Keep **What I see/use** separate in wording from **What I share**. A UI preference cannot widen access.
 
+The implementation stores private exclusions under **Settings → Privacy → What I see and use**, alongside explicit feed filters and person scopes for narrowing a particular search. Exclusions apply to Ask source reads and separately derived catch-ups. They persist encrypted, never enter the directory, and do not change publication permissions. Original links and exports retain the normal authorization rules. Changed filters invalidate old conversations without rerunning Jev. Once classifications exist, category filters use those labels instead of a conflicting suggested summary type.
+
 ## 7. How memory is represented
 
 The basic unit is a useful piece of work with evidence, not a mandatory "lesson learned." Save enough original material to reinterpret it later; do not confuse a successful save with a useful summary.

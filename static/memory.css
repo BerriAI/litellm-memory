@@ -1313,6 +1313,23 @@ body[data-view="ask"] .footer {
   height: 16px;
   margin: 0;
 }
+.preference-people {
+  max-height: 240px;
+  overflow-y: auto;
+}
+#view-preferences-form .type-options label {
+  display: flex;
+  white-space: nowrap;
+}
+#view-preferences-form .type-options input {
+  width: 16px;
+  min-width: 16px;
+  flex: 0 0 16px;
+}
+#view-preferences-form textarea {
+  width: 100%;
+  min-width: 0;
+}
 .model-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

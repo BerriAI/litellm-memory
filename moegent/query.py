@@ -61,6 +61,7 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
     await archive.key(reader.owner, require_agent=True)
     model = await gateway.validate_model(model or settings.litellm_model)
     stamp = await archive.policy_stamp(reader)
+    preferences = await archive.view_preferences(reader.owner)
     sources = set()
 
     async def check_access():
@@ -72,7 +73,8 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
 
     @function_tool
     async def search_work(query: str, person: str | None = None, from_date: str | None = None,
-                          before_date: str | None = None) -> str:
+                          before_date: str | None = None, project: str | None = None,
+                          source: str | None = None, memory_type: str | None = None) -> str:
         """Search accessible work by meaning/keywords; optional person ID and ISO dates."""
         await check_access()
         await report("Searching work history")
@@ -82,7 +84,8 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
         except Exception:
             pass  # Exact-term search remains available and reports its actual mode.
         result = await archive.search(reader, query, owner=scope or person, created_from=from_date,
-                                      created_before=before_date, limit=12, vector=vector,
+                                      created_before=before_date, project=project, source=source, kind=memory_type,
+                                      limit=12, vector=vector,
                                       embedding_model=settings.memory_embedding_model)
         return json.dumps(result, ensure_ascii=False)
 
@@ -93,6 +96,8 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
         record = await archive.read(reader, record_id)
         if scope and record["owner"] != scope:
             return json.dumps({"error": "Outside the selected person's scope"})
+        if not preferences.includes(record):
+            return json.dumps({'error': 'Excluded by your personal viewing preferences.'})
         sources.add(record_id)
         return json.dumps({k: v for k, v in record.items() if k not in {
             "embedding", "publication_embedding", "original"}}, ensure_ascii=False)
@@ -100,6 +105,7 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
     @function_tool
     async def list_people() -> str:
         """List enrolled people and their IDs to scope a work question."""
+        await check_access()
         return json.dumps(await archive.people(reader))
 
     @function_tool
@@ -129,6 +135,7 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
             instructions=f"""You answer questions about people's work from their recorded evidence.
 Current UTC time: {datetime.now(UTC).isoformat()}. Your user's identity is {reader.owner}.
 The delivery audience is {reader.audience}. Tools enforce it; you cannot expand it.
+Personal viewing preferences also narrow the available work. Do not work around exclusions.
 Be clear, useful and concise. The user explicitly opened this memory query interface.
 For a work question, search, then read the relevant records. Resolve a person's ID with list_people.
 Use exact names/IDs and dates as well as meaning. Follow leads with further searches when helpful.

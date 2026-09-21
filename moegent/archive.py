@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from .crypto import KeyVault, decrypt_blob, encode, encrypt_blob, new_key
 from .search_index import SearchIndex
+from .view_preferences import ViewPreferences
 
 
 def now() -> str:
@@ -340,11 +341,32 @@ class Archive:
         finally:
             await cursor.close()
 
-    async def search(self, reader, query="", *, owner=None, visibility=None, kind=None, source=None,
+    async def search(self, reader, query="", *, owner=None, visibility=None, kind=None, source=None, project=None,
                      created_from=None, created_before=None, offset=0, limit=30, vector=None, embedding_model=None):
         return await self.search_index.search(reader, query, owner=owner, visibility=visibility, kind=kind,
-            source=source, created_from=created_from, created_before=created_before, offset=offset, limit=limit,
-            vector=vector, embedding_model=embedding_model)
+            source=source, project=project, created_from=created_from, created_before=created_before,
+            offset=offset, limit=limit, vector=vector, embedding_model=embedding_model)
+
+    async def view_preferences(self, owner):
+        member = await self.member(owner)
+        if not member:
+            raise PermissionError('Account is unavailable')
+        return ViewPreferences.model_validate(member['profile'].get('view_preferences', {}))
+
+    async def save_view_preferences(self, owner, preferences):
+        async with self.owner_lock(owner):
+            member = await self.member(owner)
+            if not member:
+                raise PermissionError('Account is unavailable')
+            previous = ViewPreferences.model_validate(member['profile'].get('view_preferences', {}))
+            if previous != preferences:
+                profile = {**member['profile'], 'view_preferences': preferences.model_dump()}
+                # Invalidate old conversations/results without modifying publications,
+                # source records, classification criteria or completed Jev work.
+                await self.db.execute('''UPDATE members SET profile=?,policy_version=policy_version+1
+                    WHERE id=?''', (self.vault.seal_operational(profile), owner))
+                await self.db.commit()
+        return preferences
 
     async def rules(self, owner):
         rows = await (await self.db.execute(

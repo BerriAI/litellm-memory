@@ -15,6 +15,7 @@ The actual application, shown with synthetic local records. See [Ask](docs/asset
 ## What it does
 
 - A chronological activity feed, Slack profiles, private lock indicators, and an **Ask** interface with citations.
+- Saved personal filters for people, projects, sources and memory types, separate from sharing permissions. Your feed, Ask and catch-ups respect those choices.
 - Continuous capture with an encrypted local outbox; optional historical backfills preserve source text, original dates and metadata.
 - Plain-language work updates, current-work views, and daily catch-ups with source links and coverage information.
 - Private by default. Members can preview a shared summary, choose shareable types, and keep topics private. Company-public never means internet-public.
