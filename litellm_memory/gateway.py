@@ -134,14 +134,15 @@ class Gateway:
             vector = (await self.embeddings(["LiteLLM Memory connection check"], model=model))[0]
             return {"status": "ready", "dimensions": len(vector)}
         if kind == "generation":
-            import json
+            from .processing import ExtractedWork
+
             try:
                 result = await self.generate([
-                    {"role": "system", "content": "Describe the work briefly. Return a JSON object."},
+                    {"role": "system", "content": (
+                        "Describe the work briefly. Return JSON with title, summary, and projects (a list).")},
                     {"role": "user", "content": "Synthetic setup check: reviewed the workspace onboarding."},
                 ], model=model, json_output=True)
-                if not isinstance(json.loads(result), dict):
-                    raise ValueError()
+                ExtractedWork.model_validate_json(result)
             except (ValueError, TypeError):
                 raise GatewayError("structured background model check", 422) from None
             return {"status": "ready"}
@@ -188,9 +189,17 @@ class Gateway:
                             " Built-in Jev support starts in LiteLLM v1.103.0-rc."
                             " Use a release with Jev support, configure TYPESAFE_API_KEY on the gateway,"
                             " and check that its TypeSafe route is accessible to your LiteLLM key.")}
+            if exc.status == 429:
+                return {"status": status, "required": True, "message": (
+                    "TypeSafe Jev is rate limited (HTTP 429). Try again shortly;"
+                    " if this continues, check the gateway and provider limits.")}
             return {"status": status, "required": True, "message": (
-                "LiteLLM Memory needs TypeSafe Jev. Enable it on your LiteLLM gateway and allow this key to use it.")}
-        except (httpx.HTTPError, ValueError, KeyError, TypeError):
+                f"The TypeSafe Jev check failed (HTTP {exc.status}). Try again;"
+                " if this continues, check the gateway's TypeSafe integration.")}
+        except httpx.HTTPError:
+            return {"status": "unavailable", "required": True,
+                    "message": "Could not reach TypeSafe Jev through the gateway. Try again shortly."}
+        except (ValueError, KeyError, TypeError):
             return {"status": "unavailable", "required": True,
                     "message": "The gateway did not return a valid Jev response. Check its TypeSafe integration."}
 

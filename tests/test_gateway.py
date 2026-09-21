@@ -146,3 +146,31 @@ async def test_json_generation_survives_system_messages_becoming_responses_instr
     async with Gateway(Settings(_env_file=None), httpx.MockTransport(responses_gateway)) as gateway:
         assert await gateway.generate(messages, json_output=True) == '{"ok":true}'
     assert messages == original
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('http_status,status', [(429, 'rate_limited'), (500, 'unavailable'), (503, 'unavailable')])
+async def test_jev_service_failures_offer_retry_without_claiming_integration_is_missing(http_status, status):
+    async with Gateway(Settings(_env_file=None), httpx.MockTransport(
+            lambda request: httpx.Response(http_status, json={'detail': 'PRIVATE_UPSTREAM_CONTENT'}))) as gateway:
+        result = await gateway.probe_jev()
+    assert result['status'] == status
+    assert f'HTTP {http_status}' in result['message'] and 'Try again' in result['message']
+    assert 'Enable' not in result['message'] and 'PRIVATE_UPSTREAM_CONTENT' not in result['message']
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('content', ['{"ok": true}', '{"title": "Check", "summary": "Reviewed setup", "projects": "invalid"}'])
+async def test_background_probe_requires_the_actual_work_record_schema(content):
+    def handler(request):
+        if request.url.path == '/v1/models':
+            return httpx.Response(200, json={'data': [{'id': 'candidate'}]})
+        if request.url.path == '/model/info':
+            return httpx.Response(200, json={'data': []})
+        return httpx.Response(200, json={'choices': [{'message': {'content': content}}]})
+
+    async with Gateway(Settings(_env_file=None), httpx.MockTransport(handler)) as gateway:
+        with pytest.raises(GatewayError) as error:
+            await gateway.probe_model('candidate', 'generation')
+        assert error.value.status == 422
+        assert error.value.operation == 'structured background model check'
