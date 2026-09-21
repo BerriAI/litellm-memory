@@ -6,7 +6,7 @@ The implementation is on `codex/litemem-implementation`. The existing hosted ass
 
 CI runs unit/API tests, Ruff, frontend syntax checks, real Codex/Claude hook dispatch against disposable fixtures, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. [Current checks](https://github.com/moe-berri/litemem/pull/1/checks).
 
-The last completed full-stack baseline is [CI run 35550943460](https://github.com/moe-berri/litemem/actions/runs/35550943460), source `0cc21d2`, with 145 tests. The interface/privacy/observability revision must pass the same checks before release. Browser review uses synthetic records and simulated inference; [screenshots and review scope](ui-review.md). No synthetic check is a real-history quality score.
+The interface/privacy/observability revision passed [CI run 35566235575](https://github.com/moe-berri/litemem/actions/runs/35566235575), source `e49efa1`: **149 tests**, Ruff, four frontend syntax checks, both real host-hook checks, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. Browser review uses synthetic records and simulated inference; [screenshots and review scope](ui-review.md). No synthetic check is a real-history quality score.
 
 ## Before the owner-only pilot
 
