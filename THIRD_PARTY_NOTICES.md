@@ -24,3 +24,10 @@ The portable image copies the **unmodified Ente Museum server executable and run
 - [Marked](https://github.com/markedjs/marked) and [DOMPurify](https://github.com/cure53/DOMPurify) render sanitized Markdown. Their bundled licenses are in `static/vendor/marked.LICENSE` and `static/vendor/dompurify.LICENSE`.
 
 Python dependencies and exact resolved versions are in `uv.lock`; packages retain their own license metadata. The legacy vendored knowledge runtime's provenance is documented in `vendor/UPSTREAM.md`; the new application does not depend on it.
+
+## Interface assets
+
+- Inter variable Latin font, distributed by `@fontsource-variable/inter` 5.3.0, SIL Open Font License. License: `static/vendor/inter.LICENSE`.
+- Lucide icon paths from `lucide-static` 1.47.0, ISC license. License: `static/vendor/lucide.LICENSE`. Only the icons used by the interface are included.
+
+Assets are served locally; the interface makes no font-CDN requests.

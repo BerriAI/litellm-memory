@@ -204,8 +204,9 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
             return JSONResponse({"detail": "Invalid request size."}, status_code=400)
         if size < 0 or size > 1_000_000:
             return JSONResponse({"detail": "Split this request into smaller captures."}, status_code=413)
-        with telemetry.operation('request'):
+        with telemetry.operation('request') as operation:
             response = await call_next(request)
+            operation.set(status_code=response.status_code)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "same-origin"
         response.headers["X-Frame-Options"] = "DENY"
@@ -564,7 +565,9 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     async def save_sharing_preferences(request: Request):
         owner = await browser_account(request)
         body = await request.json()
-        return await archive.set_sharing_preferences(owner, body.get('allowed_types'), body.get('auto_share'))
+        previous = await archive.sharing_preferences(owner)
+        return await archive.set_sharing_preferences(
+            owner, body.get('allowed_types', previous['allowed_types']), body.get('auto_share'))
 
     @api.post("/privacy-rules")
     async def add_rule(request: Request):
@@ -760,6 +763,7 @@ litemem-connector disconnect</pre>
         await archive.key(owner, require_agent=True)
         chosen = await gateway.validate_model(body.model or (await model_service.current()).agent_model)
         payload = body.model_dump(mode="json") | {"principal": owner, "model": chosen,
+                                                  "request_source": "api" if request.headers.get("authorization", "").startswith("Bearer ") else "web",
                                                   "model_config_revision": settings.model_config_revision}
         payload["policy_stamp"] = await archive.policy_stamp(Reader(owner, body.audience))
         payload["history"] = []

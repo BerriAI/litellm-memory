@@ -399,16 +399,17 @@ class Archive:
         if not member:
             raise PermissionError('Account is unavailable')
         return member['profile'].get('sharing', {
-            'allowed_types': ['progress', 'decision', 'finding', 'blocker', 'plan'],
+            'allowed_types': None,
             'auto_share': False, 'future_since': None})
 
     async def set_sharing_preferences(self, owner, allowed_types, auto_share):
         valid = {'progress', 'decision', 'finding', 'blocker', 'plan'}
-        if not isinstance(allowed_types, list) or any(not isinstance(t, str) or t not in valid for t in allowed_types):
+        if allowed_types is not None and (not isinstance(allowed_types, list) or any(
+                not isinstance(t, str) or t not in valid for t in allowed_types)):
             raise ValueError('Choose supported memory types.')
         if not isinstance(auto_share, bool):
             raise ValueError('Choose whether to share future work automatically.')
-        if auto_share and (not self.sharing_enabled or not allowed_types):
+        if auto_share and (not self.sharing_enabled or allowed_types == []):
             raise PermissionError('Enable workspace sharing and choose at least one type first.')
         async with self.owner_lock(owner):
             member = await self.member(owner)
@@ -416,7 +417,7 @@ class Archive:
                 raise PermissionError('Account is unavailable')
             previous = await self.sharing_preferences(owner)
             profile = member['profile']
-            profile['sharing'] = {'allowed_types': sorted(set(allowed_types)), 'auto_share': auto_share,
+            profile['sharing'] = {'allowed_types': sorted(set(allowed_types)) if allowed_types is not None else None, 'auto_share': auto_share,
                                   'future_since': previous['future_since'] if previous['auto_share'] and auto_share
                                   else time.time() if auto_share else None}
             await self.db.execute('UPDATE members SET profile=?,policy_version=policy_version+1 WHERE id=?', (
@@ -434,7 +435,7 @@ class Archive:
             return False
         prefs = await self.sharing_preferences(row['owner'])
         matched = {key for key, confidence in payload.get('labels', {}).items() if confidence >= 0.8}
-        if not matched or not matched.issubset(set(prefs['allowed_types'])):
+        if prefs['allowed_types'] is not None and (not matched or not matched.issubset(set(prefs['allowed_types']))):
             return False
         if row['intent'] == 'public':
             return True
@@ -678,7 +679,7 @@ class Archive:
             previous = self.vault.open_operational(row['profile'])
             sharing = previous.get('sharing', {})
             sharing.update(auto_share=False, future_since=None)
-            sharing.setdefault('allowed_types', ['progress', 'decision', 'finding', 'blocker', 'plan'])
+            sharing.setdefault('allowed_types', None)
             previous.update(profile, sharing=sharing)
             await self.db.execute('''UPDATE members SET active=1,agent_enabled=1,capture_enabled=0,
                 policy_version=policy_version+1,profile=? WHERE id=?''', (self.vault.seal_operational(previous), owner))

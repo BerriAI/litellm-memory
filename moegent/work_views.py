@@ -28,7 +28,7 @@ class ViewRequest(BaseModel):
 
 class ViewItem(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
-    kind: Literal['progress', 'decision', 'finding', 'blocker', 'plan']
+    kind: str = Field(default='work', max_length=50)
     sources: list[str] = Field(min_length=1, max_length=12)
 
 
@@ -208,7 +208,7 @@ class WorkViews:
                 content = await gateway.generate([
                     {'role': 'system', 'content': (
                         'Create a concise, useful account of recorded work. Return JSON {"items": '
-                        '[{"text":"a clear work update", "kind":"progress|decision|finding|blocker|plan", '
+                        '[{"text":"a clear work update", '
                         '"sources":["actual source ID"]}]}. At most 12 items. Every item must cite evidence. '
                         'Keep plans distinct from outcomes, preserve attribution and unresolved disagreements. '
                         'An assistant assertion is not a verified result. For current views, connect related work '

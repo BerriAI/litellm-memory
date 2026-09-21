@@ -11,18 +11,24 @@
       rel="icon"
     />
     <link href="/static/memory.css" rel="stylesheet" />
-    <script src="/static/memory.js?v=3" type="module"></script>
+    <script src="/static/memory.js?v=4" type="module"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
     <aside aria-label="Workspace" class="sidebar">
       <a aria-label="litemem home" class="brand" href="/"
-        ><span aria-hidden="true" class="brand-symbol"
-          ><span></span><span></span><span></span></span
-        >litemem</a
+        >litemem<span class="brand-dot" aria-hidden="true">.</span></a
       >
+      <button
+        aria-label="Search memories"
+        class="global-search"
+        hidden
+        id="global-search-button"
+      >
+        <span data-icon="search"></span><span>Search</span
+        ><kbd id="search-shortcut">⌘ K</kbd>
+      </button>
       <nav aria-label="Main navigation" hidden="" id="navigation">
-        <span class="nav-caption">Workspace</span>
         <button class="nav-link active" data-view="home">
           <span data-icon="activity"></span>Activity
         </button>
@@ -58,19 +64,6 @@
         <button id="menu-sign-out">Sign out</button>
       </div>
     </aside>
-    <header class="workspace-bar" hidden="" id="workspace-bar">
-      <span class="workspace-name"
-        >litemem <span aria-hidden="true">/</span>
-        <strong id="current-view-label">Activity</strong></span
-      ><button
-        aria-label="Search memories"
-        class="global-search"
-        id="global-search-button"
-      >
-        <span data-icon="search"></span><span>Search memories</span
-        ><kbd id="search-shortcut">⌘ K</kbd>
-      </button>
-    </header>
     <main id="main" tabindex="-1">
       <div class="auth-card" id="boot-status" role="status">
         <p class="muted">Opening litemem…</p>
@@ -337,10 +330,10 @@
         <section class="page" id="home-view">
           <div class="page-heading">
             <div>
-              <p class="page-date" id="today"></p>
               <h1 id="feed-title">Activity</h1>
+              <p class="page-date" id="today"></p>
             </div>
-            <button class="button quiet" id="add-memory">
+            <button class="button secondary" id="add-memory">
               <span data-icon="plus"></span> Add memory
             </button>
           </div>
@@ -353,13 +346,13 @@
                   autocomplete="off"
                   id="home-question"
                   maxlength="16000"
-                  placeholder="Ask about your work…"
+                  placeholder="Ask anything about your work…"
                 /><button aria-label="Ask" class="send-button" type="submit">
                   <span data-icon="arrow"></span>
                 </button>
                 <p class="ask-privacy" id="home-privacy">
-                  <span data-icon="lock"></span> Your question and answer stay
-                  private.
+                  <span data-icon="lock"></span> Only you can see your questions
+                  and answers.
                 </p>
               </form>
               <p
@@ -429,15 +422,12 @@
               </form>
               <div class="filters" hidden="" id="filters">
                 <label
-                  >Type<select id="filter-kind">
-                    <option value="">Any type</option>
-                    <option>decision</option>
-                    <option>progress</option>
-                    <option>finding</option>
-                    <option>blocker</option>
-                    <option>plan</option>
-                  </select></label
-                ><label
+                  >Type<input
+                    id="filter-kind"
+                    maxlength="100"
+                    placeholder="Any saved type"
+                /></label>
+                <label
                   >Source<input
                     id="filter-source"
                     list="source-options"
@@ -460,6 +450,66 @@
                   Clear
                 </button>
               </div>
+              <details class="advanced" id="view-preferences-panel">
+                <summary>Exclude from my feed and Ask</summary>
+                <p>These personal filters do not change what you share.</p>
+                <form id="view-preferences-form">
+                  <div id="legacy-view-types" hidden>
+                    <h3>Existing type exclusions</h3>
+                    <fieldset class="type-options" id="view-type-options">
+                      <legend class="sr-only">
+                        Types hidden from my feed and Ask
+                      </legend>
+                    </fieldset>
+                  </div>
+                  <h3>People</h3>
+                  <fieldset
+                    class="type-options preference-people"
+                    id="view-person-options"
+                  >
+                    <legend class="sr-only">
+                      People hidden from my feed and Ask
+                    </legend>
+                  </fieldset>
+                  <div class="model-grid">
+                    <label
+                      >Hide projects<textarea
+                        id="view-projects"
+                        rows="3"
+                        maxlength="20100"
+                        placeholder="One project per line"
+                      ></textarea>
+                    </label>
+                    <label
+                      >Hide sources<textarea
+                        id="view-sources"
+                        rows="3"
+                        maxlength="20100"
+                        placeholder="One source per line, e.g. Codex"
+                      ></textarea>
+                    </label>
+                  </div>
+                  <p>
+                    Leave everything empty to include all work you can access.
+                  </p>
+                  <div class="dialog-actions">
+                    <button class="button secondary" id="save-view-preferences">
+                      Save viewing preferences</button
+                    ><button
+                      class="button quiet"
+                      type="button"
+                      id="reset-view-preferences"
+                    >
+                      Clear selections
+                    </button>
+                  </div>
+                  <p
+                    class="inline-status"
+                    role="status"
+                    id="view-preferences-status"
+                  ></p>
+                </form>
+              </details>
               <div class="feed-meta">
                 <span id="feed-caption">Latest first</span
                 ><span id="processing-status" role="status"></span>
@@ -533,18 +583,17 @@
               <h1>Ask</h1>
             </div>
             <button class="button quiet small" id="new-chat">
-              <span data-icon="plus"></span> New conversation
+              <span data-icon="plus"></span> New chat
             </button>
           </div>
           <div class="chat-empty" id="chat-empty">
-            <h2>What would you like to find?</h2>
+            <h2>Ask your memory.</h2>
             <p id="chat-scope-description">
-              Ask about your work, a teammate’s updates, or a decision worth
-              revisiting.
+              Find an answer in your work and the updates your team shares.
             </p>
             <div class="suggestions">
               <button>What have I been working on this week?</button
-              ><button>What decisions did I make recently?</button>
+              ><button>What did we decide about the launch?</button>
             </div>
           </div>
           <div
@@ -641,42 +690,49 @@
             when prompted.
           </p>
           <div class="connection-instructions">
-            <h2>Your MCP connection</h2>
-            <div class="copy-row">
-              <code id="mcp-url"></code
-              ><button class="button quiet small" id="copy-mcp">
-                Copy URL
-              </button>
-            </div>
-            <h3>Codex</h3>
-            <pre id="codex-command"></pre>
-            <button
-              class="button secondary small"
-              data-copy="codex-command"
-              type="button"
-            >
-              Copy Codex commands
-            </button>
-            <h3>Claude Code</h3>
-            <pre id="claude-command"></pre>
-            <button
-              class="button secondary small"
-              data-copy="claude-command"
-              type="button"
-            >
-              Copy Claude Code command
-            </button>
-            <p class="fine-print">
-              MCP provides recording and search tools. Enable capture hooks for
-              continuous recording. Your existing memory connection stays in
-              place until you choose to remove it.
+            <h2>Record as you work</h2>
+            <p class="muted">
+              Connect Codex or Claude Code once. New conversations are recorded
+              privately, with no searches added to your coding turns.
             </p>
             <a
-              class="text-link"
+              class="button primary"
               href="/api/connector/setup"
               id="capture-setup-link"
-              >Set up continuous capture →</a
+              >Set up continuous capture <span aria-hidden="true">→</span></a
             >
+            <details class="advanced">
+              <summary>Manual MCP connection</summary>
+              <p class="muted">
+                For search and manual recording only. The capture setup above
+                already includes MCP.
+              </p>
+
+              <div class="copy-row">
+                <code id="mcp-url"></code
+                ><button class="button quiet small" id="copy-mcp">
+                  Copy URL
+                </button>
+              </div>
+              <h3>Codex</h3>
+              <pre id="codex-command"></pre>
+              <button
+                class="button secondary small"
+                data-copy="codex-command"
+                type="button"
+              >
+                Copy Codex commands
+              </button>
+              <h3>Claude Code</h3>
+              <pre id="claude-command"></pre>
+              <button
+                class="button secondary small"
+                data-copy="claude-command"
+                type="button"
+              >
+                Copy Claude Code command
+              </button>
+            </details>
           </div>
           <h2 class="section-heading">Connected clients</h2>
           <div id="connection-list"></div>
@@ -699,7 +755,7 @@
               hidden=""
               id="models-tab"
             >
-              Models</button
+              Workspace</button
             ><button aria-pressed="false" data-settings="data">
               Your data
             </button>
@@ -710,155 +766,45 @@
             data-settings-section="privacy"
             id="privacy-settings"
           >
-            <h2>Privacy</h2>
+            <h2>You choose what’s shared.</h2>
             <p>
-              Your private memories carry a lock. Shared means visible to your
-              company, never the open internet.
+              Memories start private. Share a summary when you’re ready. The
+              original conversation stays yours.
             </p>
-            <details class="advanced" id="view-preferences-panel">
-              <summary>What I see and use</summary>
-              <p>
-                Hide selected work from your feed, Ask and catch-ups. These
-                choices are private and do not change what you share. Original
-                memories remain available through their links and in exports.
-              </p>
-              <form id="view-preferences-form">
-                <h3>Hide these types</h3>
-                <fieldset class="type-options" id="view-type-options">
-                  <legend class="sr-only">
-                    Types hidden from my feed and Ask
-                  </legend>
-                </fieldset>
-                <h3>Hide these people’s work</h3>
-                <fieldset
-                  class="type-options preference-people"
-                  id="view-person-options"
-                >
-                  <legend class="sr-only">
-                    People hidden from my feed and Ask
-                  </legend>
-                </fieldset>
-                <div class="model-grid">
-                  <label
-                    >Hide projects<textarea
-                      id="view-projects"
-                      rows="3"
-                      maxlength="20100"
-                      placeholder="One project per line"
-                    ></textarea>
-                  </label>
-                  <label
-                    >Hide sources<textarea
-                      id="view-sources"
-                      rows="3"
-                      maxlength="20100"
-                      placeholder="One source per line, e.g. Codex"
-                    ></textarea>
-                  </label>
-                </div>
-                <p>
-                  Leave everything empty to include all work you can access.
-                  Types use existing Jev classifications; saving these filters
-                  does not classify your memories again.
-                </p>
-                <div class="dialog-actions">
-                  <button class="button secondary" id="save-view-preferences">
-                    Save viewing preferences</button
-                  ><button
-                    class="button quiet"
-                    type="button"
-                    id="reset-view-preferences"
-                  >
-                    Clear selections
-                  </button>
-                </div>
-                <p
-                  class="inline-status"
-                  role="status"
-                  id="view-preferences-status"
-                ></p>
-              </form>
-            </details>
+
             <div class="quiet-note" id="sharing-note">
               <span data-icon="lock"></span> Company sharing is off. Your work
               stays private.
             </div>
             <form hidden="" id="sharing-form">
-              <h3>What may be shared</h3>
-              <p class="muted">
-                Only these types are eligible. If an entry has several types,
-                all must be selected.
+              <p class="fine-print" id="legacy-sharing-note" hidden>
+                An existing type restriction still applies to your sharing.
               </p>
-              <fieldset class="type-options">
-                <legend class="sr-only">Shareable memory types</legend>
-                <label
-                  ><input
-                    name="sharing-type"
-                    type="checkbox"
-                    value="progress"
-                  />
-                  Progress</label
-                >
-                <label
-                  ><input
-                    name="sharing-type"
-                    type="checkbox"
-                    value="decision"
-                  />
-                  Decisions</label
-                >
-                <label
-                  ><input name="sharing-type" type="checkbox" value="finding" />
-                  Findings</label
-                >
-                <label
-                  ><input name="sharing-type" type="checkbox" value="blocker" />
-                  Blockers</label
-                >
-                <label
-                  ><input name="sharing-type" type="checkbox" value="plan" />
-                  Plans</label
-                >
-              </fieldset>
               <label class="setting-row"
                 ><span
-                  ><strong>Share future work automatically</strong
+                  ><strong>Share new summaries with my company</strong
                   ><small
-                    >Eligible summaries only. Historical imports stay
+                    >Private-topic rules apply. Existing history stays
                     private.</small
                   ></span
                 ><input id="auto-share" role="switch" type="checkbox"
               /></label>
-              <button class="button secondary">Save sharing preferences</button>
+              <button class="button secondary">Save changes</button>
               <p class="inline-status" id="sharing-status" role="status"></p>
             </form>
-            <div hidden="" id="workspace-sharing-control">
-              <label class="setting-row"
-                ><span
-                  ><strong>Company sharing</strong
-                  ><small
-                    >Workspace setting. Each person still controls what they
-                    share.</small
-                  ></span
-                ><input
-                  id="workspace-sharing-enabled"
-                  role="switch"
-                  type="checkbox"
-              /></label>
-            </div>
-            <h3>Keep these topics private</h3>
+            <h3 class="section-heading">Never share these topics</h3>
             <p class="muted">
-              Add anything you want to keep private. We’ll check new work and
-              your existing history before it can be shared.
+              Describe a topic. Jev checks existing and future work before
+              sharing. You can still ask about it privately.
             </p>
             <form class="inline-form" id="rule-form">
               <input
                 aria-label="Private topic"
                 id="rule-input"
                 maxlength="1000"
-                placeholder="For example, personal finances or customer details"
+                placeholder="e.g. customer names, personal conversations"
                 required=""
-              /><button class="button secondary">Add rule</button>
+              /><button class="button secondary">Add topic</button>
             </form>
             <p class="inline-error" id="rule-error" role="alert"></p>
             <div id="rule-list"></div>
@@ -964,6 +910,20 @@
             hidden=""
             id="model-settings"
           >
+            <div hidden="" id="workspace-sharing-control">
+              <label class="setting-row"
+                ><span
+                  ><strong>Company sharing</strong
+                  ><small
+                    >Workspace setting. Each person still controls what they
+                    share.</small
+                  ></span
+                ><input
+                  id="workspace-sharing-enabled"
+                  role="switch"
+                  type="checkbox"
+              /></label>
+            </div>
             <h2>Models</h2>
             <p>
               All models run through your LiteLLM gateway. Slack and background

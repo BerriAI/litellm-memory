@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(".env", "/etc/secrets/moegent.env", "/etc/secrets/litemem.env"), extra="ignore")
 
     litellm_base_url: str = "https://gateway.litellm-sandbox.ai/v1"
-    litellm_api_key: str = ""
+    litellm_api_key: str = Field(default="", repr=False)
     litellm_model: str = "gpt-5.6-luna-priority"
     litellm_search_tool: str = ""
     background_model: str = "gpt-5.6-luna-priority"
@@ -27,13 +27,13 @@ class Settings(BaseSettings):
     allowed_email_domain: str = "berri.ai"
     sharing_enabled: bool = False
     ente_base_url: str = ""
-    ente_auth_token: str = ""
-    vault_wrapping_key: str = ""
+    ente_auth_token: str = Field(default="", repr=False)
+    vault_wrapping_key: str = Field(default="", repr=False)
     public_base_url: str = "http://localhost:8000"
     access_mode: Literal["public", "allowlist"] = "public"
     allowed_slack_users: str = ""  # comma-separated TEAM_ID:USER_ID pairs
-    session_secret: str = ""
-    setup_code: str = ""
+    session_secret: str = Field(default="", repr=False)
+    setup_code: str = Field(default="", repr=False)
     state_dir: Path = ROOT / ".state"
     memory_repo: str = "BerriAI/product-team-knowledge"
     memory_allowed_actors: str = Field(default="moe-berri", min_length=1)
@@ -41,20 +41,20 @@ class Settings(BaseSettings):
     memory_embedding_model: str = "gemini/gemini-embedding-001"
     memory_embedding_version: str = "1"
     memory_warm_on_start: bool = True
-    gh_token: str = ""
+    gh_token: str = Field(default="", repr=False)
     slack_team_id: str = ""
     slack_owner_user_id: str = ""
     slack_app_id: str = ""
     slack_client_id: str = ""
-    slack_client_secret: str = ""
-    slack_signing_secret: str = ""
-    slack_bot_token: str = ""
+    slack_client_secret: str = Field(default="", repr=False)
+    slack_signing_secret: str = Field(default="", repr=False)
+    slack_bot_token: str = Field(default="", repr=False)
     slack_bot_user_id: str = ""
     max_agent_turns: int = Field(default=18, ge=1)
     max_pending_queries_per_member: int = Field(default=4, ge=1, le=100)
     max_pending_queries: int = Field(default=100, ge=1, le=10000)
     observability_export: Literal['none', 'otlp', 'logfire'] = 'none'
-    logfire_token: str = ''
+    logfire_token: str = Field(default="", repr=False)
     otlp_traces_endpoint: str = ''
     agent_timeout_seconds: int = Field(default=300, ge=10)
 

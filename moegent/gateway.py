@@ -198,7 +198,8 @@ class Gateway:
         return None
 
     async def classify(self, state: str, questions: dict[str, str], *, model=None) -> JevResult:
-        with self.telemetry.operation('classification'):
+        with self.telemetry.operation('classification', model=model or self.settings.jev_model,
+                                      criterion_count=len(questions)):
             if not questions:
                 return JevResult(model=self.settings.jev_model, answers={})
             # Paths are relative to the same gateway; configuration cannot select a provider host.
@@ -218,7 +219,8 @@ class Gateway:
             return result
 
     async def embeddings(self, texts: list[str], *, model=None) -> list[list[float]]:
-        with self.telemetry.operation('embedding'):
+        with self.telemetry.operation('embedding', model=model or self.settings.memory_embedding_model,
+                                      item_count=len(texts)):
             response = await self.http.post(self.root + "/v1/embeddings", json={
                 "model": model or self.settings.memory_embedding_model, "input": texts, "no-log": True,
             })
@@ -237,7 +239,8 @@ class Gateway:
             return vectors
 
     async def generate(self, messages: list[dict], *, model: str | None = None, json_output=False):
-        with self.telemetry.operation('generation'):
+        with self.telemetry.operation(
+                'generation', model=model or self.settings.background_model or self.settings.litellm_model):
             body = {"model": model or self.settings.background_model or self.settings.litellm_model,
                     "messages": messages, "no-log": True}
             if json_output:

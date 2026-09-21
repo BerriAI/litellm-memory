@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 from agents import Agent, ModelSettings, OpenAIChatCompletionsModel, RunConfig, Runner, function_tool
 
 from .archive import Reader
-from .observability import Telemetry
+from .observability import Telemetry, request_source
 from .progress import report
 from .storage import QueueFull
 from .work_views import ViewRequest
@@ -49,17 +49,22 @@ async def answer_work(settings, archive, gateway, reader: Reader, question, hist
     waiting[reader.owner] = waiting.get(reader.owner, 0) + 1
     try:
         async with asyncio.timeout(settings.agent_timeout_seconds), archive.query_slots:
-            with getattr(gateway, 'telemetry', Telemetry()).operation('query'):
-                return await _answer_work(settings, archive, gateway, reader, question, history, model, scope)
+            with getattr(gateway, 'telemetry', Telemetry()).operation(
+                    'query', source=request_source.get(), audience=reader.audience) as operation:
+                return await _answer_work(settings, archive, gateway, reader, question, history, model, scope, operation)
     finally:
         waiting[reader.owner] -= 1
         if not waiting[reader.owner]:
             del waiting[reader.owner]
 
 
-async def _answer_work(settings, archive, gateway, reader: Reader, question, history=None, model=None, scope=None):
+async def _answer_work(settings, archive, gateway, reader: Reader, question, history=None, model=None, scope=None,
+                       operation=None):
     await archive.key(reader.owner, require_agent=True)
     model = await gateway.validate_model(model or settings.litellm_model)
+    telemetry = getattr(gateway, "telemetry", Telemetry())
+    if operation:
+        operation.set(model=model)
     stamp = await archive.policy_stamp(reader)
     preferences = await archive.view_preferences(reader.owner)
     sources = set()
@@ -72,6 +77,7 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
             raise PermissionError("Access changed while answering. Please ask again.")
 
     @function_tool
+    @telemetry.tool("search_work")
     async def search_work(query: str, person: str | None = None, from_date: str | None = None,
                           before_date: str | None = None, project: str | None = None,
                           source: str | None = None, memory_type: str | None = None) -> str:
@@ -90,6 +96,7 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
         return json.dumps(result, ensure_ascii=False)
 
     @function_tool
+    @telemetry.tool("read_work")
     async def read_work(record_id: str) -> str:
         """Read original evidence for a search result before citing it."""
         await check_access()
@@ -103,12 +110,14 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
             "embedding", "publication_embedding", "original"}}, ensure_ascii=False)
 
     @function_tool
+    @telemetry.tool("list_people")
     async def list_people() -> str:
         """List enrolled people and their IDs to scope a work question."""
         await check_access()
         return json.dumps(await archive.people(reader))
 
     @function_tool
+    @telemetry.tool("work_overview")
     async def work_overview(person: str, day: str | None = None, project: str = '') -> str:
         """Read a cited current-work overview or a daily catch-up. Search recent sources if stale/pending."""
         await check_access()
@@ -123,6 +132,7 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
         return json.dumps(result)
 
     @function_tool
+    @telemetry.tool("update_status")
     async def update_status(message: str) -> str:
         """Show one brief, concrete progress update while looking up a question."""
         await check_access()
@@ -174,6 +184,12 @@ Before substantial research give a short update with update_status; skip for gre
             # Verify every read source still passes current access before final delivery.
             for source in sources:
                 await archive.read(reader, source)
+            if operation:
+                operation.set(source_count=len(sources))
+                usage = getattr(getattr(result, 'context_wrapper', None), 'usage', None)
+                if usage is not None:
+                    operation.set(input_tokens=usage.input_tokens, output_tokens=usage.output_tokens,
+                                  model_requests=usage.requests)
             return validate_citations(str(result.final_output), sources, settings.public_base_url)
         finally:
             if not result.is_complete:

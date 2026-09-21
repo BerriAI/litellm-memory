@@ -10,6 +10,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 
 from .archive import Reader, WorkInput
+from .observability import request_source
 from .query import answer_work
 
 
@@ -84,7 +85,11 @@ def build_mcp(settings, archive, gateway):
         frozen = gateway.snapshot()
         try:
             async with asyncio.timeout(settings.agent_timeout_seconds):
-                answer = await answer_work(frozen.settings, archive, frozen, Reader(await owner()), question, model=model)
+                origin = request_source.set('mcp')
+                try:
+                    answer = await answer_work(frozen.settings, archive, frozen, Reader(await owner()), question, model=model)
+                finally:
+                    request_source.reset(origin)
                 return {"answer": answer}
         finally:
             await frozen.close()

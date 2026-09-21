@@ -78,14 +78,19 @@ export function confirmAction({
   });
 }
 
+const copyFeedback = new WeakMap();
 export async function copyText(text, button) {
-  const label = button.textContent;
   try {
     await navigator.clipboard.writeText(text);
+    const previous = copyFeedback.get(button);
+    if (previous) clearTimeout(previous.timer);
+    const children = previous?.children || [...button.childNodes];
     button.textContent = "Copied";
-    setTimeout(() => {
-      button.textContent = label;
+    const timer = setTimeout(() => {
+      button.replaceChildren(...children);
+      copyFeedback.delete(button);
     }, 1800);
+    copyFeedback.set(button, { children, timer });
     return true;
   } catch {
     return false;

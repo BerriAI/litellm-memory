@@ -34,29 +34,33 @@ const state = {
   preferencesSaving: false,
   schedule: null,
 };
+// Lucide paths: one 24px grid and one stroke system, no nested icon wrappers.
 const icons = {
   activity:
-    '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8m-8 4h4"/>',
-  chat: '<path d="M20 11a8 8 0 0 1-8 8H5l-3 3V11a9 9 0 0 1 18 0Z"/>',
+    '<rect width="18" height="18" x="3" y="3" rx="2" />\n  <path d="M21 9H3" />\n  <path d="M21 15H3" />',
+  chat: '<path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />',
   connection:
-    '<path d="m10 14 4-4M8 16l-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m4 0 2-2a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0" transform="translate(1 -1)"/>',
+    '<path d="M12 22v-5" />\n  <path d="M15 8V2" />\n  <path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z" />\n  <path d="M9 8V2" />',
   settings:
-    '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="currentColor" stroke="none"/><circle cx="15" cy="17" r="3" fill="currentColor" stroke="none"/>',
-  chevron: '<path d="m8 10 4 4 4-4"/>',
-  close: '<path d="m6 6 12 12M6 18 18 6"/>',
-  lock: '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
-  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
-  arrow: '<path d="M12 20V4m-6 6 6-6 6 6"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-  filter: '<path d="M4 6h16M7 12h10m-7 6h4"/>',
+    '<path d="M14 17H5" />\n  <path d="M19 7h-9" />\n  <circle cx="17" cy="17" r="3" />\n  <circle cx="7" cy="7" r="3" />',
+  chevron: '<path d="m6 9 6 6 6-6" />',
+  close: '<path d="M18 6 6 18" />\n  <path d="m6 6 12 12" />',
+  lock: '<circle cx="12" cy="16" r="1" />\n  <rect x="3" y="10" width="18" height="12" rx="2" />\n  <path d="M7 10V7a5 5 0 0 1 10 0v3" />',
+  search: '<path d="m21 21-4.34-4.34" />\n  <circle cx="11" cy="11" r="8" />',
+  arrow: '<path d="m5 12 7-7 7 7" />\n  <path d="M12 19V5" />',
+  plus: '<path d="M5 12h14" />\n  <path d="M12 5v14" />',
+  filter:
+    '<path d="M2 5h20" />\n  <path d="M6 12h12" />\n  <path d="M9 19h6" />',
   shared:
-    '<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 5"/>',
+    '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />\n  <path d="M16 3.128a4 4 0 0 1 0 7.744" />\n  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />\n  <circle cx="9" cy="7" r="4" />',
 };
 function icon(name) {
-  const span = document.createElement("span");
-  span.className = "icon";
-  span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.lock}</svg>`;
-  return span;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add("icon");
+  svg.innerHTML = icons[name] || icons.lock;
+  return svg;
 }
 function show(id, value = true) {
   $(id).hidden = !value;
@@ -261,7 +265,7 @@ function expireSession() {
     $(id).replaceChildren();
   for (const id of [
     "workspace",
-    "workspace-bar",
+    "global-search-button",
     "navigation",
     "header-actions",
   ])
@@ -284,7 +288,6 @@ function setView(view, { navigate = true } = {}) {
   state.view = view;
   document.body.dataset.view = view;
   document.title = `${viewNames[view]} · litemem`;
-  $("current-view-label").textContent = viewNames[view];
   for (const name of Object.keys(viewNames))
     show(name + "-view", name === view);
   document.querySelectorAll(".nav-link").forEach((button) => {
@@ -517,13 +520,6 @@ function feedCard(memory) {
   heading.append(title);
   body.append(heading, el("p", memory.excerpt));
   const meta = el("div", "", "memory-meta");
-  const labels = Object.entries(memory.labels || {});
-  const types = labels.length
-    ? labels.filter(([, confidence]) => confidence >= 0.8).map(([name]) => name)
-    : memory.kind
-      ? [memory.kind]
-      : [];
-  for (const type of types) meta.append(el("span", type, "kind-label"));
   if (memory.source) meta.append(el("span", sourceName(memory.source)));
   if (memory.status !== "ready")
     meta.append(
@@ -588,7 +584,7 @@ async function loadOverview() {
     }
     for (const item of result.view.items) {
       const entry = el("div", "", "overview-item");
-      entry.append(el("span", item.kind, "eyebrow"), el("p", item.text));
+      entry.append(el("p", item.text));
       const sources = el("div", "", "overview-sources");
       item.sources.forEach((id, index) => {
         const button = el(
@@ -1242,13 +1238,7 @@ function renderViewPreferences(preferences, { saved = true } = {}) {
     [
       "view-type-options",
       "hidden_types",
-      [
-        ["progress", "Progress"],
-        ["decision", "Decisions"],
-        ["finding", "Findings"],
-        ["blocker", "Blockers"],
-        ["plan", "Plans"],
-      ],
+      preferences.hidden_types.map((type) => [type, type]),
       preferences.hidden_types,
     ],
     [
@@ -1277,6 +1267,7 @@ function renderViewPreferences(preferences, { saved = true } = {}) {
       fieldset.append(label);
     }
   }
+  $("legacy-view-types").hidden = preferences.hidden_types.length === 0;
   $("view-projects").value = preferences.hidden_projects.join("\n");
   $("view-sources").value = preferences.hidden_sources
     .map(sourceName)
@@ -1287,8 +1278,7 @@ async function loadViewPreferences() {
   renderViewPreferences(await api("/api/v1/view-preferences"));
 }
 function editViewPreferences() {
-  setView("settings");
-  selectSettings("privacy");
+  setView("home");
   $("view-preferences-panel").open = true;
   $("view-preferences-panel").scrollIntoView({ block: "start" });
   $("view-preferences-panel").querySelector("summary").focus();
@@ -1480,9 +1470,7 @@ async function loadSettings() {
     show("workspace-sharing-control", state.me.is_admin);
     $("workspace-sharing-enabled").checked = state.me.sharing_enabled;
     const sharing = await api("/api/v1/sharing-preferences");
-    document.querySelectorAll('[name="sharing-type"]').forEach((input) => {
-      input.checked = sharing.allowed_types.includes(input.value);
-    });
+    show("legacy-sharing-note", sharing.allowed_types !== null);
     $("auto-share").checked = sharing.auto_share;
     renderCoverage(state.me.stats);
     await Promise.all([
@@ -1537,7 +1525,7 @@ async function initialize() {
       return;
     }
     document.body.classList.add("workspace-ready");
-    show("workspace-bar");
+    show("global-search-button");
     show("workspace");
     show("navigation");
     show("header-actions");
@@ -1832,9 +1820,6 @@ $("sharing-form").onsubmit = async (event) => {
       await api(
         "/api/v1/sharing-preferences",
         {
-          allowed_types: [
-            ...document.querySelectorAll('[name="sharing-type"]:checked'),
-          ].map((input) => input.value),
           auto_share: $("auto-share").checked,
         },
         "PUT",

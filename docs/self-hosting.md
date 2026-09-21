@@ -12,7 +12,7 @@ With 100,000 records across ten people and half shared, the current 512 MB cache
 
 ## Render
 
-The root `render.yaml` and `Dockerfile.litemem` provision the complete starter topology. Click the README deploy button, review the services and pricing, then deploy. Keep the generated `SESSION_SECRET` and `SETUP_CODE` in Render's secret environment. The app discovers its public URL from `RENDER_EXTERNAL_URL`.
+The root `render.yaml` and `Dockerfile` provision the complete starter topology. Click the README deploy button, review the services and pricing, then deploy. Keep the generated `SESSION_SECRET` and `SETUP_CODE` in Render's secret environment. The app discovers its public URL from `RENDER_EXTERNAL_URL`.
 
 Open the deployed HTTPS URL and paste the setup code to claim it. The code is for installation administration, not for member sign-in. It rotates when claimed. If setup is interrupted, the browser retains a time-limited setup session; otherwise retrieve the current code from the private `/data/setup-code` file in Render's shell.
 
@@ -120,7 +120,7 @@ Pin the code/image revision you deploy. Back up before updating, read migration 
 
 `GET /health` is a liveness check. Setup runs a real encrypted Ente round trip before activation. Connections shows revoked/active clients, and the connector's `status` reports offline backlog. Settings shows pending/failed processing and allows retries. A working health endpoint alone does not prove Jev, Slack or model access.
 
-Operational tracing is off by default. Optional Logfire or OTLP spans record operation names, timing and success/failure, never source text, prompts, completions, tokens, exception text or stack variables. No cloud telemetry backend is required. Do not add unrestricted HTTP/model auto-instrumentation around the app.
+Operational tracing is off by default. [Set up Pydantic Logfire or an OTLP collector](observability.md) to see request channels, models, tool calls, timing, outcomes and reported token counts. Private text, credentials and identities are excluded. No cloud telemetry backend is required.
 
 ## Personal portability
 

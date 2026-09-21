@@ -20,9 +20,9 @@ Use the question box on Activity or open **Ask**. Choose a model from your gatew
 
 **People** uses enrolled members' Slack profiles. You can see their shared activity and ask about evidence they have made available. Another person's private counts, source transcripts and metadata are not exposed.
 
-In **Settings → Privacy → What I see and use**, hide people's work, projects, sources or types from your feed, Ask and catch-ups. These personal filters are saved across sign-ins. They do not change anyone's access or your sharing choices, and originals remain available through their links and in exports. Activity shows **Personal filters are on · Edit** while exclusions apply. Clear the selections and save to include everything you can access again. Saving filters starts a fresh Ask conversation so earlier excluded material is not reused.
+In **Activity → Filter → Exclude from my feed and Ask**, hide people's work, projects or sources from your feed, Ask and catch-ups. These personal filters are saved across sign-ins. They do not change anyone's access or your sharing choices, and originals remain available through their links and in exports. Activity shows **Personal filters are on · Edit** while exclusions apply. Clear the selections and save to include everything you can access again. Saving filters starts a fresh Ask conversation so earlier excluded material is not reused.
 
-Project and source names match without regard to capitalization. Enter one per line. Type filters use cached Jev classifications once available; changing these viewing choices does not rerun classification. A memory that matches any hidden type stays out of your selection.
+Project and source names match without regard to capitalization. Enter one per line. Existing type metadata remains searchable; older saved type exclusions are retained. Changing viewing choices does not call Jev again.
 
 **Catch up** produces current, daily or project views from available evidence. These are derived views, with sources and coverage information; they do not rewrite the original messages. “Processing” means processing is still pending, not that the source was lost. Settings shows failed work and a retry control.
 
@@ -36,9 +36,9 @@ In Slack, talk to **@litemem**. A verified personal DM can use your private hist
 
 Everything starts private. **Company-public** means eligible members of your installation, never the open internet. Sharing may be disabled for the whole workspace during a pilot.
 
-Open a memory to preview the separate summary that would be shared. The original evidence stays private. In **Settings → Privacy**, choose shareable types and, if you want, enable automatic sharing for future work. Historical imports do not publish automatically.
+Open a memory to preview the separate summary that would be shared. The original evidence stays private. In **Settings → Privacy**, optionally enable **Share new summaries with my company**. Historical imports do not publish automatically.
 
-Under **Keep these topics private**, describe a topic to exclude. Jev checks existing and future source chunks, caching each result for the criterion and classifier version. Adding a rule checks that new rule; it does not rerun previously completed rules. Uncertain matches remain private, and the rule withdraws existing publications while checks run.
+Under **Never share these topics**, describe a topic to exclude. Jev checks existing and future source chunks, caching each result for the criterion and classifier version. Adding a rule checks that new rule; it does not rerun previously completed rules. Uncertain matches remain private, and the rule withdraws existing publications while checks run.
 
 Use **Add correction** to add dated corrective evidence without overwriting the original. Deleting a memory removes access immediately and schedules storage cleanup; its deletion marker prevents an old import from bringing it back.
 

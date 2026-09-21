@@ -254,3 +254,24 @@ async def test_remote_resume_discards_delayed_host_capture_but_allows_explicit_h
     monkeypatch.setattr('moegent.archive.time.time', lambda: stamp + 60)
     await archive.preferences('T1:A', capture_enabled=True)
     assert (await archive.member('T1:A'))['capture_after'] == stamp  # Saving an unchanged preference is not a new resume.
+
+
+@pytest.mark.asyncio
+async def test_new_sharing_does_not_require_preset_types_but_preserves_old_restrictions(archive):
+    saved = await archive.capture('T1:A', WorkInput(source_id='untyped', content='Work without a category'))
+    await archive.set_visibility('T1:A', saved['id'], 'public')
+    row = await archive.row(saved['id'])
+    assert await archive.publication_allowed(row, {'labels': {}})
+    await archive.set_sharing_preferences('T1:A', ['decision'], False)
+    assert not await archive.publication_allowed(row, {'labels': {}})
+    assert not await archive.publication_allowed(row, {'labels': {'progress': .95}})
+    assert await archive.publication_allowed(row, {'labels': {'decision': .95}})
+
+
+def test_new_classification_only_asks_for_user_rules():
+    from moegent.processing import criteria_for
+    assert criteria_for([], 'jev') == {}
+    criteria = criteria_for([{'id': 'one', 'version': 'v1', 'instruction': 'Customer names'}], 'jev')
+    assert set(criteria) == {'rule_one'}
+    assert criteria['rule_one']['private']
+    assert 'type_progress' in criteria_for([], 'jev', legacy_types=True)

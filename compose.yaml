@@ -2,7 +2,7 @@ services:
   litemem:
     build:
       context: .
-      dockerfile: Dockerfile.litemem
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "127.0.0.1:8000:8000"
@@ -14,6 +14,9 @@ services:
       REGISTRATION_MODE: domain
       SHARING_ENABLED: "false"
       SEARCH_CACHE_MB: ${SEARCH_CACHE_MB:-128}
+      OBSERVABILITY_EXPORT: ${OBSERVABILITY_EXPORT:-none}
+      LOGFIRE_TOKEN: ${LOGFIRE_TOKEN:-}
+      OTLP_TRACES_ENDPOINT: ${OTLP_TRACES_ENDPOINT:-}
       RECOVERY_MODE: ${RECOVERY_MODE:-false}
     volumes:
       - litemem-state:/data

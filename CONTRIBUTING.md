@@ -13,6 +13,7 @@ uv run ruff check .
 node --check static/memory.js
 node --check static/setup.js
 node --check static/migration.js
+node --check static/ui.js
 ```
 
 The unit/API suite uses temporary synthetic data and mocked external services. It does not need Slack, Ente or model credentials. Docker deployment tests use disposable PostgreSQL/Ente containers; see `.github/workflows/verify.yml`. Use the documented Compose deployment for a complete local installation, with a separate test Slack workspace and gateway when exercising external integrations.
@@ -24,6 +25,7 @@ For real-history query evaluation, use the [private answer-quality workflow](doc
 - `moegent/application.py`: web API, identity and authorization boundaries.
 - `moegent/archive.py`, `crypto.py`, `ente.py`: encrypted originals, per-person keys, publications and lifecycle.
 - `gateway.py`, `model_settings.py`, `processing.py`: LiteLLM discovery, model settings and cached Jev classification.
+- `observability.py`: allowlisted content-free Logfire/OTLP spans; [setup and usage](docs/observability.md).
 - `query.py`, `memory_slack.py`, `mcp_api.py`: query agent and interfaces.
 - `connector.py`, `imports.py`, `transfer.py`, `migration.py`: capture, historical imports, encrypted files and temporary recipient-key browser transfers.
 - `static/`: the dashboard and progressive setup flow, without a frontend build step.

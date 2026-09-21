@@ -3,6 +3,7 @@ import logging
 
 from .archive import Reader
 from .errors import explain_error
+from .observability import request_source
 from .progress import reporter
 from .query import CitationError, answer_work
 
@@ -39,6 +40,7 @@ async def query_worker(settings, store, slack, archive, gateway, running, agent_
                 await store.progress(job["id"], phase, partial)
 
             context = reporter.set(progress)
+            origin = request_source.set("slack" if is_slack else payload.get("request_source", "web"))
             try:
                 frozen_gateway = gateway.snapshot()
                 async def run_answer():
@@ -55,6 +57,7 @@ async def query_worker(settings, store, slack, archive, gateway, running, agent_
             finally:
                 running.pop(job["id"], None)
                 reporter.reset(context)
+                request_source.reset(origin)
             if stamp != await archive.policy_stamp(reader):
                 raise PermissionError("Access changed during this answer.")
             if is_slack:

@@ -10,18 +10,19 @@ This is a work archive you query deliberately. It does not search old memories o
 
 ![The implemented litemem Activity view with Ask, a chronological feed and private lock labels](docs/assets/dashboard.jpg)
 
-The actual application, shown with synthetic local records. See [Ask](docs/assets/ask.jpg), [privacy settings](docs/assets/settings.jpg), and the [20-area interface review](docs/ui-review.md) for more screenshots and verification details.
+The actual application, shown with synthetic local records. See [Ask](docs/assets/ask.jpg), [privacy settings](docs/assets/settings.jpg), and the [interface guide](docs/ui-review.md) for more screenshots and verification details.
 
 ## What it does
 
 - A chronological activity feed, Slack profiles, private lock indicators, and an **Ask** interface with citations.
-- Saved personal filters for people, projects, sources and memory types, separate from sharing permissions. Your feed, Ask and catch-ups respect those choices.
+- Saved personal filters for people, projects and sources, separate from sharing permissions. Your feed, Ask and catch-ups respect those choices.
 - Continuous capture with an encrypted local outbox; optional historical backfills preserve source text, original dates and metadata.
 - Plain-language work updates, current-work views, and daily catch-ups with source links and coverage information. Configure daily timing, workspace timezone and personal display timezone in Settings.
-- Private by default. Members can preview a shared summary, choose shareable types, and keep topics private. Company-public never means internet-public.
+- Private by default. Members can preview a shared summary, opt in to future sharing, and keep topics private. Company-public never means internet-public.
 - The same authorized query agent through the web, Slack, API and remote MCP. Shared Slack conversations use only company-public evidence safe for the conversation's participants.
 - All inference through **your LiteLLM gateway**. Model pickers use its `/v1/models`; agent, Slack, background, embedding and classification models are configurable.
 - TypeSafe **Jev** classifies source chunks in parallel. Results are cached per source/criterion/version. Changing a filter does not rerun completed classification.
+- Optional [Pydantic Logfire observability](docs/observability.md): inspect usage, models, tool calls and latency without recording private content.
 - Move your own history between installations with an encrypted browser transfer and the same Slack sign-in. No transfer password or copied key; the destination imports privately.
 
 ## Deploy
@@ -83,7 +84,7 @@ uv run pytest -q
 uv run ruff check .
 ```
 
-The new app is `moegent.application:app`; the portable launcher is `python -m moegent.boot`. The Python package retains its original internal name to make migration easier. `moegent.app:app`, the original `Dockerfile`, and the vendored knowledge runtime are legacy migration paths, not dependencies of the new memory service.
+The new app is `moegent.application:app`; the portable launcher is `python -m moegent.boot`. The Python package retains its original internal name to make migration easier. `moegent.app:app`, `deploy/Dockerfile.legacy`, and the vendored knowledge runtime are legacy migration paths, not dependencies of the new memory service.
 
 [Architecture](docs/architecture.md) · [Product specification](docs/product-implementation-spec.md) · [Release checklist](docs/release-checklist.md) · [Answer-quality evaluation](docs/answer-quality.md)
 

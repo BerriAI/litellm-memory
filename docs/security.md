@@ -25,7 +25,7 @@ Slack-only sign-in without a separate secret is enabled by this hosted key custo
 
 ## Sharing and removal
 
-New work is private. Auto-sharing is an explicit member preference limited to future nonhistorical work and confidently allowed types. Every matched type must be permitted. Private-topic matches and uncertain privacy results keep an entry private. Adding a privacy rule withdraws existing publications immediately while cached classification results are reused.
+New work is private. Auto-sharing is an explicit member preference limited to future nonhistorical work. Older restrictive type policies remain enforced for compatibility. Private-topic matches and uncertain privacy results keep an entry private. Adding a privacy rule withdraws existing publications immediately while cached classification results are reused.
 
 Deletion first denies access and commits a tombstone, then removes source, derived, publication and affected overview objects with durable retries. Replay cannot silently resurrect the deleted source. Leaving revokes connections and processor/capture access and withdraws publications; leaving is not currently a hard purge of every retained record. Export first when leaving if a copy is wanted.
 

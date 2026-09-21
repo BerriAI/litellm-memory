@@ -25,7 +25,7 @@ The web app, Slack adapter and remote MCP share one API/backend. The public API 
 | `GET /api/v1/jobs/{id}` | Authorized query progress/result. |
 | `POST /api/v1/jobs/{id}/cancel` | Cancel an owned query. |
 | `/api/v1/privacy-rules` | Owner-managed private-topic criteria. |
-| `/api/v1/sharing-preferences` | Allowed types and opt-in future auto-sharing. |
+| `/api/v1/sharing-preferences` | Opt-in future auto-sharing; nullable `allowed_types` retains legacy restrictions. Omitting it preserves the saved policy. |
 | `GET /api/v1/view-preferences` | The authenticated member's private retrieval exclusions. |
 | `PUT /api/v1/view-preferences` | Browser-only update to personal people/project/source/type exclusions. |
 | `/api/v1/connections` | View/revoke owned clients; browser-only creation. |

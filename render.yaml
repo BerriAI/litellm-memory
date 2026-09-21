@@ -4,7 +4,7 @@ services:
   - type: web
     name: litemem
     runtime: docker
-    dockerfilePath: ./Dockerfile.litemem
+    dockerfilePath: ./Dockerfile
     dockerContext: .
     plan: standard
     region: oregon
@@ -32,6 +32,8 @@ services:
         value: domain
       - key: SHARING_ENABLED
         value: "false"
+      - key: OBSERVABILITY_EXPORT
+        value: none
       - key: SEARCH_CACHE_MB
         value: "512"
 databases:
