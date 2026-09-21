@@ -49,7 +49,7 @@ Choose the meaningful states for the changed surface:
 | Ask | Empty, typing, submitted, processing, answer/citation, stop, failure/retry, scope change |
 | Settings | Initial values, edited draft, busy, saved, rejected save, reload, admin/non-admin |
 | Connections | No connections, connected clients, setup instructions, connection failure, revoke boundary |
-| Source/capture | Accessible, unavailable, long content, metadata, draft validation, failed save, close/reopen |
+| Source | Accessible, unavailable, long content, metadata, sharing preview, close/reopen |
 | Setup | Unclaimed, connection pending, gateway/Jev unavailable, verified models, Slack return, completion |
 | Transfers | Waiting for identity/approval, receiving, complete, cancelled, failed, recent imports |
 
@@ -84,7 +84,7 @@ These checks apply [Nielsen's usability heuristics](https://www.nngroup.com/arti
 
 Use actual rendered application screenshots, not generated mockups. Capture representative stable states after fonts/data load. Read each screenshot before making it a deliverable. Keep synthetic content labelled in captions and walkthroughs.
 
-A good whole-app set includes Activity, Ask empty and answered, People, Connections, all Settings categories, a source detail, manual capture, and first-run/standalone flows affected by shared CSS. Add at least one narrow view to show reflow. Do not fill the repository with every transient review screenshot.
+A good whole-app set includes Activity, Ask empty and answered, People, Connections, all Settings categories, a source detail, recording setup and receipt states, and first-run/standalone flows affected by shared CSS. Add at least one narrow view to show reflow. Do not fill the repository with every transient review screenshot.
 
 Keep canonical images in `docs/assets/` and document them through `docs/ui-review.md`. Local scratch galleries belong outside the launch-facing source unless a maintained gallery is explicitly requested. Update or retire stale canonical images after redesigning the related screens.
 

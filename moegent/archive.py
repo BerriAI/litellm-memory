@@ -187,7 +187,11 @@ class Archive:
 
     async def tokens(self, owner):
         rows = await (await self.db.execute(
-            "SELECT id,label,created,last_used,revoked FROM api_tokens WHERE owner=? ORDER BY created DESC", (owner,)
+            """SELECT id,label,created,last_used,revoked,
+                (revoked=0 AND (expires IS NULL OR expires>? OR EXISTS (
+                    SELECT 1 FROM refresh_tokens WHERE connection_id=api_tokens.id AND consumed=0 AND expires>?
+                ))) AS connected
+                FROM api_tokens WHERE owner=? ORDER BY created DESC""", (time.time(), time.time(), owner)
         )).fetchall()
         return [{**dict(r), "label": self.vault.open_operational(r["label"])} for r in rows]
 
@@ -559,6 +563,25 @@ class Archive:
                 "pending": counts.get("pending", 0) + counts.get("processing", 0) + counts.get("storing", 0),
                 "awaiting_storage": counts.get("storing", 0),
                 "failed": counts.get("failed", 0)}
+
+    async def recording_status(self, owner):
+        """Own intake receipts, not a claim that a remote hook is running.
+
+        A connected MCP client and imported history cannot establish continuous
+        recording. Only report persisted intake; storing/deleted records do not
+        count as a successful receipt. No record content or teammate counts.
+        """
+        member = await self.member(owner)
+        if not member:
+            raise PermissionError("Join this workspace to connect a tool.")
+        receipt = await (await self.db.execute("""SELECT COUNT(*) AS received,MAX(created) AS latest
+            FROM records WHERE owner=? AND historical=0 AND deleted=0 AND status!='storing'""",
+                                              (owner,))).fetchone()
+        return {"capture_enabled": bool(member['capture_enabled']),
+                "agent_enabled": bool(member['agent_enabled']),
+                "connected_clients": sum(bool(token['connected']) for token in await self.tokens(owner)),
+                "received": receipt['received'], "last_received_at": receipt['latest'],
+                "stats": await self.stats(owner)}
 
     async def people(self, reader):
         rows = await (await self.db.execute("SELECT id FROM members WHERE team=? AND active=1 ORDER BY created",

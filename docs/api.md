@@ -7,7 +7,8 @@ The web app, Slack adapter and remote MCP share one API/backend. The public API 
 | Method / path | Purpose |
 | --- | --- |
 | `GET /api/v1/me` | Browser identity, enrollment and settings summary. |
-| `GET /api/v1/schedule` | Enrolled member reads workspace timezone, daily time, revision and next scheduled instant. |
+| `GET /api/v1/recording-status` | Own connection count, persisted intake receipt and processing counts; never teammate activity. |
+| `GET /api/v1/schedule` | Legacy date configuration; automatic refresh is off and `next_run_at` is null. |
 | `PUT /api/v1/admin/schedule` | Browser admin saves timezone/daily time with the current revision. |
 | `GET /api/v1/display-preferences` | Authenticated member reads their private display timezone; null follows the device. |
 | `PUT /api/v1/display-preferences` | Browser member changes their own display timezone, without changing access or sharing. |
@@ -107,6 +108,10 @@ Retry network errors, `429` after its indicated delay, and temporary `5xx` using
 
 ## Scheduling and display
 
-`GET /api/v1/schedule` returns `timezone`, `daily_time` (`HH:MM`), `revision` and UTC `next_run_at`. Admin updates require the first three fields; stale revisions fail without changing the active schedule. An identical update is a no-op. Changing the workspace timezone creates a distinct daily view boundary; a queued view retains its original timezone. Daily overview responses include the timezone used. The scheduler coalesces missed runs and reuses identical synthesis inputs while rechecking current authorization.
+Overview generation is on demand. The worker only builds views explicitly requested through Ask or the overview API; it does not periodically scan everyone’s history. Existing generated views remain available and are checked against current evidence and permissions.
+
+The compatibility schedule endpoints retain `timezone`, `daily_time` and `revision`. They return `automatic_refresh: false` and `next_run_at: null`; saving them does not enable a scheduler. The timezone still defines requested daily view boundaries, and a queued view retains its original timezone.
+
+`GET /api/v1/recording-status` returns only the authenticated member’s `capture_enabled`, `agent_enabled`, `connected_clients`, `received`, `last_received_at` (Unix seconds or null), and processing `stats`. Receipts exclude historical imports, deleted records and intake awaiting storage. They are not hook heartbeats. A client counts as connected only while not revoked and its access credential or unconsumed refresh credential remains valid. The endpoint does not run inference or retrieval.
 
 Display preferences are `{ "timezone": "Asia/Tokyo" }` or `{ "timezone": null }`. They are private, persist with the member profile and do not invalidate conversations, reclassify records or change anyone's access. `/api/v1/me` also returns the member's `display_timezone`.

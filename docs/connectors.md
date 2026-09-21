@@ -18,6 +18,8 @@ Supported installation locations are `~/.codex/config.toml`, `~/.codex/hooks.jso
 
 Hooks use SessionStart, UserPromptSubmit, PostToolUse and Stop to ingest newly appended complete transcript records. They do not perform model inference, remote search or recall injection. The transcript adapters accept visible user/assistant text and exclude system/developer text, tool outputs and hidden reasoning. Images and attachments are not extracted. Codex explicitly treats its transcript format as unstable, so verify connector status after host updates; unsupported input should be treated as a coverage gap, not proof of complete capture.
 
+The dashboard’s **Connections** page provides the same commands for your selected tool and checks for persisted intake. A connected credential is not proof of a trusted hook, and an imported history is not proof of new recording. **Work received** means a nonhistorical record was saved; use the local `status` command to diagnose buffering.
+
 ## Offline and paused behavior
 
 The connector commits encrypted source records and its cursor in one local SQLite transaction. Stable source IDs make interrupted uploads safe to retry. Completed receipts prevent duplicate transmission. Failed uploads remain buffered and retry on a later hook or `flush`; records rejected as malformed remain in a visible needs-attention queue. OAuth refresh rotation is serialized across hook processes.

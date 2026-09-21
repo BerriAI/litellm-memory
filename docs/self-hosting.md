@@ -74,11 +74,11 @@ In **Settings → Models → LiteLLM connection**, an administrator can rotate t
 
 Domain-mode workspaces can transfer administration to another enrolled, currently eligible Slack member from Settings. This transfers workspace configuration authority, without granting access to private memories. The owner-only pilot disables this control.
 
-## Daily schedule and dates
+## Dates and on-demand overviews
 
-After setup, **Settings → General** controls the workspace timezone and daily refresh time (default 02:00). The application owns the durable work queue; no host cron or external automation is needed. Current work is reconciled every five minutes, and the worker notices a newly due daily period on its next loop after any in-flight job. Missed periods coalesce into the latest due day. Repeated checks reuse unchanged synthesis; late evidence or policy changes are revalidated. Timezone changes create distinct daily views, including for in-flight work.
+New records are processed continuously. Current or daily overviews are built only when requested through Ask or the overview API; no periodic history sweep or external cron is required. Existing source records and saved views remain available.
 
-Schedules live in encrypted deployment configuration. Personal display timezones live in encrypted member profiles, change presentation/date filters only, and stay out of the directory. Both survive normal backup/restore. IANA timezone data is included as a pinned dependency in the image. A skipped spring-forward time advances by the gap; repeated fall-back time uses its first occurrence.
+Personal display timezones are controlled in **Settings → General**, persist in encrypted member profiles and affect presentation/date filters only. Requested daily overviews use the workspace timezone chosen during setup. Legacy schedule settings remain readable through the compatibility API, with automatic refresh disabled. Timezone data is included in the image.
 
 ## External Ente
 

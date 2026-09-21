@@ -821,15 +821,6 @@ body:not(.workspace-ready) .footer {
   color: var(--muted);
   font-size: 13px;
 }
-.person-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.person-filter button {
-  text-decoration: underline;
-  font-size: 12px;
-}
 .activity-rail {
   padding: 4px 0 0;
 }
@@ -864,50 +855,63 @@ body:not(.workspace-ready) .footer {
   height: 26px;
   font-size: 10px;
 }
-.work-overview {
-  border-top: 1px solid var(--line);
-  padding-top: 20px;
-  font-size: 13px;
-}
-.work-overview > summary {
-  cursor: pointer;
-  font-weight: 550;
-  min-height: 30px;
-}
-.work-overview > p {
-  font-size: 12px;
-  margin-top: 10px;
-}
-.work-overview .filters {
-  display: grid;
-  padding-top: 8px;
-}
-.overview-item {
-  border-bottom: 1px solid var(--line);
-  padding: 14px 0;
-}
-.overview-item p {
-  font-size: 12px;
-  margin: 5px 0;
-}
-.overview-sources {
+/* One useful next step, shown only while recording needs setup or attention. */
+.recording-nudge {
   display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  margin: 0 0 20px;
+  border-bottom: 1px solid var(--line);
 }
-.work-overview .fine-print {
-  font-size: 11px;
+.recording-nudge > div {
+  flex: 1;
+  min-width: 0;
 }
-
-#view-preferences-panel {
-  margin: 12px 0 0;
-  font-size: 12px;
+.recording-nudge h2,
+.recording-status-panel h2 {
+  font-size: var(--text-body);
+  font-weight: 600;
+  margin: 0 0 4px;
 }
-#view-preferences-panel > summary {
+.recording-nudge p,
+.recording-status-panel p {
+  font-size: var(--text-control);
+  color: var(--body);
+  margin: 0;
+  line-height: 1.6;
+}
+.recording-nudge > button {
+  flex-shrink: 0;
+}
+.person-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 24px;
+}
+.person-context-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.person-context h2 {
+  font-size: var(--text-section);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.person-context p {
   color: var(--muted);
+  font-size: var(--text-meta);
+  margin: 3px 0 0;
 }
-.activity-main:has(#filters[hidden]) #view-preferences-panel:not([open]) {
-  display: none;
+.person-context > button {
+  flex-shrink: 0;
+}
+#view-preferences-panel {
+  margin: 0;
 }
 #view-preferences-panel .model-grid {
   grid-template-columns: 1fr 1fr;
@@ -1295,22 +1299,6 @@ body[data-view="ask"] .footer {
 .action-row .text-link {
   margin: 0;
 }
-.schedule-fields {
-  min-width: 0;
-  border: 0;
-  padding: 0;
-  margin: 0;
-}
-#schedule-summary {
-  margin: 0 0 16px;
-}
-.connection-instructions {
-  margin: 0 0 32px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 24px;
-  max-width: 780px;
-}
 .quiet-note {
   display: flex;
   align-items: flex-start;
@@ -1511,12 +1499,64 @@ body[data-view="ask"] .footer {
   flex-direction: column;
   flex-shrink: 0;
 }
-.connection-instructions {
-  margin: 26px 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 22px;
+.recording-status-panel {
+  max-width: 780px;
+  padding: 0 0 24px;
+  border-bottom: 1px solid var(--line);
 }
+.recording-status-panel .action-row {
+  margin-top: 14px;
+}
+.recording-status-panel .fine-print {
+  margin-top: 8px;
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+.recording-status-panel .inline-error {
+  color: var(--danger);
+  margin-top: 8px;
+}
+.connection-instructions {
+  margin: 28px 0;
+  max-width: 780px;
+}
+.connection-instructions > summary {
+  font-size: var(--text-section);
+  font-weight: 600;
+  cursor: pointer;
+}
+.connection-instructions[open] > summary {
+  margin-bottom: 12px;
+}
+.connection-instructions > select {
+  margin-top: 6px;
+  min-width: 160px;
+}
+.connection-steps {
+  padding-left: 24px;
+  margin: 20px 0;
+}
+.connection-steps li {
+  padding-left: 6px;
+  margin: 20px 0;
+}
+.connection-steps li::marker {
+  font-size: var(--text-control);
+  color: var(--muted);
+}
+.connection-steps p {
+  font-size: var(--text-control);
+  color: var(--body);
+  margin: 8px 0;
+}
+.connection-steps h3 {
+  font-size: var(--text-body);
+}
+.connection-steps .fine-print {
+  font-size: var(--text-meta);
+  color: var(--muted);
+}
+
 .copy-row {
   display: flex;
   align-items: center;
@@ -1620,6 +1660,17 @@ dialog::backdrop {
   border-top: 1px solid var(--line);
   padding-top: 18px;
   margin-top: 22px;
+}
+.source-more {
+  font-size: var(--text-control);
+}
+.source-more > summary {
+  cursor: pointer;
+  color: var(--muted);
+  padding: 8px 0;
+}
+.source-more .action-row {
+  margin-top: 8px;
 }
 .dialog-actions > .privacy {
   margin-right: auto;
@@ -1900,13 +1951,6 @@ dialog::backdrop {
   .rail-section {
     display: none;
   }
-  .work-overview {
-    padding: 16px 0;
-    border-top: 1px solid var(--line);
-  }
-  .work-overview .filters {
-    display: flex;
-  }
   .scope-control select {
     max-width: 180px;
   }
@@ -2155,9 +2199,6 @@ dialog::backdrop {
     flex-direction: row;
     flex-wrap: wrap;
   }
-  .connection-instructions {
-    padding: 16px;
-  }
   .copy-row {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -2248,6 +2289,13 @@ dialog::backdrop {
 }
 
 @media (max-width: 560px) {
+  .recording-nudge,
+  .person-context {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
   .model-grid,
   #view-preferences-panel .model-grid {
     grid-template-columns: minmax(0, 1fr);

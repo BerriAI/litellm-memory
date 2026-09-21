@@ -11,7 +11,7 @@
       rel="icon"
     />
     <link href="/static/memory.css" rel="stylesheet" />
-    <script src="/static/memory.js?v=6" type="module"></script>
+    <script src="/static/memory.js?v=7" type="module"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -184,8 +184,9 @@
                     /></label>
                   </div>
                   <p>
-                    Slack and background work can use the default agent. You can
-                    change every model later in Settings.
+                    Slack can use the default agent. Background work has its own
+                    suggested model. You can change every model later in
+                    Settings.
                   </p>
                 </details>
                 <div class="form-footer">
@@ -306,12 +307,11 @@
         <p class="eyebrow">Welcome to litemem</p>
         <h1 id="member-setup-title">Your memory starts here.</h1>
         <p id="member-setup-description">
-          Your work is private by default. Your personal agent can organize and
-          answer questions about it. Sign-in and connections use Slack; there’s
-          no separate key to remember.
+          Browse your team’s shared work and ask about it. Connect Codex or
+          Claude Code to start recording your own work privately.
         </p>
         <button class="button primary" id="finish-signup">
-          Create my memory
+          Join workspace
         </button>
         <p id="setup-error" role="alert"></p>
       </section>
@@ -333,12 +333,43 @@
               <h1 id="feed-title">Activity</h1>
               <p class="page-date" id="today"></p>
             </div>
-            <button class="button secondary" id="add-memory">
-              <span data-icon="plus"></span> Add memory
+            <button class="button quiet small" id="refresh-feed">
+              <span data-icon="refresh"></span> Refresh
             </button>
           </div>
           <div class="activity-layout">
             <div class="activity-main">
+              <section
+                class="recording-nudge"
+                id="recording-nudge"
+                hidden
+                aria-label="Recording setup"
+              >
+                <div>
+                  <h2 id="recording-nudge-title"></h2>
+                  <p id="recording-nudge-copy"></p>
+                </div>
+                <button
+                  class="button secondary small"
+                  id="recording-nudge-action"
+                >
+                  Connect a tool
+                </button>
+              </section>
+              <section
+                class="person-context"
+                id="person-context"
+                hidden
+                aria-label="Selected person"
+              >
+                <div
+                  id="person-context-identity"
+                  class="person-context-identity"
+                ></div>
+                <button class="text-button" id="clear-person">
+                  Back to Company
+                </button>
+              </section>
               <form class="home-ask" id="home-ask-form">
                 <label class="home-ask-label" for="home-question"
                   >Ask about this work</label
@@ -402,7 +433,7 @@
                   aria-label="Search memories"
                   id="search-query"
                   maxlength="2000"
-                  placeholder="Search your work, decisions, and ideas"
+                  placeholder="Search this work"
                   type="search"
                 /><button class="button quiet small" type="submit">
                   Search
@@ -446,66 +477,6 @@
                   Clear
                 </button>
               </div>
-              <details class="advanced" id="view-preferences-panel">
-                <summary>Exclude from my feed and Ask</summary>
-                <p>These personal filters do not change what you share.</p>
-                <form id="view-preferences-form">
-                  <div id="legacy-view-types" hidden>
-                    <h3>Existing type exclusions</h3>
-                    <fieldset class="type-options" id="view-type-options">
-                      <legend class="sr-only">
-                        Types hidden from my feed and Ask
-                      </legend>
-                    </fieldset>
-                  </div>
-                  <h3>People</h3>
-                  <fieldset
-                    class="type-options preference-people"
-                    id="view-person-options"
-                  >
-                    <legend class="sr-only">
-                      People hidden from my feed and Ask
-                    </legend>
-                  </fieldset>
-                  <div class="model-grid">
-                    <label
-                      >Hide projects<textarea
-                        id="view-projects"
-                        rows="3"
-                        maxlength="20100"
-                        placeholder="One project per line"
-                      ></textarea>
-                    </label>
-                    <label
-                      >Hide sources<textarea
-                        id="view-sources"
-                        rows="3"
-                        maxlength="20100"
-                        placeholder="One source per line, e.g. Codex"
-                      ></textarea>
-                    </label>
-                  </div>
-                  <p>
-                    Leave everything empty to include all work you can access.
-                  </p>
-                  <div class="dialog-actions">
-                    <button class="button secondary" id="save-view-preferences">
-                      Save viewing preferences</button
-                    ><button
-                      class="button quiet"
-                      type="button"
-                      id="reset-view-preferences"
-                    >
-                      Clear selections
-                    </button>
-                  </div>
-                  <p
-                    class="inline-status"
-                    role="status"
-                    id="view-preferences-status"
-                  ></p>
-                </form>
-              </details>
               <div class="feed-meta">
                 <span id="feed-caption">Latest first</span
                 ><span id="processing-status" role="status"></span>
@@ -544,32 +515,6 @@
                   Only work people choose to share appears for your team.
                 </p>
               </section>
-              <details class="work-overview" id="work-overview">
-                <summary>Catch up</summary>
-                <p class="muted">
-                  Decisions, progress, and open questions, linked to the
-                  original work.
-                </p>
-                <form class="filters" id="overview-form">
-                  <label
-                    >View<select id="overview-kind">
-                      <option value="current">Current work</option>
-                      <option value="daily">Daily catch-up</option>
-                    </select></label
-                  >
-                  <label hidden="" id="overview-date-label"
-                    >Day<input id="overview-day" type="date"
-                  /></label>
-                  <label
-                    >Project<input
-                      id="overview-project"
-                      maxlength="200"
-                      placeholder="All projects"
-                  /></label>
-                  <button class="button quiet small">Refresh</button>
-                </form>
-                <div aria-live="polite" id="overview-content"></div>
-              </details>
             </aside>
           </div>
         </section>
@@ -611,9 +556,9 @@
               <label class="scope-control"
                 ><span data-icon="lock" id="scope-icon"></span
                 ><select aria-label="Memory scope" id="chat-scope">
-                  <option value="mine">My memories</option>
-                  <option value="all">All accessible memories</option>
-                  <option value="shared">Shared memories only</option>
+                  <option value="shared">Company</option>
+                  <option value="mine">My work</option>
+                  <option value="all">My work + Company</option>
                 </select></label
               >
               <div class="model-and-send">
@@ -686,24 +631,102 @@
               </p>
             </div>
           </div>
-          <div class="connection-instructions">
-            <h2>Record as you work</h2>
+          <section class="recording-status-panel" aria-label="Recording status">
+            <div>
+              <h2 id="recording-title">Checking recording…</h2>
+              <p id="recording-copy" class="muted"></p>
+              <p id="recording-last-received" class="fine-print"></p>
+            </div>
+            <div class="action-row">
+              <button class="button secondary small" id="check-recording">
+                Check connection
+              </button>
+              <button class="text-button" id="see-my-work" hidden>
+                View my work
+              </button>
+            </div>
+            <p class="inline-error" id="recording-error" role="alert"></p>
+          </section>
+          <details class="connection-instructions" id="connector-guide" open>
+            <summary>Connect your coding tool</summary>
             <p class="muted">
-              Connect Codex or Claude Code once using Slack. Conversations are
-              saved privately as you work. Your agent only searches when you
-              ask.
+              Install once on the computer where you use your tool. Sign in with
+              Slack when the browser opens.
             </p>
-            <a
-              class="button primary"
-              href="/api/connector/setup"
-              id="capture-setup-link"
-              >Connect a tool <span data-icon="next"></span
-            ></a>
+            <label class="field-label" for="capture-host">Your tool</label>
+            <select id="capture-host">
+              <option value="codex">Codex</option>
+              <option value="claude">Claude Code</option>
+            </select>
+            <ol class="connection-steps">
+              <li>
+                <h3>Install and connect</h3>
+                <pre id="capture-command" class="code-block"></pre>
+                <button
+                  class="button secondary small"
+                  data-copy="capture-command"
+                  type="button"
+                >
+                  Copy commands
+                </button>
+                <p class="fine-print">
+                  Requires uv and Python 3.12+ on macOS or Linux. This private
+                  preview also requires GitHub access.
+                </p>
+              </li>
+              <li>
+                <h3>Restart your tool</h3>
+                <p id="capture-restart"></p>
+              </li>
+              <li>
+                <h3>Do a little work</h3>
+                <p>
+                  Send a message and let your tool finish its reply. Check above
+                  to see when litemem receives it.
+                </p>
+              </li>
+            </ol>
+            <p class="fine-print">
+              <span data-icon="lock"></span> Visible conversations are saved
+              privately. Searching happens only when you ask.
+            </p>
+            <details class="advanced">
+              <summary>Import earlier work</summary>
+              <p>
+                Choose the history you want to bring over. Dates and originals
+                are preserved; imports stay private.
+              </p>
+              <pre id="backfill-command" class="code-block"></pre>
+              <button
+                class="button secondary small"
+                data-copy="backfill-command"
+                type="button"
+              >
+                Copy import command
+              </button>
+              <p class="fine-print">
+                This imports the tool’s history folder. Replace the path with a
+                specific project or transcript to import less.
+              </p>
+            </details>
+            <details class="advanced">
+              <summary>Nothing arriving?</summary>
+              <p>
+                Restart your tool and finish the setup above. These commands
+                show locally queued work and retry uploads.
+              </p>
+              <pre class="code-block">
+litemem-connector status
+litemem-connector flush</pre>
+              <a class="text-link" href="/api/connector/setup"
+                >Full connection guide</a
+              >
+            </details>
             <details class="advanced">
               <summary>Manual MCP connection</summary>
               <p class="muted">
-                For search and manual recording only. The capture setup above
-                already includes MCP.
+                For search and manual recording only. The setup above already
+                includes MCP.
               </p>
 
               <div class="copy-row">
@@ -731,7 +754,7 @@
                 Copy Claude Code command
               </button>
             </details>
-          </div>
+          </details>
           <h2 class="section-heading">Connected clients</h2>
           <div id="connection-list"></div>
         </section>
@@ -954,54 +977,73 @@
             </section>
             <section class="settings-section">
               <div class="section-copy">
-                <h2>Daily catch-ups</h2>
-                <p>
-                  A daily view of the previous day’s work. New records remain
-                  searchable throughout the day.
-                </p>
+                <h2>Browsing</h2>
+                <p>Choose what appears in your feed and answers.</p>
               </div>
               <div class="section-controls">
-                <p class="field-help" id="schedule-summary" role="status">
-                  Loading the workspace schedule…
-                </p>
-                <form id="schedule-settings-form" hidden>
-                  <fieldset
-                    id="schedule-fields"
-                    disabled
-                    class="schedule-fields"
-                  >
+                <details class="advanced" id="view-preferences-panel">
+                  <summary>Exclude from my feed and Ask</summary>
+                  <p>These personal filters do not change what you share.</p>
+                  <form id="view-preferences-form">
+                    <div id="legacy-view-types" hidden>
+                      <h3>Existing type exclusions</h3>
+                      <fieldset class="type-options" id="view-type-options">
+                        <legend class="sr-only">
+                          Types hidden from my feed and Ask
+                        </legend>
+                      </fieldset>
+                    </div>
+                    <h3>People</h3>
+                    <fieldset
+                      class="type-options preference-people"
+                      id="view-person-options"
+                    >
+                      <legend class="sr-only">
+                        People hidden from my feed and Ask
+                      </legend>
+                    </fieldset>
                     <div class="model-grid">
                       <label
-                        >Workspace time zone<select
-                          id="workspace-timezone"
-                        ></select></label
-                      ><label
-                        >Refresh at<input type="time" id="daily-time" required
-                      /></label>
+                        >Hide projects<textarea
+                          id="view-projects"
+                          rows="3"
+                          maxlength="20100"
+                          placeholder="One project per line"
+                        ></textarea>
+                      </label>
+                      <label
+                        >Hide sources<textarea
+                          id="view-sources"
+                          rows="3"
+                          maxlength="20100"
+                          placeholder="One source per line, e.g. Codex"
+                        ></textarea>
+                      </label>
                     </div>
-                    <div class="form-footer">
+                    <p>
+                      Leave everything empty to include all work you can access.
+                    </p>
+                    <div class="dialog-actions">
                       <button
-                        class="button primary"
-                        id="save-schedule-settings"
+                        class="button secondary"
+                        id="save-view-preferences"
                       >
-                        Save schedule
+                        Save viewing preferences</button
+                      ><button
+                        class="button quiet"
+                        type="button"
+                        id="reset-view-preferences"
+                      >
+                        Clear selections
                       </button>
                     </div>
-                  </fieldset>
-                </form>
-                <p
-                  class="inline-status"
-                  id="schedule-settings-status"
-                  role="status"
-                ></p>
-                <button
-                  type="button"
-                  class="text-button"
-                  id="reload-schedule"
-                  hidden
-                >
-                  Reload schedule
-                </button>
+                    <p
+                      class="inline-status"
+                      role="status"
+                      id="view-preferences-status"
+                    ></p>
+                  </form>
+                </details>
               </div>
             </section>
           </div>
@@ -1234,43 +1276,6 @@
       <div id="source-body"></div>
       <p class="inline-error" id="source-error" role="alert"></p>
       <div class="dialog-actions memory-actions" id="source-actions"></div>
-    </dialog>
-    <dialog
-      aria-label="Add a memory"
-      class="capture-dialog"
-      id="capture-dialog"
-    >
-      <div class="dialog-top">
-        <h2>Add a memory</h2>
-        <button aria-label="Close" class="icon-button" id="close-capture">
-          <span data-icon="close"></span>
-        </button>
-      </div>
-      <form id="capture-form">
-        <label
-          >Title<input
-            autofocus=""
-            id="capture-title"
-            maxlength="300"
-            placeholder="What happened?" /></label
-        ><label
-          >Memory<textarea
-            aria-describedby="capture-error"
-            id="capture-content"
-            maxlength="200000"
-            minlength="1"
-            placeholder="Write what you want to remember."
-            required=""
-            rows="8"
-          ></textarea>
-        </label>
-        <p class="inline-error" id="capture-error" role="alert"></p>
-        <div class="dialog-actions">
-          <span class="privacy private"
-            ><span data-icon="lock"></span> Private</span
-          ><button class="button primary">Save memory</button>
-        </div>
-      </form>
     </dialog>
     <dialog
       aria-label="Protect your export"

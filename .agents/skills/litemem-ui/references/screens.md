@@ -6,7 +6,7 @@ These recipes describe the existing product and how to extend it consistently. T
 
 **Task:** understand recent work, find an entry, or ask about it.
 
-**Order:** page title/date and optional Add memory → compact Ask surface → Company/My work selection and filters → chronology → evidence. Company comes first and is selected on a fresh visit. People and catch-up context are secondary.
+**Order:** page title/date and Refresh → compact recording prompt when needed → selected person, if any → Ask surface → Company/My work selection and filters → chronology → evidence. Company comes first and is selected on a fresh visit. People support discovery; there is no Catch up panel or manual-note composer.
 
 The home Ask form follows the selected feed: company-shared work, the user's own work, or a selected person's shared work. Its placeholder and query scope must agree. Switching feed does not publish or change anyone's access.
 
@@ -14,9 +14,9 @@ Keep the feed chronological. The useful title and work excerpt are more prominen
 
 The home Ask form has a visible label, concise placeholder, send control, and one short privacy line. Avoid a welcome hero, metric cards, progress rings, or recommendation panel above the first entry. The feed should appear within a normal viewport, not beneath an onboarding essay.
 
-Search and Filter are discoverable controls, with advanced exclusions disclosed only when relevant. Clear search and clear filters must return to a understandable broader state. Personal viewing exclusions do not change sharing; keep that distinction in the explanation.
+Search and Filter are discoverable controls, with saved viewing exclusions in Settings → General. The active-filter note links to that editor. Clear search and clear filters must return to a understandable broader state. Personal viewing exclusions do not change sharing; keep that distinction in the explanation.
 
-For someone else's feed, name the person and scope the question to their shared work. Do not expose private counts, hidden titles, or inaccessible source previews merely to fill the layout.
+For someone else's feed, show a compact identity header and Back to Company action; scope the question to their shared work. Person routes survive reload and browser Back. Changing the feed/person clears temporary filters; saved exclusions remain enforced. Do not expose private counts, hidden titles, or inaccessible source previews merely to fill the layout.
 
 ## Ask: empty, active, answered
 
@@ -44,7 +44,9 @@ The empty directory explains that people appear after joining with Slack. Search
 
 **Task:** connect the coding tool once, then see/manage connections.
 
-The setup entry point gets a short, useful surface: what connecting does, Connect a tool, optional manual MCP disclosure. Connected clients are a straightforward list below it. Do not put a wall of commands ahead of the ordinary path.
+The page starts with actual recording status, a Check connection action, and View my work when there is saved history. A connected credential is not proof of running hooks; imported history is not new intake. Report saved receipts precisely.
+
+Inline setup offers a tool selector, copyable install/connect commands, restart and hook-trust instructions, and a first-record check. Collapse setup for returning members with a connection and received work. History import, troubleshooting and manual MCP are disclosures. Keep command text selectable on narrow screens. Connected clients follow below.
 
 The connector guide groups the real steps: install/connect; restart and complete MCP/hook setup; optional history import/status commands. Code is copyable/selectable, monospaced, and horizontally scrollable rather than wrapping commands into invalid lines. Keep requirements near the relevant setup, not in the home feed.
 
@@ -72,7 +74,7 @@ Group Record new work and Personal agent access under Recording. Processing is a
 
 ### General
 
-Personal date/time display first; workspace daily catch-up scheduling second. The scope of the two time zones is visible. Non-admin users can see the appropriate schedule information without being shown fake editable controls.
+Personal date/time display and a disclosed saved-viewing-preferences editor. There are no daily-summary scheduling controls. Existing exclusions must remain visible through an active-filter notice on the feed and editable here.
 
 ### Workspace
 
@@ -84,11 +86,11 @@ All model options come from the configured LiteLLM gateway. Do not add direct-pr
 
 Transfer, export, and leave are separate tasks with plain consequences. Encrypted export and readable export are distinct choices, not an ambiguous single download action. Leave is separated from routine export; its label is specific. Do not call it Delete account unless the implemented action actually does that.
 
-## Source detail and manual capture
+## Source detail
 
 **Source:** audience and title → useful content → provenance → expandable originals/metadata → actions. A source title may wrap. Original text remains legible, selectable, and properly escaped/sanitized. Metadata remains filterable and inspectable without rendering a raw JSON wall in the feed.
 
-**Capture:** a modest dialog, visible labels, concise example, Private lock, Save memory. No required schema fields beyond the existing API contract. On error, retain the draft. Successful save is not equivalent to completed classification or permission to share.
+Sharing preview is the primary owner action. Corrections and deletion stay under More actions. The API and MCP can record work manually, but the dashboard focuses on connected capture rather than note authoring.
 
 ## First run and identity
 
@@ -100,7 +102,7 @@ Credentials have visible labels; connection status has precise wording. Advanced
 
 Slack is the user's sign-in method. Do not invent a second product password or a user-managed encryption-key screen. Eligibility follows the deployment's verified Slack/email rules. Do not claim arbitrary accounts can join because the UI looks open.
 
-Member onboarding is small and direct. Auth expiry is recoverable and clearly distinguished from no data. Never show private stale content after the application has invalidated access.
+Member onboarding confirms joining, then opens Company immediately. A compact prompt leads to recording setup without blocking shared browsing. It progresses from not connected to waiting for work to a saved receipt; never label a hook “running” from credentials alone. Auth expiry is recoverable and clearly distinguished from no data. Never show private stale content after the application has invalidated access.
 
 ## Transfer and export
 

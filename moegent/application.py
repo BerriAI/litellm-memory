@@ -599,6 +599,10 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     async def connections(request: Request):
         return {"connections": await archive.tokens(await account(request))}
 
+    @api.get("/recording-status")
+    async def recording_status(request: Request):
+        return await archive.recording_status(await account(request))
+
     @api.get("/capture-identity")
     async def capture_identity(request: Request):
         owner = await account(request)

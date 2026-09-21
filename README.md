@@ -2,7 +2,7 @@
 
 **Your team's work, with a memory.** A [LiteLLM Labs](https://github.com/BerriAI) product, built with [Ente](https://github.com/ente-io/ente) and [LiteLLM](https://github.com/BerriAI/litellm).
 
-litemem records the work people do with AI and makes it easy to ask about later. Connect Codex or Claude Code, browse your private activity, share selected summaries with your company, and ask questions in the web app or through **@litemem** in Slack.
+litemem records the work people do with AI and makes it easy to ask about later. Connect Codex or Claude Code, browse your company’s shared work and your own private history, and ask questions in the web app or through **@litemem** in Slack.
 
 This is a work archive you query deliberately. It does not search old memories or inject context into every coding turn.
 
@@ -14,16 +14,13 @@ The actual application, shown with synthetic local records. See [Ask](docs/asset
 
 ## What it does
 
-- A chronological activity feed, Slack profiles, private lock indicators, and an **Ask** interface with citations.
-- Saved personal filters for people, projects and sources, separate from sharing permissions. Your feed, Ask and catch-ups respect those choices.
-- Continuous capture with an encrypted local outbox; optional historical backfills preserve source text, original dates and metadata.
-- Plain-language work updates, current-work views, and daily catch-ups with source links and coverage information. Configure daily timing, workspace timezone and personal display timezone in Settings.
-- Private by default. Members can preview a shared summary, opt in to future sharing, and keep topics private. Company-public never means internet-public.
-- The same authorized query agent through the web, Slack, API and remote MCP. Shared Slack conversations use only company-public evidence safe for the conversation's participants.
-- All inference through **your LiteLLM gateway**. Model pickers use its `/v1/models`; agent, Slack, background, embedding and classification models are configurable.
-- TypeSafe **Jev** classifies source chunks in parallel. Results are cached per source/criterion/version. Changing a filter does not rerun completed classification.
-- Optional [Pydantic Logfire observability](docs/observability.md): inspect usage, models, tool calls and latency without recording private content.
-- Move your own history between installations with an encrypted browser transfer and the same Slack sign-in. No transfer password or copied key; the destination imports privately.
+- **Browse:** Company opens first, with a chronological feed and Slack profiles. Open a teammate’s shared activity or switch to My work.
+- **Record:** connect Codex or Claude Code once. An encrypted local outbox retries uploads; optional backfills preserve original text, dates and metadata. Connection status shows when work actually arrives.
+- **Share deliberately:** work starts private. Preview a separate summary, or opt in to sharing future summaries. TypeSafe Jev checks your private topics in parallel and caches completed checks.
+- **Ask:** get cited answers through the web, Slack, API or MCP, limited to the evidence the audience can access. No automatic recall on coding turns or scheduled daily digests.
+- **Use your gateway:** model choices come from LiteLLM. Optional [Pydantic Logfire](docs/observability.md) shows usage and latency without private content.
+
+See the [member guide](docs/member-guide.md) for filtering, privacy, exports and account controls.
 
 ## Deploy
 

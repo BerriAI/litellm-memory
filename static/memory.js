@@ -21,21 +21,25 @@ const state = {
   job: null,
   chatVersion: 0,
   toastTimer: null,
-  overviewVersion: 0,
   memoryVersion: 0,
   settingsLoaded: false,
   cancelRequested: false,
   settingsSection: "privacy",
-  chatScope: "mine",
+  chatScope: "shared",
   chatRequest: null,
-  captureRequest: null,
   sessionVersion: 0,
   viewPreferences: null,
   preferencesSaving: false,
-  schedule: null,
+  recording: null,
+  recordingLoading: false,
+  connectionsVersion: 0,
+  firstReceipt: false,
+  guideInitialized: false,
 };
 // Lucide paths: one 24px grid and one stroke system, no nested icon wrappers.
 const icons = {
+  refresh:
+    '<path d="M3 11a9 9 0 0 1 15-6l3 3M21 3v5h-5M21 13a9 9 0 0 1-15 6l-3-3M3 21v-5h5" />',
   activity:
     '<rect width="18" height="18" x="3" y="3" rx="2" />\n  <path d="M21 9H3" />\n  <path d="M21 15H3" />',
   chat: '<path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719" />',
@@ -236,18 +240,17 @@ function expireSession() {
   state.feedVersion++;
   state.chatVersion++;
   state.memoryVersion++;
-  state.overviewVersion++;
   state.previousJob = null;
   state.job = null;
   state.people = [];
   state.models = [];
   state.me = null;
   state.settingsLoaded = false;
-  state.captureRequest = null;
   state.chatRequest = null;
   state.modelSettings = null;
   state.viewPreferences = null;
-  state.schedule = null;
+  state.recording = null;
+  state.connectionsVersion++;
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   document.querySelectorAll("input, textarea").forEach((input) => {
     input.value = "";
@@ -260,7 +263,6 @@ function expireSession() {
     "source-actions",
     "source-visibility",
     "rule-list",
-    "overview-content",
     "view-person-options",
     "view-type-options",
   ])
@@ -299,8 +301,16 @@ function setView(view, { navigate = true } = {}) {
     else button.removeAttribute("aria-current");
   });
   closeAccountMenu();
-  if (navigate && location.hash !== `#${view}`)
-    history.pushState(null, "", `/#${view}`);
+  const route =
+    view === "home"
+      ? state.person && state.person !== state.me.id
+        ? `person/${encodeURIComponent(state.person)}`
+        : state.feed === "mine"
+          ? "mine"
+          : "home"
+      : view;
+  if (navigate && location.hash !== `#${route}`)
+    history.pushState(null, "", `/#${route}`);
   if (view === "connections")
     loadConnections().catch((error) => toast(explain(error)));
   if (view === "settings" && !state.settingsLoaded)
@@ -330,8 +340,38 @@ function selectSettings(section) {
     button.tabIndex = selected ? 0 : -1;
   });
 }
+function openFeed(feed = "shared", person = null, { navigate = true } = {}) {
+  state.feed = feed;
+  state.person = person;
+  resetFilterFields();
+  document
+    .querySelectorAll("[data-feed]")
+    .forEach((button) => updateFeedTab(button, button.dataset.feed === feed));
+  setView("home", { navigate });
+  loadFeed();
+}
+function restoreRoute() {
+  const route = location.hash.slice(1);
+  if (route === "mine") return openFeed("mine", null, { navigate: false });
+  if (route.startsWith("person/")) {
+    let id;
+    try {
+      id = decodeURIComponent(route.slice(7));
+    } catch {
+      id = null;
+    }
+    if (state.people.some((person) => person.id === id))
+      return openFeed(id === state.me.id ? "mine" : "shared", id, {
+        navigate: false,
+      });
+    toast("This person is no longer in the directory.");
+  }
+  if (!route || route === "home" || route.startsWith("person/"))
+    return openFeed("shared", null, { navigate: false });
+  setView(route, { navigate: false });
+}
 window.addEventListener("popstate", () => {
-  if (state.me?.enrolled) setView(location.hash.slice(1), { navigate: false });
+  if (state.me?.enrolled) restoreRoute();
 });
 function showEmpty(container, title, description, action) {
   const box = el("div", "", "empty-state");
@@ -346,11 +386,6 @@ function showEmpty(container, title, description, action) {
 function renderCoverage(stats) {
   if (!stats) return;
   state.me.stats = stats;
-  $("add-memory").disabled = state.me.capture_enabled === false;
-  $("add-memory").title =
-    state.me.capture_enabled === false
-      ? "Enable recording in Settings to add work."
-      : "";
   $("processing-status").textContent = [
     stats.pending ? `${stats.pending} processing` : "",
     stats.failed ? `${stats.failed} need attention` : "",
@@ -368,23 +403,36 @@ function renderCoverage(stats) {
           : "Up to date.",
     ),
   );
+  show("processing-status", state.feed === "mine");
   $("retry-processing").disabled = !stats.failed;
 }
 async function loadFeed(append = false) {
   if (!state.me?.enrolled) return;
-  const hasOverview = state.feed === "mine" || !!state.person;
-  show("work-overview", hasOverview);
-  $("home-question").placeholder =
-    state.person && state.person !== state.me.id
-      ? `Ask about ${profile(state.person).name}’s shared work…`
-      : state.feed === "shared"
-        ? "Ask about your company’s shared work…"
-        : "Ask about your work…";
-  if (!append) {
-    state.overviewVersion++;
-    $("overview-content").replaceChildren();
-    if (hasOverview && $("work-overview").open) loadOverview();
+  const selected =
+    state.person && state.person !== state.me.id ? profile(state.person) : null;
+  show("person-context", Boolean(selected));
+  if (selected) {
+    const identity = $("person-context-identity");
+    const copy = el("div");
+    copy.append(
+      el("h2", selected.name),
+      el("p", "Work shared with your company"),
+    );
+    identity.replaceChildren(avatar(selected), copy);
   }
+  $("home-question").placeholder = selected
+    ? `Ask about ${selected.name}’s shared work…`
+    : state.feed === "shared"
+      ? "Ask about your company’s shared work…"
+      : "Ask about your work…";
+  $("home-question").setAttribute(
+    "aria-label",
+    selected
+      ? `Ask about ${selected.name}’s shared work`
+      : state.feed === "shared"
+        ? "Ask about Company work"
+        : "Ask about My work",
+  );
   const version = ++state.feedVersion;
   show("page-error", false);
   show("retry-feed", false);
@@ -441,13 +489,17 @@ async function loadFeed(append = false) {
         filtered || result.personal_filters_active
           ? "No matching memories"
           : state.feed === "shared"
-            ? "A quiet start"
-            : "Your work belongs here",
+            ? selected
+              ? "No shared work yet"
+              : "No company updates yet"
+            : "Your first work will appear here",
         filtered || result.personal_filters_active
           ? "Try another phrase or clear your filters."
           : state.feed === "shared"
-            ? "Work appears here when someone chooses to share it with the company."
-            : "Connect your AI tools to record your work, or add your first memory.",
+            ? selected
+              ? `${selected.name} hasn’t shared work with your company yet.`
+              : "This feed fills as teammates share summaries. Your own recordings stay in My work until you choose to share."
+            : "Connect your coding tool, send a message, and let it finish its reply. Your work is saved privately.",
         result.personal_filters_active && !filtered
           ? { label: "Edit personal filters", run: editViewPreferences }
           : filtered
@@ -457,26 +509,13 @@ async function loadFeed(append = false) {
                   label: "Connect your tools",
                   run: () => setView("connections"),
                 }
-              : null,
+              : selected
+                ? { label: "Browse Company", run: () => openFeed() }
+                : { label: "View my work", run: () => openFeed("mine") },
       );
-    $("feed-caption").replaceChildren();
-    if (state.person) {
-      const label = el(
-        "span",
-        profile(state.person).name + "’s work",
-        "person-filter",
-      );
-      const clear = el("button", "Clear");
-      clear.onclick = () => {
-        state.person = null;
-        loadFeed().catch((e) => toast(explain(e)));
-      };
-      label.append(clear);
-      $("feed-caption").append(label);
-    } else
-      $("feed-caption").textContent = query
-        ? `${result.total} results · ${result.mode === "hybrid" ? "keyword + meaning" : "keyword search"}`
-        : "Latest first";
+    $("feed-caption").textContent = query
+      ? `${result.total} ${result.total === 1 ? "result" : "results"}`
+      : "Latest first";
   } catch (error) {
     if (version !== state.feedVersion) return;
     if (!append) $("feed").replaceChildren();
@@ -533,91 +572,9 @@ function feedCard(memory) {
   return card;
 }
 function openPerson(id) {
-  state.person = id;
-  state.feed = id === state.me.id ? "mine" : "shared";
-  document
-    .querySelectorAll("[data-feed]")
-    .forEach((b) => updateFeedTab(b, b.dataset.feed === state.feed));
-  setView("home");
-  loadFeed().catch((e) => toast(explain(e)));
+  openFeed(id === state.me.id ? "mine" : "shared", id);
 }
 
-async function loadOverview() {
-  if (!state.me?.enrolled || $("work-overview").hidden) return;
-  const version = ++state.overviewVersion;
-  const target = $("overview-content");
-  target.replaceChildren(el("p", "Loading overview…", "muted"));
-  try {
-    const result = await api(
-      `/api/v1/people/${encodeURIComponent(state.person || state.me.id)}/overview`,
-      {
-        kind: $("overview-kind").value,
-        day:
-          $("overview-kind").value === "daily"
-            ? $("overview-day").value || null
-            : null,
-        project: $("overview-project").value.trim(),
-      },
-    );
-    if (version !== state.overviewVersion) return;
-    target.replaceChildren(
-      privacy(result.audience === "owner" ? "private" : "public"),
-    );
-    if (result.timezone)
-      target.append(
-        el(
-          "p",
-          `${result.request.day} · ${result.timezone.replaceAll("_", " ")}`,
-          "fine-print",
-        ),
-      );
-    if (!result.view) {
-      target.append(
-        el(
-          "p",
-          result.status === "paused"
-            ? "Processing is paused for this person."
-            : result.status === "failed"
-              ? "The overview could not be refreshed. It will retry; the source records below remain searchable."
-              : "This overview is being prepared. Your source records below are already available.",
-          "muted",
-        ),
-      );
-      return;
-    }
-    for (const item of result.view.items) {
-      const entry = el("div", "", "overview-item");
-      entry.append(el("p", item.text));
-      const sources = el("div", "", "overview-sources");
-      item.sources.forEach((id, index) => {
-        const button = el(
-          "button",
-          `Source ${index + 1}`,
-          "button quiet small",
-        );
-        button.onclick = () => openMemory(id).catch((e) => toast(explain(e)));
-        sources.append(button);
-      });
-      entry.append(sources);
-      target.append(entry);
-    }
-    if (!result.view.items.length)
-      target.append(
-        el("p", "No organized work is recorded for this view yet.", "muted"),
-      );
-    const c = result.view.coverage;
-    target.append(
-      el(
-        "p",
-        `${c.included} sources included · ${c.pending} still processing${c.older_not_included ? ` · ${c.older_not_included} older sources outside this view` : ""}${c.undated ? ` · ${c.undated} undated records excluded` : ""}. Refreshed ${date(result.view.refreshed_at, true)}.${result.stale ? " New work is available; this overview is updating." : ""}`,
-        "fine-print",
-      ),
-    );
-  } catch (error) {
-    if (version === state.overviewVersion)
-      target.replaceChildren(el("p", explain(error), "inline-error"));
-  }
-}
 async function openMemory(id) {
   const version = ++state.memoryVersion;
   $("source-error").textContent = "";
@@ -738,7 +695,11 @@ async function openMemory(id) {
           });
         };
       };
-      actions.append(correct);
+      const more = el("details", "", "source-more");
+      more.append(el("summary", "More actions"));
+      const maintenance = el("div", "", "action-row");
+      maintenance.append(correct);
+      more.append(maintenance);
       if (state.me.sharing_enabled) {
         const share = el(
           "button",
@@ -813,7 +774,8 @@ async function openMemory(id) {
           }
         });
       };
-      actions.append(remove);
+      maintenance.append(remove);
+      actions.append(more);
     }
     if (document.activeElement === document.body)
       $("close-source").focus({ preventScroll: true });
@@ -1121,14 +1083,138 @@ async function ask(question) {
     chatBusy(false);
   }
 }
-async function loadConnections() {
-  const data = await api("/api/v1/connections");
+function recordingMessage(status) {
+  if (!status.capture_enabled)
+    return {
+      title: "Recording is paused",
+      copy: "Your saved work is still here. Resume in Settings when you’re ready.",
+      action: "Review recording",
+      destination: "recording",
+    };
+  if (!status.connected_clients)
+    return {
+      title: "Bring your work into litemem",
+      copy: "Connect Codex or Claude Code once. Your conversations are recorded privately as you work.",
+      action: "Connect a tool",
+      destination: "connections",
+    };
+  if (!status.received)
+    return {
+      title: "Connected. Waiting for work.",
+      copy: "Finish the tool setup, then send a message and let it finish its reply. This updates when work arrives.",
+      action: "Finish setup",
+      destination: "connections",
+    };
+  if (!status.agent_enabled || status.stats.failed)
+    return {
+      title: !status.agent_enabled
+        ? "Organization is paused"
+        : "Some work needs attention",
+      copy: "Your work has been saved. Review processing in Settings to make it ready for questions.",
+      action: "Review recording",
+      destination: "recording",
+    };
+  return {
+    title: state.firstReceipt ? "Your first work is here" : "Work received",
+    copy: "Open My work to read it, ask about it, or preview a summary to share.",
+    action: "View my work",
+    destination: "mine",
+  };
+}
+function renderRecording() {
+  const status = state.recording;
+  if (!status) return;
+  const message = recordingMessage(status);
+  if (!state.guideInitialized) {
+    $("connector-guide").open = !status.connected_clients || !status.received;
+    state.guideInitialized = true;
+  }
+  $("recording-title").textContent =
+    status.capture_enabled && !status.connected_clients
+      ? "No tool connected"
+      : message.title;
+  $("recording-copy").textContent = message.copy;
+  $("recording-last-received").textContent = status.last_received_at
+    ? `Last record received ${date(status.last_received_at * 1000, true)}. This confirms saved work, not whether your tool is currently running.`
+    : status.stats.total
+      ? "Imported history is available. No new work has arrived yet."
+      : "No work received yet.";
+  show("see-my-work", status.stats.total > 0);
+  show("recording-nudge", state.firstReceipt || message.destination !== "mine");
+  $("recording-nudge-title").textContent = message.title;
+  $("recording-nudge-copy").textContent = message.copy;
+  $("recording-nudge-action").textContent = message.action;
+  $("recording-nudge-action").onclick = () => {
+    if (message.destination === "mine") {
+      state.firstReceipt = false;
+      renderRecording();
+      openFeed("mine");
+    } else if (message.destination === "recording") {
+      state.settingsSection = "recording";
+      setView("settings");
+      selectSettings("recording");
+    } else {
+      $("connector-guide").open = true;
+      setView("connections");
+    }
+  };
+}
+async function refreshRecording() {
+  if (!state.me?.enrolled || state.recordingLoading) return;
+  state.recordingLoading = true;
+  try {
+    const status = await api("/api/v1/recording-status");
+    if (!state.me?.enrolled) return;
+    const first = state.recording?.received === 0 && status.received > 0;
+    state.firstReceipt ||= first;
+    state.recording = status;
+    state.me.capture_enabled = status.capture_enabled;
+    state.me.agent_enabled = status.agent_enabled;
+    renderCoverage(status.stats);
+    renderRecording();
+    $("recording-error").textContent = "";
+    if (first && state.view === "home" && state.feed === "mine")
+      await loadFeed();
+  } catch (error) {
+    if (state.me?.enrolled) {
+      $("recording-error").textContent = explain(error);
+      if (!state.recording) {
+        $("recording-title").textContent = "Recording status unavailable";
+        $("recording-copy").textContent =
+          "You can still connect a tool below, then check again.";
+      }
+    }
+  } finally {
+    state.recordingLoading = false;
+  }
+}
+function renderConnectorGuide() {
+  const host = $("capture-host").value;
+  // Shell-quote the installation address, including deployments with a base path.
+  const url = state.me.mcp_url.replace(/\/mcp\/?$/, "");
+  const quoted = "'" + url.replaceAll("'", "'\"'\"'") + "'";
+  $("capture-command").textContent =
+    `uv tool install 'git+https://github.com/moe-berri/litemem.git@codex/litemem-implementation'\nlitemem-connector connect ${quoted} --host ${host}`;
+  $("capture-restart").textContent =
+    host === "codex"
+      ? "Restart Codex and sign in to its litemem MCP when prompted. Open /hooks and review and trust the litemem capture hooks."
+      : "Restart Claude Code and sign in to its litemem MCP when prompted. The connector has added the recording hooks.";
+  $("backfill-command").textContent =
+    host === "codex"
+      ? "litemem-connector backfill ~/.codex/sessions --host codex"
+      : "litemem-connector backfill ~/.claude/projects --host claude";
   $("mcp-url").textContent = state.me.mcp_url;
-  const url = state.me.mcp_url;
   $("codex-command").textContent =
-    `codex mcp add litemem --url ${url}\ncodex mcp login litemem`;
+    `codex mcp add litemem --url ${quoted}/mcp\ncodex mcp login litemem`;
   $("claude-command").textContent =
-    `claude mcp add --transport http litemem ${url}`;
+    `claude mcp add --transport http litemem ${quoted}/mcp`;
+}
+async function loadConnections() {
+  const version = ++state.connectionsVersion;
+  renderConnectorGuide();
+  await refreshRecording();
+  const data = await api("/api/v1/connections");
+  if (version !== state.connectionsVersion || !state.me) return;
   const list = $("connection-list");
   list.replaceChildren();
   for (const c of data.connections.filter((c) => !c.revoked)) {
@@ -1138,9 +1224,11 @@ async function loadConnections() {
       el("strong", c.label),
       el(
         "small",
-        c.last_used
-          ? "Last used " + date(c.last_used * 1000, true)
-          : "Not used yet",
+        !c.connected
+          ? "Expired · reconnect this tool"
+          : c.last_used
+            ? "Last used " + date(c.last_used * 1000, true)
+            : "Authorized · not used yet",
       ),
     );
     const revoke = el("button", "Disconnect", "button quiet small");
@@ -1153,9 +1241,10 @@ async function loadConnections() {
             "DELETE",
           );
           toast("Connection revoked.");
+          state.guideInitialized = false;
           await loadConnections();
-        } catch (e) {
-          toast(explain(e));
+        } catch (error) {
+          toast(explain(error));
         }
       });
     row.append(name, revoke);
@@ -1164,6 +1253,29 @@ async function loadConnections() {
   if (!list.children.length)
     list.append(el("p", "No connected clients yet.", "muted"));
 }
+$("capture-host").onchange = renderConnectorGuide;
+$("check-recording").onclick = () =>
+  busy($("check-recording"), async () => {
+    try {
+      await loadConnections();
+    } catch (error) {
+      $("recording-error").textContent = explain(error);
+    }
+  });
+$("see-my-work").onclick = () => {
+  state.firstReceipt = false;
+  renderRecording();
+  openFeed("mine");
+};
+setInterval(() => {
+  if (!document.hidden && ["home", "connections"].includes(state.view))
+    refreshRecording();
+}, 15000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && ["home", "connections"].includes(state.view))
+    refreshRecording();
+});
+
 async function loadRules() {
   const data = await api("/api/v1/privacy-rules");
   $("rule-list").replaceChildren();
@@ -1284,7 +1396,9 @@ async function loadViewPreferences() {
   renderViewPreferences(await api("/api/v1/view-preferences"));
 }
 function editViewPreferences() {
-  setView("home");
+  state.settingsSection = "general";
+  setView("settings");
+  selectSettings("general");
   $("view-preferences-panel").open = true;
   $("view-preferences-panel").scrollIntoView({ block: "start" });
   $("view-preferences-panel").querySelector("summary").focus();
@@ -1382,64 +1496,6 @@ function populateTimezones(select, selected, automatic = false) {
   }
   select.value = selected || "";
 }
-function renderSchedule() {
-  const schedule = state.schedule;
-  populateTimezones($("workspace-timezone"), schedule.timezone);
-  $("daily-time").value = schedule.daily_time;
-  const next = new Date(schedule.next_run_at).toLocaleString(undefined, {
-    timeZone: schedule.timezone,
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  $("schedule-summary").textContent =
-    `Every day at ${schedule.daily_time} · ${schedule.timezone.replaceAll("_", " ")}. Next: ${next}.`;
-  $("schedule-fields").disabled = false;
-}
-async function loadSchedule() {
-  state.schedule = null;
-  $("schedule-fields").disabled = true;
-  $("schedule-settings-status").textContent = "";
-  $("schedule-summary").textContent = "Loading the workspace schedule…";
-  show("reload-schedule", false);
-  show("schedule-settings-form", state.me.is_admin);
-  try {
-    state.schedule = await api("/api/v1/schedule");
-    renderSchedule();
-  } catch (error) {
-    $("schedule-summary").textContent =
-      "The workspace schedule is unavailable.";
-    $("schedule-settings-status").textContent = explain(error);
-    show("reload-schedule");
-  }
-}
-$("reload-schedule").onclick = () => loadSchedule();
-$("schedule-settings-form").onsubmit = async (event) => {
-  event.preventDefault();
-  if (!state.schedule) return;
-  const body = {
-    timezone: $("workspace-timezone").value,
-    daily_time: $("daily-time").value,
-    revision: state.schedule.revision,
-  };
-  await busy($("save-schedule-settings"), async () => {
-    $("schedule-fields").disabled = true;
-    $("schedule-settings-status").textContent = "";
-    try {
-      state.schedule = await api("/api/v1/admin/schedule", body, "PUT");
-      renderSchedule();
-      $("schedule-settings-status").textContent = "Workspace schedule saved.";
-      show("reload-schedule", false);
-      if ($("work-overview").open) await loadOverview();
-    } catch (error) {
-      $("schedule-settings-status").textContent = explain(error);
-      show("reload-schedule");
-    } finally {
-      $("schedule-fields").disabled = false;
-    }
-  });
-};
 $("display-settings-form").onsubmit = async (event) => {
   event.preventDefault();
   const body = { timezone: $("display-timezone").value || null };
@@ -1452,7 +1508,6 @@ $("display-settings-form").onsubmit = async (event) => {
       renderToday();
       $("display-settings-status").textContent = "Your time zone is saved.";
       await loadFeed();
-      if ($("work-overview").open) await loadOverview();
     } catch (error) {
       $("display-settings-status").textContent = explain(error);
     } finally {
@@ -1483,7 +1538,6 @@ async function loadSettings() {
       loadRules(),
       loadModelSettings(),
       loadViewPreferences(),
-      loadSchedule(),
     ]);
     state.settingsLoaded = true;
     selectSettings(state.settingsSection);
@@ -1564,15 +1618,12 @@ async function initialize() {
       option.value = "person:" + person.id;
       $("chat-scope").append(option);
     }
-    await Promise.all([
-      loadFeed(),
-      loadModels().catch(modelError),
-      loadViewPreferences(),
-    ]);
+    await Promise.all([loadModels().catch(modelError), loadViewPreferences()]);
     if (!state.me?.enrolled) return;
     show("boot-status", false);
     show("workspace");
-    setView(location.hash.slice(1) || "home", { navigate: false });
+    restoreRoute();
+    refreshRecording();
     const match = location.pathname.match(/^\/memory\/([^/]+)$/);
     if (match) await openMemory(decodeURIComponent(match[1]));
   } catch (error) {
@@ -1590,19 +1641,22 @@ async function initialize() {
   }
 }
 
+document.querySelectorAll("[data-view]").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (button.dataset.view === "home") openFeed();
+    else setView(button.dataset.view);
+  });
+});
 document
-  .querySelectorAll("[data-view]")
-  .forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
-document.querySelectorAll("[data-feed]").forEach((b) =>
-  b.addEventListener("click", () => {
-    state.feed = b.dataset.feed;
-    state.person = null;
-    document
-      .querySelectorAll("[data-feed]")
-      .forEach((t) => updateFeedTab(t, t === b));
-    loadFeed();
-  }),
-);
+  .querySelectorAll("[data-feed]")
+  .forEach((button) =>
+    button.addEventListener("click", () => openFeed(button.dataset.feed)),
+  );
+$("clear-person").onclick = () => openFeed();
+$("refresh-feed").onclick = () =>
+  busy($("refresh-feed"), async () => {
+    await Promise.all([loadFeed(), refreshRecording()]);
+  });
 $("account-button").onclick = () => {
   const open = $("account-menu").hidden;
   show("account-menu", open);
@@ -1641,8 +1695,7 @@ $("filter-button").onclick = () => {
   show("filters", open);
   $("filter-button").setAttribute("aria-expanded", String(open));
 };
-function clearFilters() {
-  $("filter-button").focus();
+function resetFilterFields() {
   for (const id of [
     "filter-kind",
     "filter-source",
@@ -1652,6 +1705,10 @@ function clearFilters() {
     "search-query",
   ])
     $(id).value = "";
+}
+function clearFilters() {
+  $("filter-button").focus();
+  resetFilterFields();
   loadFeed();
 }
 $("clear-filters").onclick = clearFilters;
@@ -1678,17 +1735,6 @@ $("search-form").onsubmit = (e) => {
   loadFeed();
 };
 $("load-more").onclick = () => busy($("load-more"), () => loadFeed(true));
-$("work-overview").ontoggle = () => {
-  if ($("work-overview").open) loadOverview();
-};
-$("overview-kind").onchange = () => {
-  show("overview-date-label", $("overview-kind").value === "daily");
-  loadOverview();
-};
-$("overview-form").onsubmit = (event) => {
-  event.preventDefault();
-  loadOverview();
-};
 $("home-ask-form").onsubmit = async (event) => {
   event.preventDefault();
   const question = $("home-question").value.trim();
@@ -1740,63 +1786,7 @@ $("stop-answer").onclick = () =>
       }
     }
   });
-$("add-memory").onclick = () => {
-  $("capture-error").textContent = "";
-  $("capture-dialog").showModal();
-};
-$("close-capture").onclick = () => $("capture-dialog").close();
 $("close-source").onclick = () => $("source-dialog").close();
-$("capture-form").onsubmit = async (e) => {
-  e.preventDefault();
-  await busy(e.submitter, async () => {
-    $("capture-error").textContent = "";
-    const content = $("capture-content").value;
-    if (!content.trim()) {
-      $("capture-error").textContent = "Add something you want to remember.";
-      $("capture-content").focus();
-      return;
-    }
-    const fingerprint = JSON.stringify([$("capture-title").value, content]);
-    if (state.captureRequest?.fingerprint !== fingerprint)
-      state.captureRequest = {
-        fingerprint,
-        id: crypto.randomUUID(),
-        occurredAt: new Date().toISOString(),
-      };
-    const fields = [...$("capture-form").querySelectorAll("input, textarea")];
-    fields.forEach((field) => {
-      field.disabled = true;
-    });
-    try {
-      await api("/api/v1/memories", {
-        source_id: state.captureRequest.id,
-        title: $("capture-title").value,
-        content: $("capture-content").value,
-        occurred_at: state.captureRequest.occurredAt,
-        source: "manual",
-      });
-      state.captureRequest = null;
-      $("capture-form").reset();
-      $("capture-dialog").close();
-      toast("Memory saved privately.");
-      state.feed = "mine";
-      state.person = null;
-      document
-        .querySelectorAll("[data-feed]")
-        .forEach((button) =>
-          updateFeedTab(button, button.dataset.feed === "mine"),
-        );
-      setView("home");
-      await loadFeed();
-    } catch (e) {
-      $("capture-error").textContent = explain(e);
-    } finally {
-      fields.forEach((field) => {
-        field.disabled = false;
-      });
-    }
-  });
-};
 $("finish-signup").onclick = () =>
   busy($("finish-signup"), async () => {
     try {
@@ -1881,6 +1871,7 @@ for (const [id, key] of [
       try {
         await api("/api/v1/preferences", { [key]: desired }, "PUT");
         state.me[key] = desired;
+        await refreshRecording();
         toast(desired ? "Enabled." : "Paused.");
       } catch (e) {
         input.checked = !desired;

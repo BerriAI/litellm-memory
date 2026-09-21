@@ -1,5 +1,7 @@
+import asyncio
 import json
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from test_archive import archive as archive_fixture
@@ -40,6 +42,28 @@ async def ready(archive, name, text, when, *, public=False):
     payload.update(summary=text, projects=['Project A'], labels={'decision': 0.95})
     await archive.complete_work(row, payload, private_match=False)
     return saved['id']
+
+
+@pytest.mark.asyncio
+async def test_worker_only_builds_explicitly_requested_views(archive):
+    await ready(archive, 'work', 'A source worth asking about', '2026-09-19T01:00:00Z')
+    gateway = ViewGateway()
+    views = WorkViews(archive, gateway, SimpleNamespace(values={'timezone': 'UTC'}))
+    await views.open()
+
+    async def stop_when_idle(_):
+        raise asyncio.CancelledError
+
+    with patch('moegent.work_views.asyncio.sleep', side_effect=stop_when_idle):
+        with pytest.raises(asyncio.CancelledError):
+            await views.worker()
+        assert gateway.inputs == []  # Starting a worker never sweeps everyone's history.
+        await views.get(Reader('T1:A'), 'T1:A', ViewRequest())
+        with pytest.raises(asyncio.CancelledError):
+            await views.worker()
+    assert len(gateway.inputs) == 1
+    assert views.schedule_status()['next_run_at'] is None
+    assert views.schedule_status()['automatic_refresh'] is False
 
 
 @pytest.mark.asyncio

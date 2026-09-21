@@ -8,6 +8,8 @@ CI runs unit/API tests, Ruff, frontend syntax checks, real Codex/Claude hook dis
 
 The interface/privacy/observability revision passed [CI run 35566235575](https://github.com/moe-berri/litemem/actions/runs/35566235575), source `e49efa1`: **149 tests**, Ruff, four frontend syntax checks, both real host-hook checks, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. Browser review uses synthetic records and simulated inference; [screenshots and review scope](ui-review.md). No synthetic check is a real-history quality score.
 
+The core-loop revision passes **153 local tests**, Ruff and frontend syntax/format checks. Browser checks cover first-use intake status, person browsing and routes, query scope, privacy preview, saved-filter recovery and 390px/320px layouts. Automated daily overview sweeps are removed; source processing and explicit Ask remain.
+
 ## Before the owner-only pilot
 
 - [ ] Enable TypeSafe Jev on the actual LiteLLM gateway and pass the typed probe. Last checked: gateway 1.102.0 returned 404; its key could not administer the missing route.

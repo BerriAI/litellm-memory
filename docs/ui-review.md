@@ -12,6 +12,16 @@ Company is the first tab and opens by default; My work is second. Ask about the 
 
 ![Activity](assets/dashboard.jpg)
 
+## People and recording
+
+Select a person from the feed or directory to browse their shared work. The person’s name and query scope stay visible, and the route survives reload and Back.
+
+![Person activity](assets/person.jpg)
+
+Connections provides inline tool setup, optional history import, and a server-confirmed receipt. It distinguishes authorization from saved work; returning members can collapse setup instructions.
+
+![Recording status](assets/connections.jpg)
+
 ## Ask
 
 Choose the memory scope and a gateway model. Responses include clickable source citations. Stop cancels work; changing scope confirms before clearing a conversation.
@@ -34,6 +44,8 @@ A summary links back to its evidence. The original and metadata remain available
 
 These are screenshots of the actual local application with synthetic records and simulated model replies. They do not establish live gateway or Slack readiness.
 
-The hierarchy review covers Activity, Ask, People, Connections, all five Settings panels, setup, connector instructions, imports, and source/capture dialogs. Browser checks include 1280px, 687px, 390px and 320px layouts, Settings arrow/Home/End navigation, dialog Escape, answer citations, and a failed topic save followed by a successful retry with its draft preserved. The unchanged backend suite passes 149 tests; shared CSS and JavaScript also pass formatting/syntax checks. Native dialogs provide Escape and focus trapping; operations retain drafts when saving fails. Markdown is sanitized and private content is not persisted in browser local storage.
+The core-loop review covers joining → Company → tool instructions → authorized/waiting → first received work → My work, person browsing/reload/Back, Ask scope, sharing preview, saved-filter editing, and recording pause. Browser checks include 1280px, 390px and 320px layouts, keyboard Settings navigation, source-dialog dismissal and recording-status failure/retry. Long connection commands scroll inside their own block without widening the page. No JavaScript console errors were observed.
+
+The backend suite passes **153 tests**, including owner-only intake receipts, expired/refreshed connections, import-versus-live status, private/shared access, on-demand overviews and independent Luna defaults. Ruff and frontend syntax/format checks pass. UI capture was simulated through a disposable fixture; these checks do not prove a real host connection, external model quality or live Slack OAuth. The release checklist tracks those separately.
 
 Use the [release checklist](release-checklist.md) for deployment status and `CONTRIBUTING.md` for repeatable checks. Previous development screenshots and chronological review logs were removed; Git history retains them. This is not a claim of a flawless interface or a complete screen-reader/browser certification.

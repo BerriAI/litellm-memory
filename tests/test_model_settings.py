@@ -1,5 +1,7 @@
 import json
 from base64 import b64encode
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import httpx
 from fastapi.testclient import TestClient
@@ -58,6 +60,25 @@ def application(tmp_path, calls, *, jev_status=200):
 def enroll(client, app, user="OWNER"):
     client.portal.call(app.state.archive.enroll, "T:" + user, {"name": user})
     session(client, user)
+
+
+def test_new_setup_selects_luna_for_background_independently_of_agent(tmp_path):
+    app = application(tmp_path, [])
+    with TestClient(app) as client:
+        app.state.settings.background_model = ''
+
+        async def catalog(kind='chat'):
+            ids = {'chat': ['chat-a'], 'embedding': ['embed-a'],
+                   'generation': ['chat-a', 'gateway-luna']}[kind]
+            return [SimpleNamespace(id=identity) for identity in ids]
+
+        app.state.gateway.models = AsyncMock(side_effect=catalog)
+        defaults = client.portal.call(app.state.model_service.defaults)
+        assert defaults.agent_model == 'chat-a'
+        assert defaults.background_model == 'gateway-luna'
+        app.state.settings.background_model = 'chat-a'
+        explicit = client.portal.call(app.state.model_service.defaults)
+        assert explicit.background_model == 'chat-a'  # Preserve operator configuration.
 
 
 def test_models_are_key_scoped_role_separated_and_available_in_web_picker(tmp_path):

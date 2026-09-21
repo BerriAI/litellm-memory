@@ -32,7 +32,7 @@ Each worker claims a lease tied to current policy. Jev classifies overlapping so
 
 The background model describes the work briefly with projects and attribution. New accounts have no required category taxonomy; Jev checks user-written privacy topics. Older restrictive type policies keep their cached classifiers. Original content remains searchable even before processing finishes. Embeddings include their model identity and dimensions; incompatible query vectors fall back to keyword search.
 
-Daily/current views are rebuilt from selected source entries, not recursively from prior summaries. They include validated source IDs, timestamps and coverage. Private/public views have separate input sets. No-change generations are reused; policy changes invalidate old derived output before it is returned. Historical daily views can be requested for a particular date.
+Daily/current views are requested explicitly through Ask or the API; the worker does not periodically sweep member histories. They are rebuilt from selected source entries, not recursively from prior summaries. They include validated source IDs, timestamps and coverage. Private/public views have separate input sets. No-change generations are reused; policy changes invalidate old derived output before it is returned. Historical daily views can be requested for a particular date.
 
 ## Retrieval
 

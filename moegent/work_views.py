@@ -58,7 +58,7 @@ class WorkViews:
     def schedule_status(self):
         settings = self.schedule_settings()
         return {**settings.model_dump(), 'revision': self.deployment.values.get('schedule_revision', 0),
-                'next_run_at': settings.next_run(datetime.now(UTC))}
+                'automatic_refresh': False, 'next_run_at': None}
 
     async def save_schedule(self, update):
         async with self.deployment.lock:
@@ -259,18 +259,12 @@ class WorkViews:
                     await self.get(Reader(member['id'], audience), member['id'], request, preferences=ViewPreferences())
 
     async def worker(self):
-        last_scheduled = 0
-        last_daily = None
         while True:
             row = None
             try:
-                current = datetime.now(UTC)
-                settings = self.schedule_settings()
-                daily = (settings.timezone, settings.daily_time, settings.latest(current))
-                if daily != last_daily or time.monotonic() - last_scheduled >= 300:
-                    await self.schedule(current)
-                    last_scheduled = time.monotonic()
-                    last_daily = daily
+                # Build only views requested by an explicit query/API read.
+                # Recording already organizes each new source; it does not need
+                # a second periodic sweep of every person's history.
                 row = await self.next()
                 if row:
                     async with asyncio.timeout(180):

@@ -8,12 +8,12 @@ This document describes the implementation on the feature branch. It replaces th
 
 The MVP centers on one loop: **set up, start recording, browse shared work, and ask about it.** The Company feed and browsing a teammate's shared activity are primary experiences alongside Ask. Company opens by default, with My work second for personal history. People can see only work shared with them; recording alone never publishes private originals.
 
-Prioritize making that loop reliable and easy to understand: successful setup, a visible first capture, readable entries, clear sharing, useful browsing, and cited answers. Separate catch-up pages, daily-summary settings, and other auxiliary workflows are not prerequisites for the MVP. The implementation below includes existing supporting features; their presence does not make each one essential to the core experience.
+Prioritize making that loop reliable and easy to understand: successful setup, a visible first capture, readable entries, clear sharing, useful browsing, and cited answers. The dashboard has no separate catch-up page, daily-summary settings, or manual-note composer. Auxiliary workflows stay outside the main loop. The implementation below includes existing supporting features; their presence does not make each one essential to the core experience.
 
 - **Activity:** chronological Company feed by default, My work second, direct Ask input, search and metadata filters. Private records show a lock and text.
 - **Ask:** one conversation, a visible audience selector, and models discovered through the configured LiteLLM key. Answers cite accessible evidence. People can cancel a running answer.
 - **People:** enrolled Slack profiles, shared activity, and an action to ask about that person's work.
-- **Connections:** instructions for Codex/Claude Code capture and remote MCP, plus connected-client revocation.
+- **Connections:** in-app tool setup, real intake receipts, optional history imports and connected-client revocation. Authorized clients and received work are separate states.
 - **Settings:** privacy, recording, dates, administrator workspace configuration, and personal data controls. Rare operations stay behind disclosures or explicit actions.
 
 One sidebar provides navigation. No recommendation algorithm, fixed memory-category checklist, social engagement mechanics, or automatic retrieval on every coding turn.
@@ -24,7 +24,9 @@ The Render Blueprint or Docker Compose starts the web app, persistent storage an
 
 Slack is the only member identity provider. Both the Slack workspace and exact verified email domain must match; `berri.ai` is the default for this installation. Self-hosters select their own domain. Members do not manage vault keys or a separate application password. An optional encrypted file export has its own passphrase; browser-to-browser installation transfer does not.
 
-Jev must work through LiteLLM before setup completes. The gateway owns the TypeSafe credential. Model discovery is key-scoped; a missing Jev entry in `/v1/models` alone is not a failed capability check. Agent, embeddings, Slack and background model roles can be configured. Background work initially uses Luna.
+Jev must work through LiteLLM before setup completes. The gateway owns the TypeSafe credential. Model discovery is key-scoped; a missing Jev entry in `/v1/models` alone is not a failed capability check. Agent, embeddings, Slack and background model roles can be configured. New setup suggests Luna for background work when the gateway exposes it, independently of the agent model. Explicit operator choices are preserved; deployments without Luna choose from their available generation models.
+
+After joining, members land on Company. A compact setup prompt leads to inline Codex/Claude instructions. Connection status checks persisted receipts without searching memory or invoking a model. Imports alone do not mark live intake as received. Person feeds and My work have stable routes; browser Back restores the selected person.
 
 ## Capture and storage
 
@@ -34,7 +36,7 @@ Each captured message retains its original text and available source, session, r
 
 The API stores immutable encrypted source objects and separate encrypted derived records in Ente. SQLite holds encrypted operational state. Git holds code and documentation, never live personal memories. Historical imports preserve originals, dates and attribution, deduplicate replays, and never publish automatically. Deletion markers stop old backfills from restoring deleted records.
 
-Background processing creates a short readable description and search embeddings. It does not force new work into “progress / decision / finding / blocker / plan.” Existing metadata and previous classifications remain available for search. Current/daily summaries combine source records with citations and coverage; they are derived views, never replacements for the evidence.
+Background processing creates a short readable description and search embeddings. It does not force new work into “progress / decision / finding / blocker / plan.” Existing metadata and previous classifications remain available for search. Current/daily summaries are built on explicit request, with citations and coverage. There is no automatic daily or five-minute overview sweep. Existing summaries and original evidence are preserved.
 
 ## Filters and sharing
 

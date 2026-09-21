@@ -116,11 +116,11 @@ Citations are real links to accessible evidence. The number of citations is seco
 
 ## Dialogs
 
-Use native `<dialog>` for source details, manual capture, export protection, transfer setup, and meaningful confirmations. Provide a named heading, close/cancel action, sensible initial focus, Escape handling, and focus restoration. A source dialog can be wider than a short confirmation.
+Use native `<dialog>` for source details, export protection, transfer setup, and meaningful confirmations. Provide a named heading, close/cancel action, sensible initial focus, Escape handling, and focus restoration. A source dialog can be wider than a short confirmation.
 
 The visual sequence is title/audience → content → secondary detail → actions. Keep close at a predictable top corner. Make long content scroll within the dialog without losing access to its exit. Check short viewports and zoom.
 
-A manual memory is a small form: title, memory text, private label, Save memory. Do not reintroduce a mandatory taxonomy. In a source detail, correction and sharing controls must retain the original/source distinction.
+In a source detail, sharing preview is prominent; correction and deletion are under More actions. These controls must retain the original/source distinction. Do not reintroduce a mandatory taxonomy or manual-note authoring into the main feed.
 
 Confirmations name the affected object and consequence. Focus Cancel initially for destructive actions. Do not add a confirmation to ordinary navigation, every save, or read-only disclosure. Do not use confirmation wording that implies access a person does not have.
 

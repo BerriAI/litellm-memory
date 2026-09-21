@@ -51,7 +51,8 @@ class ModelSettingsService:
         self.settings.model_config_revision = self.revision
 
     async def defaults(self):
-        chat, embeddings = await asyncio.gather(self.gateway.models(), self.gateway.models(kind="embedding"))
+        chat, embeddings, generation = await asyncio.gather(
+            self.gateway.models(), self.gateway.models(kind="embedding"), self.gateway.models(kind="generation"))
         if not chat:
             raise ValueError("This LiteLLM key has no available agent model.")
         if not embeddings:
@@ -69,6 +70,8 @@ class ModelSettingsService:
         return ModelConfiguration(
             agent_model=choose(chat, self.settings.litellm_model, ("luna", "mini", "haiku", "flash")),
             embedding_model=choose(embeddings, self.settings.memory_embedding_model, ("embedding", "embed")),
+            background_model=choose(generation or chat, self.settings.background_model,
+                                    ("luna", "mini", "haiku", "flash")),
             classifier_model=self.settings.jev_model,
         )
 

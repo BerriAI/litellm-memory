@@ -16,7 +16,7 @@ A clean interface can contain detail. The requirement is that detail arrives in 
 
 For each screen, write an eye path in ordinary words. Examples:
 
-- Activity: where I am → ask or choose my/company work → entry title → useful context → source and date.
+- Activity: where I am → ask or choose Company/My work → entry title → useful context → source and date.
 - Settings: page → selected category → section purpose → named control → its consequence → save action.
 - Ask with an answer: question → answer → supporting citations → follow-up composer. Model selection is secondary.
 - First run: what this connection enables → required credentials → check result → next available action.
