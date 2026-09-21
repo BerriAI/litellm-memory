@@ -9,7 +9,6 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 COPY litellm_memory ./litellm_memory
-COPY moegent ./moegent
 COPY static ./static
 COPY LICENSE THIRD_PARTY_NOTICES.md ./
 COPY --from=ente /museum /opt/ente/museum

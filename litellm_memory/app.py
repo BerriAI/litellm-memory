@@ -78,7 +78,7 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
 
     app = FastAPI(title="LiteLLM Memory", lifespan=lifespan)
     app.state.store, app.state.slack, app.state.settings = store, slack, settings
-    app.add_middleware(SessionMiddleware, secret_key=settings.session_secret, session_cookie="moegent_session",
+    app.add_middleware(SessionMiddleware, secret_key=settings.session_secret, session_cookie="litellm_memory_assistant_session",
                        same_site="none" if settings.secure_cookies else "lax", https_only=settings.secure_cookies)
     oauth = OAuth()
     oauth.register("slack", client_id=settings.slack_client_id, client_secret=settings.slack_client_secret,

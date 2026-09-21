@@ -2,7 +2,7 @@ import { marked } from './vendor/marked.esm.js';
 import DOMPurify from './vendor/purify.es.mjs';
 
 const $ = id => document.getElementById(id);
-const STORAGE = 'moegent.conversations.v2'; // Preserve existing legacy chat history.
+const STORAGE = 'litellm-memory.assistant.conversations.v2';
 const uid = () => crypto.randomUUID();
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const el = (tag, className, text) => {

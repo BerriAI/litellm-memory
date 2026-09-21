@@ -34,25 +34,18 @@ HOOK_EVENTS = ("SessionStart", "UserPromptSubmit", "PostToolUse", "Stop")
 
 
 def capture_directory():
-    """Reuse existing keys, credentials and outbox; never fork them on rename."""
-    base = Path.home() / ".local/share"
-    legacy = base / "litemem"
-    return legacy if legacy.exists() else base / "litellm-memory"
+    return Path.home() / ".local/share/litellm-memory"
 
 
 def configure_mcp(servers, url, host, *, remove):
-    names = ("litellm-memory", "litemem")
+    name = "litellm-memory"
     endpoint = url + "/mcp"
     if remove:
-        for name in names:
-            if servers.get(name, {}).get("url") == endpoint:
-                del servers[name]
+        if servers.get(name, {}).get("url") == endpoint:
+            del servers[name]
         return
-    if any(name in servers and servers[name].get("url") != endpoint for name in names):
+    if name in servers and servers[name].get("url") != endpoint:
         raise ValueError("A different LiteLLM Memory MCP is already configured; rename it before connecting.")
-    # Existing host OAuth credentials are keyed by server name. Keep that name
-    # during upgrades; new installations get only the new name.
-    name = next((name for name in names if name in servers), names[0])
     if name not in servers:
         servers[name] = {"url": endpoint}
     if host == "claude":
@@ -388,7 +381,6 @@ def login(local, url, *, opener=webbrowser.open):
 def configure_hosts(home, directory, url, hosts, *, remove=False):
     """Merge only our named connection/commands. Never replace existing hooks."""
     marker = "litellm-memory-managed-capture"
-    markers = (marker, "litemem-managed-capture")
     changed, prepared = [], []
 
     def write(path, content):
@@ -404,7 +396,7 @@ def configure_hosts(home, directory, url, hosts, *, remove=False):
             groups = []
             for group in hooks.get(event, []):
                 kept = [h for h in group.get("hooks", [])
-                        if not any(m in h.get("command", "") for m in markers)]
+                        if marker not in h.get("command", "")]
                 if kept:
                     groups.append({**group, "hooks": kept})
             if not remove:

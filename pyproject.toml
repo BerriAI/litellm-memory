@@ -30,17 +30,13 @@ dev = ["pytest>=8.3", "pytest-asyncio>=0.25", "ruff>=0.11"]
 litellm-memory-connector = "litellm_memory.connector:main"
 litellm-memory-transfer = "litellm_memory.transfer_cli:main"
 litellm-memory-evaluate = "litellm_memory.evaluation:main"
-# Compatibility for installed scripts and existing hook commands.
-litemem-connector = "litellm_memory.connector:main"
-litemem-transfer = "litellm_memory.transfer_cli:main"
-litemem-evaluate = "litellm_memory.evaluation:main"
 
 [build-system]
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["litellm_memory*", "moegent"]
+include = ["litellm_memory*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

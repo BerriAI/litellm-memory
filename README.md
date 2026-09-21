@@ -83,7 +83,7 @@ uv run pytest -q
 uv run ruff check .
 ```
 
-The app is `litellm_memory.application:app`; the portable launcher is `python -m litellm_memory.boot`. `litellm_memory.app:app`, `deploy/Dockerfile.legacy`, and the vendored knowledge runtime are legacy migration paths, not dependencies of the new memory service. See [upgrading](docs/upgrading.md) for compatibility with older installations.
+The app is `litellm_memory.application:app`; the portable launcher is `python -m litellm_memory.boot`.
 
 [Architecture](docs/architecture.md) · [Product specification](docs/product-implementation-spec.md) · [Release checklist](docs/release-checklist.md) · [Answer-quality evaluation](docs/answer-quality.md)
 
@@ -94,5 +94,3 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for local development, code orientation a
 LiteLLM Memory is licensed under **AGPL-3.0**. The bundled Ente Museum executable is unmodified and also AGPL-3.0; see [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md). The self-hosted core needs no proprietary LiteLLM Memory control plane. Hosting and model inference may have costs.
 
 Code belongs here; personal histories, credentials, deployment state and database exports do not. Keep those out of Git, even in a private fork.
-
-Upgrading an existing installation? See the [rename and upgrade guide](docs/upgrading.md) for preserved credentials, exports and deployment state.

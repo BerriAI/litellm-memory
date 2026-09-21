@@ -8,7 +8,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      DATABASE_URL: postgresql://${MEMORY_DB_USER:-litellm_memory}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${MEMORY_DB_NAME:-litellm_memory}?sslmode=disable
+      DATABASE_URL: postgresql://litellm_memory:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/litellm_memory?sslmode=disable
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
       SETUP_CODE: ${SETUP_CODE:-}
       ALLOWED_EMAIL_DOMAIN: ${ALLOWED_EMAIL_DOMAIN:-berri.ai}
@@ -34,17 +34,16 @@ services:
     image: postgres:17-bookworm
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${MEMORY_DB_NAME:-litellm_memory}
-      POSTGRES_USER: ${MEMORY_DB_USER:-litellm_memory}
+      POSTGRES_DB: litellm_memory
+      POSTGRES_USER: litellm_memory
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${MEMORY_DB_USER:-litellm_memory} -d ${MEMORY_DB_NAME:-litellm_memory}"]
+      test: ["CMD-SHELL", "pg_isready -U litellm_memory -d litellm_memory"]
       interval: 5s
       timeout: 5s
       retries: 20
 volumes:
   litellm-memory-state:
-    name: ${MEMORY_STATE_VOLUME:-${COMPOSE_PROJECT_NAME:-litellm-memory}_litellm-memory-state}
   postgres-data:

@@ -86,16 +86,9 @@ def test_restore_verifies_entire_file_and_owner_before_any_upload(tmp_path):
     assert not calls
 
 
-def test_legacy_export_restores_and_format_label_is_authenticated(monkeypatch):
-    records = [{'owner': 'T:OWNER', 'original': {'source_id': 'legacy', 'content': 'unchanged source'}}]
-    with monkeypatch.context() as legacy:
-        legacy.setattr('litellm_memory.transfer.FORMAT', 'litemem-transfer')
-        old_export = file_bytes(records)
-    assert list(read_export(io.StringIO(old_export), 'test passphrase long enough')) == records
-    new_export = file_bytes(records)
-    assert json.loads(new_export.splitlines()[0])['format'] == 'litellm-memory-transfer'
-    assert list(read_export(io.StringIO(new_export), 'test passphrase long enough')) == records
-    # Accepting both formats must not allow editing authenticated export metadata.
-    changed = old_export.replace('litemem-transfer', 'litellm-memory-transfer', 1)
-    with pytest.raises(CryptoError):
+def test_export_rejects_an_unsupported_format():
+    exported = file_bytes([{'owner': 'T:OWNER', 'original': {'content': 'original'}}])
+    assert json.loads(exported.splitlines()[0])['format'] == 'litellm-memory-transfer'
+    changed = exported.replace('litellm-memory-transfer', 'unknown-transfer', 1)
+    with pytest.raises(ValueError, match='Unsupported memory export format'):
         list(read_export(io.StringIO(changed), 'test passphrase long enough'))

@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(
-        ".env", "/etc/secrets/moegent.env", "/etc/secrets/litemem.env", "/etc/secrets/litellm-memory.env"
+        ".env", "/etc/secrets/litellm-memory.env"
     ), extra="ignore")
 
     litellm_base_url: str = "https://gateway.litellm-sandbox.ai/v1"
@@ -66,10 +66,7 @@ class Settings(BaseSettings):
 
     @property
     def operational_database(self) -> Path:
-        # Keep existing data and SQLite journals together; never silently select
-        # an empty database because the product name changed.
-        legacy = self.state_dir / "moegent.sqlite3"
-        return legacy if legacy.exists() else self.state_dir / "litellm-memory.sqlite3"
+        return self.state_dir / "litellm-memory.sqlite3"
 
     @property
     def secure_cookies(self) -> bool:

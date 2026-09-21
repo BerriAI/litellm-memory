@@ -27,7 +27,7 @@ Frontend format checks also pass. Browser checks cover first-use intake status, 
 - [ ] Size the instance/cache using representative history and concurrency.
 - [ ] Review operator key custody and provider retention with the team; do not describe hosted processing as zero knowledge.
 - [ ] Verify updated screenshots, setup, recovery and member documentation against the released build.
-- [ ] Remove the isolated legacy assistant/runtime only after its replacement and historical import are proven. It remains for migration compatibility and is not the new app's memory backend.
+- [ ] Remove the isolated legacy assistant/runtime only after its replacement and historical import are proven. It is not the new app's memory backend.
 
 The legacy product-team repository/MCP remains in place until cutover. No real teammate has been enrolled or real memory published by the synthetic checks.
 
