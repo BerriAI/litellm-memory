@@ -4,6 +4,8 @@ This file distinguishes implementation from verified deployment. It is not a cla
 
 ## Verified on September 20, 2026
 
+- [CI run 35548067130](https://github.com/moe-berri/litemem/actions/runs/35548067130) passed on source `5e82228`: **123 tests**, Ruff, four frontend module checks, both actual CLI hook checks and full Docker/PostgreSQL/Ente build, restart and clean-volume recovery/restore. This source includes the versioned API and compatibility controls.
+
 - The API contract audit adds the documented `/api/v1` surface with unversioned compatibility aliases on one router. Local validation passes **123 tests**, including cross-alias capture idempotency, owner isolation, browser-only administration, CSRF, shared rate limits, body bounds, recovery denial and unique OpenAPI operations. The actual web app now uses versioned paths; browser checks confirmed saved filters, reload and a synthetic Ask response.
 - [CI run 35547589627](https://github.com/moe-berri/litemem/actions/runs/35547589627) passed on source `c2e6ba9`: **119 tests**, Ruff, four frontend module checks, both actual CLI hook checks and full Docker/PostgreSQL/Ente build, restart and recovery/restore. This source includes personal viewing preferences and the shared-audience private-count fix.
 
@@ -64,6 +66,7 @@ Reproduce the larger stress case with `uv run python scripts/benchmark_search.py
 - [ ] Apply/verify needed Slack scopes and test owned-DM and least-audience shared-channel behavior without enrolling teammates or sending unsolicited messages.
 - [ ] Import approved Moe history, reconcile exact original hashes/counts, and prove rerun/restart behavior. The legacy preview alone is not a completed import.
 - [x] Verify bounded shared query capacity, server-owned history and citation-ID validation.
+- [ ] Complete the scheduling controls promised in the product contract. Workspace timezone is currently saved during setup; current/daily views are reconciled every five minutes. The configurable 02:00 daily refresh and editable workspace/member timezone controls still need implementation and verification.
 - [ ] Finish the real-history answer-quality evaluation and remaining full-pilot acceptance checks.
 - [x] Measure larger archives and multiple people/concurrent queries; document the cold-start and cache limits.
 - [ ] Deploy the integrated entry point to the private owner-only/sharing-off pilot, then prove actual capture → Ente → processing → explicit query → valid citation after restart.
