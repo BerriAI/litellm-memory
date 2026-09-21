@@ -44,7 +44,7 @@ def application(tmp_path, calls, *, jev_status=200):
                 k: {"type": "noul", "noul": 1.0} for k in body["questions"]}})
         if request.url.path.endswith("embeddings"):
             return httpx.Response(200, json={"data": [{"index": 0, "embedding": [0.2, 0.4, 0.6]}]})
-        message = {"content": '{"ok": true}'}
+        message = {"content": json.dumps({"title": "Setup check", "summary": "Reviewed onboarding.", "projects": []})}
         if "tools" in body:
             message["tool_calls"] = [{"function": {"name": "connection_check", "arguments": "{}"}}]
         return httpx.Response(200, json={"choices": [{"message": message}]})
