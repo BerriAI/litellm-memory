@@ -382,7 +382,7 @@ async function loadFeed(append = false) {
     show("load-more", false);
   }
   try {
-    const result = await api("/api/memories/search", {
+    const result = await api("/api/v1/memories/search", {
       query,
       owner: state.person || (state.feed === "mine" ? state.me.id : null),
       visibility: state.feed === "shared" ? "public" : null,
@@ -523,7 +523,7 @@ async function loadOverview() {
   target.replaceChildren(el("p", "Loading overview…", "muted"));
   try {
     const result = await api(
-      `/api/people/${encodeURIComponent(state.person || state.me.id)}/overview`,
+      `/api/v1/people/${encodeURIComponent(state.person || state.me.id)}/overview`,
       {
         kind: $("overview-kind").value,
         day:
@@ -592,7 +592,7 @@ async function openMemory(id) {
   $("source-visibility").replaceChildren();
   if (!$("source-dialog").open) $("source-dialog").showModal();
   try {
-    const m = await api("/api/memories/" + encodeURIComponent(id));
+    const m = await api("/api/v1/memories/" + encodeURIComponent(id));
     if (version !== state.memoryVersion || !$("source-dialog").open) return;
     $("source-visibility").replaceChildren(privacy(m.visibility));
     const body = $("source-body");
@@ -689,7 +689,7 @@ async function openMemory(id) {
             cancel.disabled = true;
             try {
               const saved = await api(
-                `/api/memories/${encodeURIComponent(id)}/corrections`,
+                `/api/v1/memories/${encodeURIComponent(id)}/corrections`,
                 correctionRequest,
               );
               await openMemory(saved.id);
@@ -716,7 +716,7 @@ async function openMemory(id) {
             try {
               if (m.visibility !== "public") {
                 const preview = await api(
-                  `/api/memories/${encodeURIComponent(id)}/sharing-preview`,
+                  `/api/v1/memories/${encodeURIComponent(id)}/sharing-preview`,
                 );
                 if (!preview.can_share) {
                   $("source-error").textContent = preview.notice;
@@ -733,7 +733,7 @@ async function openMemory(id) {
                   return;
               }
               await api(
-                `/api/memories/${encodeURIComponent(id)}/visibility`,
+                `/api/v1/memories/${encodeURIComponent(id)}/visibility`,
                 {
                   visibility: m.visibility === "public" ? "private" : "public",
                 },
@@ -767,7 +767,7 @@ async function openMemory(id) {
         await busy(remove, async () => {
           try {
             await api(
-              `/api/memories/${encodeURIComponent(id)}`,
+              `/api/v1/memories/${encodeURIComponent(id)}`,
               undefined,
               "DELETE",
             );
@@ -880,7 +880,7 @@ async function loadModels() {
   show("chat-model-error", false);
   show("home-model-error", false);
   show("retry-chat-models", false);
-  const result = await api("/api/models");
+  const result = await api("/api/v1/models");
   const current = $("model").value;
   state.models = result.data;
   populateSelect(
@@ -1029,7 +1029,7 @@ async function ask(question) {
     ]);
     if (state.chatRequest?.fingerprint !== fingerprint)
       state.chatRequest = { fingerprint, id: crypto.randomUUID() };
-    const result = await api("/api/chat", {
+    const result = await api("/api/v1/chat", {
       question,
       model,
       scope:
@@ -1044,9 +1044,9 @@ async function ask(question) {
     });
     state.job = result.id;
     if (state.cancelRequested)
-      await api(`/api/jobs/${encodeURIComponent(result.id)}/cancel`, {});
+      await api(`/api/v1/jobs/${encodeURIComponent(result.id)}/cancel`, {});
     while (generation === state.chatVersion) {
-      const job = await api("/api/jobs/" + encodeURIComponent(result.id));
+      const job = await api("/api/v1/jobs/" + encodeURIComponent(result.id));
       answer.phase.textContent = job.phase || "Working…";
       if (job.partial || job.answer) {
         const nearBottom =
@@ -1085,7 +1085,7 @@ async function ask(question) {
   }
 }
 async function loadConnections() {
-  const data = await api("/api/connections");
+  const data = await api("/api/v1/connections");
   $("mcp-url").textContent = state.me.mcp_url;
   const url = state.me.mcp_url;
   $("codex-command").textContent =
@@ -1111,7 +1111,7 @@ async function loadConnections() {
       busy(revoke, async () => {
         try {
           await api(
-            "/api/connections/" + encodeURIComponent(c.id),
+            "/api/v1/connections/" + encodeURIComponent(c.id),
             undefined,
             "DELETE",
           );
@@ -1128,7 +1128,7 @@ async function loadConnections() {
     list.append(el("p", "No connected clients yet.", "muted"));
 }
 async function loadRules() {
-  const data = await api("/api/privacy-rules");
+  const data = await api("/api/v1/privacy-rules");
   $("rule-list").replaceChildren();
   for (const r of data.rules) {
     const row = el("div", "", "rule-row");
@@ -1138,7 +1138,7 @@ async function loadRules() {
       busy(remove, async () => {
         try {
           await api(
-            "/api/privacy-rules/" + encodeURIComponent(r.id),
+            "/api/v1/privacy-rules/" + encodeURIComponent(r.id),
             undefined,
             "DELETE",
           );
@@ -1155,7 +1155,7 @@ async function loadRules() {
 async function loadModelSettings(refresh = false) {
   if (!state.me.is_admin) return;
   show("models-tab");
-  api("/api/admin/connection")
+  api("/api/v1/admin/connection")
     .then((connection) => {
       $("current-gateway-url").textContent = connection.base_url;
     })
@@ -1177,7 +1177,7 @@ async function loadModelSettings(refresh = false) {
   $("model-settings-status").textContent = "Loading available models…";
   try {
     const config = await api(
-      "/api/admin/models" + (refresh ? "?refresh=true" : ""),
+      "/api/v1/admin/models" + (refresh ? "?refresh=true" : ""),
     );
     state.modelSettings = config;
     for (const [role, kind, inherit] of [
@@ -1249,7 +1249,7 @@ function renderViewPreferences(preferences, { saved = true } = {}) {
   if (saved) updateScope();
 }
 async function loadViewPreferences() {
-  renderViewPreferences(await api("/api/view-preferences"));
+  renderViewPreferences(await api("/api/v1/view-preferences"));
 }
 function editViewPreferences() {
   setView("settings");
@@ -1316,7 +1316,7 @@ $("view-preferences-form").onsubmit = async (event) => {
       field.disabled = true;
     });
     try {
-      renderViewPreferences(await api("/api/view-preferences", body, "PUT"));
+      renderViewPreferences(await api("/api/v1/view-preferences", body, "PUT"));
       newChat({ focus: false });
       await loadFeed();
       status.textContent =
@@ -1339,14 +1339,14 @@ async function loadSettings() {
     group.inert = true;
   });
   try {
-    state.me = await api("/api/me");
+    state.me = await api("/api/v1/me");
     $("capture-enabled").checked = state.me.capture_enabled;
     $("agent-enabled").checked = state.me.agent_enabled;
     show("sharing-note", !state.me.sharing_enabled);
     show("sharing-form", state.me.sharing_enabled);
     show("workspace-sharing-control", state.me.is_admin);
     $("workspace-sharing-enabled").checked = state.me.sharing_enabled;
-    const sharing = await api("/api/sharing-preferences");
+    const sharing = await api("/api/v1/sharing-preferences");
     document.querySelectorAll('[name="sharing-type"]').forEach((input) => {
       input.checked = sharing.allowed_types.includes(input.value);
     });
@@ -1384,7 +1384,7 @@ async function initialize() {
   });
   try {
     if (await initializeSetup({ api, show, el, busy, populateSelect })) return;
-    state.me = await api("/api/me");
+    state.me = await api("/api/v1/me");
     if (!state.me.signed_in) {
       show("welcome");
       if (!state.me.login_available) {
@@ -1422,7 +1422,7 @@ async function initialize() {
       : "Ctrl K";
     show("workspace-error", false);
     try {
-      const people = await api("/api/people");
+      const people = await api("/api/v1/people");
       state.people = people.people;
     } catch (error) {
       if (!state.me) return;
@@ -1602,7 +1602,10 @@ $("stop-answer").onclick = () =>
     state.cancelRequested = true;
     if (state.job && state.job !== "starting") {
       try {
-        await api("/api/jobs/" + encodeURIComponent(state.job) + "/cancel", {});
+        await api(
+          "/api/v1/jobs/" + encodeURIComponent(state.job) + "/cancel",
+          {},
+        );
       } catch (e) {
         toast(explain(e));
       }
@@ -1636,7 +1639,7 @@ $("capture-form").onsubmit = async (e) => {
       field.disabled = true;
     });
     try {
-      await api("/api/memories", {
+      await api("/api/v1/memories", {
         source_id: state.captureRequest.id,
         title: $("capture-title").value,
         content: $("capture-content").value,
@@ -1668,7 +1671,7 @@ $("capture-form").onsubmit = async (e) => {
 $("finish-signup").onclick = () =>
   busy($("finish-signup"), async () => {
     try {
-      await api(state.me.can_rejoin ? "/api/rejoin" : "/api/signup", {});
+      await api(state.me.can_rejoin ? "/api/v1/rejoin" : "/api/v1/signup", {});
       show("setup", false);
       await initialize();
     } catch (e) {
@@ -1679,7 +1682,9 @@ $("rule-form").onsubmit = async (e) => {
   e.preventDefault();
   await busy(e.submitter, async () => {
     try {
-      await api("/api/privacy-rules", { instruction: $("rule-input").value });
+      await api("/api/v1/privacy-rules", {
+        instruction: $("rule-input").value,
+      });
       $("rule-error").textContent = "";
       $("rule-input").value = "";
       await loadRules();
@@ -1694,7 +1699,7 @@ $("sharing-form").onsubmit = async (event) => {
   await busy(event.submitter, async () => {
     try {
       await api(
-        "/api/sharing-preferences",
+        "/api/v1/sharing-preferences",
         {
           allowed_types: [
             ...document.querySelectorAll('[name="sharing-type"]:checked'),
@@ -1726,7 +1731,7 @@ $("workspace-sharing-enabled").onchange = async () => {
   }
   await busy(input, async () => {
     try {
-      await api("/api/admin/sharing", { enabled: desired }, "PUT");
+      await api("/api/v1/admin/sharing", { enabled: desired }, "PUT");
       await loadSettings();
       toast(
         desired
@@ -1748,7 +1753,7 @@ for (const [id, key] of [
     const desired = input.checked;
     await busy(input, async () => {
       try {
-        await api("/api/preferences", { [key]: desired }, "PUT");
+        await api("/api/v1/preferences", { [key]: desired }, "PUT");
         state.me[key] = desired;
         toast(desired ? "Enabled." : "Paused.");
       } catch (e) {
@@ -1760,7 +1765,7 @@ for (const [id, key] of [
 $("retry-processing").onclick = () =>
   busy($("retry-processing"), async () => {
     try {
-      await api("/api/retry-processing", {});
+      await api("/api/v1/retry-processing", {});
       toast("Failed items queued for retry.");
       await loadSettings();
     } catch (e) {
@@ -1794,7 +1799,7 @@ $("model-settings-form").onsubmit = async (e) => {
       "Checking models and Jev through LiteLLM…";
     try {
       state.modelSettings = await api(
-        "/api/admin/models",
+        "/api/v1/admin/models",
         { models, revision: state.modelSettings.revision },
         "PUT",
       );
@@ -1810,7 +1815,7 @@ $("reload-models").onclick = () =>
   busy($("reload-models"), () => loadModelSettings(true));
 async function downloadExport(options, filename) {
   const sessionVersion = state.sessionVersion;
-  const response = await fetch("/api/export", {
+  const response = await fetch("/api/v1/export", {
     method: "POST",
     credentials: "same-origin",
     cache: "no-store",
@@ -1881,7 +1886,7 @@ $("leave-workspace").onclick = async () => {
     return;
   await busy($("leave-workspace"), async () => {
     try {
-      await api("/api/leave", {});
+      await api("/api/v1/leave", {});
       location.assign("/");
     } catch (e) {
       toast(explain(e));
@@ -1896,7 +1901,7 @@ $("rotate-gateway-form").onsubmit = (event) => {
     $("gateway-rotation-status").textContent = "Checking your models and Jev…";
     try {
       await api(
-        "/api/admin/connection/key",
+        "/api/v1/admin/connection/key",
         { api_key: $("replacement-gateway-key").value },
         "PUT",
       );
@@ -1923,7 +1928,7 @@ $("admin-transfer-form").onsubmit = async (event) => {
     return;
   busy(submitter, async () => {
     try {
-      await api("/api/admin/transfer", { owner: select.value });
+      await api("/api/v1/admin/transfer", { owner: select.value });
       location.reload();
     } catch (error) {
       toast(explain(error));

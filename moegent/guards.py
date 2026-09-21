@@ -18,6 +18,9 @@ class RequestGuard:
         if scope['type'] != 'http':
             return await self.app(scope, receive, send)
         path = scope['path']
+        # Both API spellings consume the same limit; alternating cannot double it.
+        if path.startswith('/api/v1/'):
+            path = '/api/' + path.removeprefix('/api/v1/')
         rule = {
             '/oauth/register': (12, 3600), '/oauth/token': (120, 60), '/api/setup/claim': (20, 900),
             '/api/chat': (30, 60), '/api/memories': (360, 60), '/api/memories/search': (120, 60),

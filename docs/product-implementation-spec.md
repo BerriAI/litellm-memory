@@ -421,7 +421,7 @@ All content-bearing columns/references follow the encryption rules. A body field
 
 ### 17.2 HTTP surface
 
-Use a documented versioned `/api/v1` surface. Existing unversioned routes may be temporary compatibility adapters, with the same authorization service.
+Use a documented versioned `/api/v1` surface. The implementation now registers one router at `/api/v1` and retains `/api` compatibility aliases with identical handlers, authorization and shared rate-limit buckets. OpenAPI documents the versioned routes; the exact implemented endpoint list is in [API and data contracts](api.md). The setup and main web app use the versioned surface; existing installed capture/transfer clients remain compatible.
 
 | Endpoint group | Operations | Access |
 | --- | --- | --- |

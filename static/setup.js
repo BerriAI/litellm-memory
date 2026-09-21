@@ -2,7 +2,7 @@
 // saves completed steps on the server. Secrets never go into browser storage.
 export async function initializeSetup({ api, show, el, busy, populateSelect }) {
   const $ = (id) => document.getElementById(id);
-  let status = await api("/api/setup/status");
+  let status = await api("/api/v1/setup/status");
   if (!status.required) return false;
   show("welcome", false);
   show("deployment-setup");
@@ -22,13 +22,13 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
   }
   async function preferences() {
     await api(
-      "/api/setup/preferences",
+      "/api/v1/setup/preferences",
       { allowed_email_domain: $("setup-domain").value.trim(), timezone },
       "PUT",
     );
   }
   async function models() {
-    modelState = await api("/api/setup/models");
+    modelState = await api("/api/v1/setup/models");
     for (const [role, kind, inherit] of [
       ["agent_model", "chat", false],
       ["embedding_model", "embedding", false],
@@ -45,7 +45,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
     show("setup-models");
   }
   async function refresh() {
-    status = await api("/api/setup/status");
+    status = await api("/api/v1/setup/status");
     show("claim-form", !status.claimed);
     show("setup-content", status.claimed);
     if (!status.claimed) return;
@@ -65,7 +65,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
     if (status.gateway_connected) await models();
     show("slack-panel", status.models_checked);
     if (status.models_checked) {
-      const manifest = await api("/api/setup/slack-manifest");
+      const manifest = await api("/api/v1/setup/slack-manifest");
       $("create-slack-app").href = manifest.create_url;
     }
     show("slack-create-options", !status.slack_configured);
@@ -102,7 +102,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
     $("setup-model-status").textContent = "Checking models through LiteLLM…";
     try {
       modelState = await api(
-        "/api/setup/models",
+        "/api/v1/setup/models",
         { models: selected, revision: modelState.revision },
         "PUT",
       );
@@ -122,7 +122,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
     e.preventDefault();
     await busy(e.submitter, async () => {
       try {
-        await api("/api/setup/claim", { code: $("claim-code").value });
+        await api("/api/v1/setup/claim", { code: $("claim-code").value });
         $("claim-code").value = "";
         $("claim-error").textContent = "";
         await refresh();
@@ -138,7 +138,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
       $("gateway-badge").textContent = "Connecting…";
       try {
         const result = await api(
-          "/api/setup/gateway",
+          "/api/v1/setup/gateway",
           { base_url: $("gateway-url").value, api_key: $("gateway-key").value },
           "PUT",
         );
@@ -159,7 +159,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
   $("setup-recheck-jev").onclick = () =>
     busy($("setup-recheck-jev"), async () => {
       try {
-        const result = await api("/api/setup/check-jev", {});
+        const result = await api("/api/v1/setup/check-jev", {});
         jev(result);
         if (result.status === "ready") await saveModels();
       } catch (e) {
@@ -173,7 +173,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
       try {
         await preferences();
         await api(
-          "/api/setup/slack",
+          "/api/v1/setup/slack",
           {
             app_id: $("slack-app-id").value.trim(),
             client_id: $("slack-client-id").value.trim(),
@@ -196,7 +196,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
     await busy(e.submitter, async () => {
       try {
         await preferences();
-        await api("/api/setup/slack-create", {
+        await api("/api/v1/setup/slack-create", {
           configuration_token: $("slack-config-token").value,
         });
         $("slack-config-token").value = "";
@@ -210,7 +210,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
     busy($("install-slack"), async () => {
       try {
         await preferences();
-        const result = await api("/api/setup/slack-install", {});
+        const result = await api("/api/v1/setup/slack-install", {});
         location.assign(result.url);
       } catch (e) {
         error("slack-setup-error", e);
@@ -228,7 +228,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
   $("finish-deployment").onclick = () =>
     busy($("finish-deployment"), async () => {
       try {
-        await api("/api/setup/finish", {
+        await api("/api/v1/setup/finish", {
           allowed_email_domain: $("setup-domain").value.trim(),
           timezone,
         });

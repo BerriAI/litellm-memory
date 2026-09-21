@@ -108,7 +108,7 @@ class FinishSetup(BaseModel):
     timezone: str = Field(default="UTC", max_length=100)
 
 
-def install_setup(app, deployment, settings, store, archive, gateway, model_service, slack, oauth, same_origin):
+def install_setup(app, api, deployment, settings, store, archive, gateway, model_service, slack, oauth, same_origin):
     def require(request):
         same_origin(request)
         deployment.require(request)
@@ -124,7 +124,7 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
 
     app.state.update_slack_config = update_slack
 
-    @app.get("/api/setup/status")
+    @api.get("/setup/status")
     async def status(request: Request):
         result = {"required": not deployment.complete, "claimed": deployment.authorized(request)}
         if result["claimed"]:
@@ -145,7 +145,7 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
                           timezone=deployment.values.get("timezone", "UTC"))
         return result
 
-    @app.post("/api/setup/claim")
+    @api.post("/setup/claim")
     async def claim(request: Request):
         same_origin(request)
         body = await request.json()
@@ -170,7 +170,7 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
             request.session["setup_grant"] = grant
         return await status(request)
 
-    @app.put("/api/setup/gateway")
+    @api.put("/setup/gateway")
     async def connect_gateway(body: GatewayConnection, request: Request):
         require(request)
         key = body.api_key or settings.litellm_api_key
@@ -193,7 +193,7 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
         return {"status": "connected", "models": defaults.model_dump(),
                 "catalog": [m.model_dump() for m in catalog], "jev": jev}
 
-    @app.get("/api/setup/models")
+    @api.get("/setup/models")
     async def models(request: Request):
         require(request)
         result = await model_service.describe()
@@ -201,28 +201,28 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
                               for kind in ["chat", "embedding", "generation"]}
         return result
 
-    @app.put("/api/setup/models")
+    @api.put("/setup/models")
     async def save_models(body: SetupModels, request: Request):
         require(request)
         result = await model_service.save(body.models, expected_revision=body.revision)
         deployment.save(jev=result["checks"]["jev"])
         return result
 
-    @app.post("/api/setup/check-jev")
+    @api.post("/setup/check-jev")
     async def check_jev(request: Request):
         require(request)
         result = await gateway.probe_jev()
         deployment.save(jev=result)
         return result
 
-    @app.get("/api/setup/slack-manifest")
+    @api.get("/setup/slack-manifest")
     async def manifest(request: Request):
         require(request)
         value = slack_manifest(settings.public_base_url.rstrip("/"))
         return {"create_url": "https://api.slack.com/apps?" + urlencode({"new_app": "1", "manifest_json": json.dumps(value)}),
                 "manifest": value}
 
-    @app.put("/api/setup/slack")
+    @api.put("/setup/slack")
     async def connect_slack(body: SlackConnection, request: Request):
         require(request)
         async with deployment.lock:
@@ -230,7 +230,7 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
             update_slack()
         return {"status": "saved"}
 
-    @app.post("/api/setup/slack-install")
+    @api.post("/setup/slack-install")
     async def slack_install(request: Request):
         require(request)
         if not settings.slack_client_id:
@@ -242,7 +242,7 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
             "client_id": settings.slack_client_id, "scope": ",".join(BOT_SCOPES), "state": state,
             "redirect_uri": settings.public_base_url + "/slack/install/callback"})}
 
-    @app.post("/api/setup/finish")
+    @api.post("/setup/finish")
     async def finish(body: FinishSetup, request: Request):
         require(request)
         from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -298,7 +298,7 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
         slack.settings.allowed_slack_users = ",".join(p["id"] for p in await archive.people(Reader(owner)))
         return {"status": "ready"}
 
-    @app.put("/api/setup/preferences")
+    @api.put("/setup/preferences")
     async def preferences(body: FinishSetup, request: Request):
         require(request)
         deployment.save(config={"allowed_email_domain": body.allowed_email_domain.casefold()},
@@ -306,7 +306,7 @@ def install_setup(app, deployment, settings, store, archive, gateway, model_serv
         update_slack()
         return {"status": "saved"}
 
-    @app.post("/api/setup/slack-create")
+    @api.post("/setup/slack-create")
     async def auto_create(request: Request):
         require(request)
         body = await request.json()

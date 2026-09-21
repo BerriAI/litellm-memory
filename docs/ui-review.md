@@ -62,3 +62,5 @@ Saved personal viewing preferences added in the product-contract follow-up:
 - Source text and private prompts are never inserted as executable HTML. Markdown continues through DOMPurify, and external links retain safe target/rel handling. UI permissions supplement server authorization; they do not grant access.
 
 For a release, rerun the relevant scenarios against the deployed owner-only pilot after the gateway and Slack prerequisites are satisfied. Record the actual released revision and CI evidence in the release checklist.
+
+The API contract follow-up switched the main web app and setup to `/api/v1`. Browser checks repeated personal type/person exclusions, save/reload, clearing exclusions and a complete synthetic Ask response. Compatibility aliases share the same handlers and rate limits. Local validation now passes **123 tests**. These checks do not replace the live integration gates.

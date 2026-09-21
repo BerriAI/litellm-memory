@@ -14,7 +14,7 @@ from uuid import UUID
 
 import httpx
 from authlib.integrations.starlette_client import OAuth
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -173,6 +173,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
                 await store.close()
 
     app = FastAPI(title="litemem API", version="1.0.0", lifespan=lifespan)
+    api = APIRouter()
     app.state.archive, app.state.store, app.state.gateway = archive, store, gateway
     app.state.transfers = transfers
     app.state.slack, app.state.settings = slack, settings
@@ -300,7 +301,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
 
     app.state.account = account
     install_oauth(app, settings, store, archive, browser_account, same_origin)
-    install_setup(app, deployment, settings, store, archive, gateway, model_service, slack, oauth, same_origin)
+    install_setup(app, api, deployment, settings, store, archive, gateway, model_service, slack, oauth, same_origin)
 
     def safe_return(path):
         if any(ord(c) < 32 for c in path) or "\\" in path or path.startswith("//"):
@@ -321,7 +322,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     async def index():
         return FileResponse(ROOT / "static/memory.html")
 
-    @app.get("/api/me")
+    @api.get("/me")
     async def me(request: Request):
         try:
             identity = session_identity(request)
@@ -343,7 +344,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
                 "default_model": settings.litellm_model, "storage_ready": bool(museum),
                 "mcp_url": settings.public_base_url.rstrip("/") + "/mcp"}
 
-    @app.post("/api/signup")
+    @api.post("/signup")
     async def signup(request: Request):
         same_origin(request)
         if not museum:
@@ -357,7 +358,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         slack.settings.allowed_slack_users = ",".join(p["id"] for p in people)
         return {"id": owner, "mcp_url": settings.public_base_url.rstrip("/") + "/mcp"}
 
-    @app.post('/api/rejoin')
+    @api.post('/rejoin')
     async def rejoin(request: Request):
         same_origin(request)
         if request.headers.get('authorization'):
@@ -370,13 +371,13 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         slack.settings.allowed_slack_users = ','.join(p['id'] for p in await archive.people(Reader(owner)))
         return {'status': 'restored', 'capture_enabled': False, 'sharing_restored': False}
 
-    @app.get("/api/models")
+    @api.get("/models")
     async def models(request: Request):
         await account(request)
         defaults = await model_service.current()
         return {"data": [m.model_dump() for m in await gateway.models()], "default": defaults.agent_model}
 
-    @app.get("/api/admin/models")
+    @api.get("/admin/models")
     async def admin_models(request: Request):
         await admin_account(request)
         if request.query_params.get("refresh") == "true":
@@ -386,12 +387,12 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
                             for kind in ["chat", "embedding", "generation"]}
         return data
 
-    @app.get('/api/admin/connection')
+    @api.get('/admin/connection')
     async def gateway_connection(request: Request):
         await admin_account(request)
         return {'base_url': settings.litellm_base_url, 'key_configured': bool(settings.litellm_api_key)}
 
-    @app.put('/api/admin/connection/key')
+    @api.put('/admin/connection/key')
     async def rotate_gateway_key(body: GatewayKey, request: Request):
         await admin_account(request)
         # Key rotation preserves the gateway and configured model IDs. Every
@@ -415,7 +416,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
             gateway._models, gateway._models_until = None, 0
         return {'status': 'updated'}
 
-    @app.post('/api/admin/transfer')
+    @api.post('/admin/transfer')
     async def transfer_admin(body: AdminTransfer, request: Request):
         await admin_account(request)
         if settings.registration_mode == 'owner_only':
@@ -430,7 +431,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
             deployment.save(config={'slack_owner_user_id': body.owner.split(':', 1)[1]})
         return {'status': 'transferred'}
 
-    @app.put('/api/admin/sharing')
+    @api.put('/admin/sharing')
     async def workspace_sharing(request: Request):
         await admin_account(request)
         body = await request.json()
@@ -446,31 +447,31 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         await archive.db.commit()
         return {'sharing_enabled': enabled}
 
-    @app.put("/api/admin/models")
+    @api.put("/admin/models")
     async def save_models(body: SaveModels, request: Request):
         await admin_account(request)
         return await model_service.save(body.models, expected_revision=body.revision)
 
-    @app.post("/api/admin/models/check-jev")
+    @api.post("/admin/models/check-jev")
     async def check_jev(request: Request):
         await admin_account(request)
         return await gateway.probe_jev()
 
-    @app.get("/api/people")
+    @api.get("/people")
     async def people(request: Request):
         return {"people": await archive.people(Reader(await account(request)))}
 
-    @app.post("/api/people/{owner}/overview")
+    @api.post("/people/{owner}/overview")
     async def overview(owner: str, body: ViewRequest, request: Request):
         same_origin(request)
         return await views.get(Reader(await account(request)), owner, body)
 
-    @app.post("/api/memories")
+    @api.post("/memories")
     async def capture(body: WorkInput, request: Request):
         same_origin(request)
         return await archive.capture(await account(request), body)
 
-    @app.post("/api/memories/search")
+    @api.post("/memories/search")
     async def search(body: Search, request: Request):
         same_origin(request)
         reader = Reader(await account(request))
@@ -483,19 +484,19 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         filters = body.model_dump(exclude={"mode"})
         return await archive.search(reader, **filters, vector=vector, embedding_model=settings.memory_embedding_model)
 
-    @app.get("/api/memories/{record_id}")
+    @api.get("/memories/{record_id}")
     async def read(record_id: str, request: Request):
         record = await archive.read(Reader(await account(request)), record_id)
         return {k: v for k, v in record.items() if k not in {"embedding", "publication_embedding"}}
 
-    @app.put("/api/memories/{record_id}/visibility")
+    @api.put("/memories/{record_id}/visibility")
     async def visibility(record_id: str, request: Request):
         owner = await browser_account(request)
         body = await request.json()
         await archive.set_visibility(owner, record_id, body.get("visibility"))
         return {"status": "saved"}
 
-    @app.get('/api/memories/{record_id}/sharing-preview')
+    @api.get('/memories/{record_id}/sharing-preview')
     async def sharing_preview(record_id: str, request: Request):
         owner = await browser_account(request)
         row = await archive.row(record_id)
@@ -509,49 +510,49 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
                 'notice': 'Only this summary is shared with eligible company members. Original evidence stays private.'
                 if can_share else 'This memory is still processing, matches a private topic, or is excluded by your sharing types.'}
 
-    @app.delete("/api/memories/{record_id}")
+    @api.delete("/memories/{record_id}")
     async def delete(record_id: str, request: Request):
         await archive.delete(await browser_account(request), record_id)
         return {"status": "deleted"}
 
-    @app.post('/api/memories/{record_id}/corrections')
+    @api.post('/memories/{record_id}/corrections')
     async def correction(record_id: str, body: Correction, request: Request):
         return await archive.correct(await browser_account(request), record_id, **body.model_dump())
 
-    @app.get("/api/privacy-rules")
+    @api.get("/privacy-rules")
     async def rules(request: Request):
         return {"rules": await archive.rules(await account(request))}
 
-    @app.get('/api/view-preferences')
+    @api.get('/view-preferences')
     async def view_preferences(request: Request):
         return await archive.view_preferences(await account(request))
 
-    @app.put('/api/view-preferences')
+    @api.put('/view-preferences')
     async def save_view_preferences(body: ViewPreferences, request: Request):
         return await archive.save_view_preferences(await browser_account(request), body)
 
-    @app.get("/api/sharing-preferences")
+    @api.get("/sharing-preferences")
     async def sharing_preferences(request: Request):
         return await archive.sharing_preferences(await account(request))
 
-    @app.put("/api/sharing-preferences")
+    @api.put("/sharing-preferences")
     async def save_sharing_preferences(request: Request):
         owner = await browser_account(request)
         body = await request.json()
         return await archive.set_sharing_preferences(owner, body.get('allowed_types'), body.get('auto_share'))
 
-    @app.post("/api/privacy-rules")
+    @api.post("/privacy-rules")
     async def add_rule(request: Request):
         owner = await browser_account(request)
         body = await request.json()
         return await archive.add_rule(owner, str(body.get("instruction", "")))
 
-    @app.delete("/api/privacy-rules/{rule_id}")
+    @api.delete("/privacy-rules/{rule_id}")
     async def remove_rule(rule_id: str, request: Request):
         await archive.remove_rule(await browser_account(request), rule_id)
         return {"status": "removed"}
 
-    @app.put("/api/preferences")
+    @api.put("/preferences")
     async def preferences(request: Request):
         owner = await browser_account(request)
         body = await request.json()
@@ -561,23 +562,23 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         await archive.preferences(owner, **{k: body[k] for k in ["capture_enabled", "agent_enabled"] if k in body})
         return {"status": "saved"}
 
-    @app.post("/api/retry-processing")
+    @api.post("/retry-processing")
     async def retry(request: Request):
         await archive.retry_failed(await browser_account(request))
         return {"status": "queued"}
 
-    @app.get("/api/connections")
+    @api.get("/connections")
     async def connections(request: Request):
         return {"connections": await archive.tokens(await account(request))}
 
-    @app.get("/api/capture-identity")
+    @api.get("/capture-identity")
     async def capture_identity(request: Request):
         owner = await account(request)
         member = await archive.member(owner)
         return {"owner": owner, "capture_enabled": bool(member['capture_enabled']),
                 "capture_after": member['capture_after']}
 
-    @app.get("/api/connector/setup", response_class=HTMLResponse)
+    @api.get("/connector/setup", response_class=HTMLResponse)
     async def connector_setup(request: Request):
         await browser_account(request)
         url = escape(settings.public_base_url.rstrip("/"))
@@ -614,16 +615,16 @@ litemem-connector disconnect</pre>
         Transcript formats can change; check capture status after a host update.
         While this repository is private, installation also requires GitHub access.</p></main></html>''')
 
-    @app.post("/api/connections")
+    @api.post("/connections")
     async def connection(request: Request):
         return await archive.create_token(await browser_account(request))
 
-    @app.delete("/api/connections/{connection_id}")
+    @api.delete("/connections/{connection_id}")
     async def revoke(connection_id: str, request: Request):
         await archive.revoke_token(await browser_account(request), connection_id)
         return {"status": "revoked"}
 
-    @app.post("/api/export")
+    @api.post("/export")
     async def export(request: Request, body: ExportOptions | None = None):
         same_origin(request)
         owner = await account(request)
@@ -650,43 +651,46 @@ litemem-connector disconnect</pre>
     async def transfer_send_page():
         return FileResponse(ROOT / 'static/transfer-send.html')
 
-    @app.get('/api/transfers')
+    @api.get('/transfers')
     async def recent_transfers(request: Request):
         return {'transfers': await transfers.recent(await browser_account(request))}
 
-    @app.post('/api/transfers/receive')
+    @api.post('/transfers/receive')
     async def receive_transfer(body: ReceiveRequest, request: Request):
         return await transfers.receive(await browser_account(request), body.source)
 
-    @app.post('/api/transfers/send')
+    @api.post('/transfers/send')
     async def send_transfer(body: Invitation, request: Request):
         return await transfers.outgoing(await browser_account(request), body)
 
-    @app.get('/api/transfers/{identity}')
+    @api.get('/transfers/{identity}')
     async def transfer_status(identity: UUID, request: Request):
         return await transfers.status(identity, await browser_account(request))
 
-    @app.get('/api/transfers/{identity}/packets/{index}')
+    @api.get('/transfers/{identity}/packets/{index}')
     async def transfer_packet(identity: UUID, index: int, request: Request):
         return await transfers.send_packet(identity, await browser_account(request), index)
 
-    @app.get('/api/transfers/{identity}/outgoing')
+    @api.get('/transfers/{identity}/outgoing')
     async def transfer_context(identity: UUID, request: Request):
         return await transfers.outgoing_context(identity, await browser_account(request))
 
-    @app.post('/api/transfers/{identity}/packets')
+    @api.post('/transfers/{identity}/packets')
     async def transfer_upload(identity: UUID, body: Packet, request: Request):
         return await transfers.accept(identity, await browser_account(request), body)
 
-    @app.post('/api/transfers/{identity}/finish', status_code=202)
+    @api.post('/transfers/{identity}/finish', status_code=202)
     async def transfer_finish(identity: UUID, request: Request):
         return await transfers.start_import(identity, await browser_account(request))
 
-    @app.delete('/api/transfers/{identity}')
+    @api.delete('/transfers/{identity}')
     async def transfer_cancel(identity: UUID, request: Request):
         return await transfers.cancel(identity, await browser_account(request))
 
-    @app.api_route('/api/transfer-inbox/{identity}', methods=['GET', 'POST', 'DELETE', 'OPTIONS'])
+    @api.get('/transfer-inbox/{identity}')
+    @api.post('/transfer-inbox/{identity}')
+    @api.delete('/transfer-inbox/{identity}')
+    @api.options('/transfer-inbox/{identity}')
     async def transfer_inbox(identity: UUID, request: Request):
         token = request.headers.get('authorization', '')
         if request.method != 'OPTIONS' and not token.startswith('Bearer '):
@@ -716,13 +720,13 @@ litemem-connector disconnect</pre>
             return JSONResponse({'detail': 'Transfer verification failed. Reconnect from the source and retry.'},
                                 status_code=400, headers=cors)
 
-    @app.post("/api/leave")
+    @api.post("/leave")
     async def leave(request: Request):
         await archive.leave(await browser_account(request))
         request.session.clear()
         return {"status": "left"}
 
-    @app.post("/api/chat", status_code=202)
+    @api.post("/chat", status_code=202)
     async def chat(body: Question, request: Request):
         same_origin(request)
         owner = await account(request)
@@ -757,12 +761,12 @@ litemem-connector disconnect</pre>
             raise HTTPException(409, "Access changed. Start a new conversation.")
         return job
 
-    @app.get("/api/jobs/{job_id}")
+    @api.get("/jobs/{job_id}")
     async def job(job_id: str, request: Request):
         row = await authorized_job(request, job_id)
         return {k: row[k] for k in ["id", "status", "answer", "partial", "phase", "error"]}
 
-    @app.post("/api/jobs/{job_id}/cancel")
+    @api.post("/jobs/{job_id}/cancel")
     async def cancel(job_id: str, request: Request):
         same_origin(request)
         await authorized_job(request, job_id)
@@ -779,7 +783,8 @@ litemem-connector disconnect</pre>
         return await oauth.slack.authorize_redirect(request, settings.public_base_url + "/auth/slack/callback",
                                                     team=settings.slack_team_id, response_mode="form_post")
 
-    @app.api_route("/auth/slack/callback", methods=["GET", "POST"])
+    @app.get("/auth/slack/callback")
+    @app.post("/auth/slack/callback")
     async def login_callback(request: Request):
         target = safe_return(request.session.get("login_next", "/"))
         setup_grant = request.session.get("setup_grant") if deployment.authorized(request) else None
@@ -882,13 +887,16 @@ litemem-connector disconnect</pre>
         await store.setting("slack_scopes", data.get("scope", ""))
         return RedirectResponse("/", status_code=303)
 
-    @app.get("/api/health")
+    @api.get("/health")
     async def private_health(request: Request):
         owner = await account(request)
         return {"storage": "ente" if museum else "unconfigured", "stats": await archive.stats(owner),
                 "sharing_enabled": settings.sharing_enabled, "background_model": settings.background_model,
                 "classifier": settings.jev_model}
 
+    # One router keeps versioned and compatibility requests on identical handlers.
+    app.include_router(api, prefix="/api/v1")
+    app.include_router(api, prefix="/api", include_in_schema=False)
     app.mount("/mcp", mcp_http)
     app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
     app.add_middleware(RequestGuard)
