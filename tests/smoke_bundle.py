@@ -22,6 +22,19 @@ async def main():
     settings = Settings(_env_file=None)
     vault = KeyVault(settings.state_dir, settings.vault_wrapping_key)
     config = DeploymentConfig(settings, vault)
+    # Finish live setup mutations before this fixture seeds files directly. The
+    # supported deployment has one configuration writer; a second stale writer
+    # must not be introduced by the persistence test itself.
+    async with httpx.AsyncClient(base_url='http://127.0.0.1:8000', timeout=20) as client:
+        health = await client.get('/health')
+        assert health.json()['storage'] == 'ente'
+        assert (await client.get('/api/setup/status')).json() == {'required': True, 'claimed': False}
+        assert (await client.get('/api/setup/models')).status_code == 403
+        code = config.claim_path.read_text().strip()
+        assert (await client.post('/api/setup/claim', json={'code': code})).status_code == 200
+        assert (await client.get('/api/setup/status')).json()['claimed'] is True
+        assert (await client.get('/api/models')).status_code == 401
+    config = DeploymentConfig(settings, vault)
     museum_config = yaml.safe_load((settings.state_dir / 'museum.yaml').read_text())
     assert museum_config['internal']['disable-registration'] is True
     assert 'hardcoded-ott' not in museum_config['internal']
@@ -101,15 +114,6 @@ async def main():
             await archive.close()
     finally:
         await museum.close()
-    async with httpx.AsyncClient(base_url='http://127.0.0.1:8000', timeout=20) as client:
-        health = await client.get('/health')
-        assert health.json()['storage'] == 'ente'
-        assert (await client.get('/api/setup/status')).json() == {'required': True, 'claimed': False}
-        assert (await client.get('/api/setup/models')).status_code == 403
-        code = config.claim_path.read_text().strip()
-        assert (await client.post('/api/setup/claim', json={'code': code})).status_code == 200
-        assert (await client.get('/api/setup/status')).json()['claimed'] is True
-        assert (await client.get('/api/models')).status_code == 401
     print('PASS: storage round trip, closed registration, durable evidence/tombstones/transfer queue, and setup access control.')
 
 
