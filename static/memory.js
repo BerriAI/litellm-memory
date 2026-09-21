@@ -15,6 +15,10 @@ const state = {
   person: null,
   next: null,
   feedVersion: 0,
+  searchVersion: 0,
+  searchRequest: null,
+  searchNext: null,
+  searchLoading: false,
   models: [],
   modelSettings: null,
   previousJob: null,
@@ -238,6 +242,8 @@ function markdown(target, text) {
 function expireSession() {
   state.sessionVersion++;
   state.feedVersion++;
+  state.searchVersion++;
+  state.searchRequest = null;
   state.chatVersion++;
   state.memoryVersion++;
   state.previousJob = null;
@@ -257,6 +263,7 @@ function expireSession() {
   });
   for (const id of [
     "feed",
+    "search-results",
     "messages",
     "people-list",
     "source-body",
@@ -445,8 +452,7 @@ async function loadFeed(append = false) {
   ].filter((id) => $(id).value).length;
   $("filter-count").textContent = filterCount;
   show("filter-count", filterCount > 0);
-  const query = $("search-query").value.trim();
-  const filtered = Boolean(query || filterCount);
+  const filtered = Boolean(filterCount);
   if (
     $("filter-from").value &&
     $("filter-before").value &&
@@ -463,7 +469,7 @@ async function loadFeed(append = false) {
   }
   try {
     const result = await api("/api/v1/memories/search", {
-      query,
+      query: "",
       owner: state.person || (state.feed === "mine" ? state.me.id : null),
       visibility: state.feed === "shared" ? "public" : null,
       kind: $("filter-kind").value || null,
@@ -474,7 +480,7 @@ async function loadFeed(append = false) {
       date_timezone: displayZone(),
       offset: append ? state.next || 0 : 0,
       limit: 30,
-      mode: query ? "hybrid" : "keywords",
+      mode: "keywords",
     });
     if (version !== state.feedVersion) return;
     if (!append) $("feed").replaceChildren();
@@ -513,9 +519,7 @@ async function loadFeed(append = false) {
                 ? { label: "Browse Company", run: () => openFeed() }
                 : { label: "View my work", run: () => openFeed("mine") },
       );
-    $("feed-caption").textContent = query
-      ? `${result.total} ${result.total === 1 ? "result" : "results"}`
-      : "Latest first";
+    $("feed-caption").textContent = "Latest first";
   } catch (error) {
     if (version !== state.feedVersion) return;
     if (!append) $("feed").replaceChildren();
@@ -685,6 +689,7 @@ async function openMemory(id) {
               );
               await openMemory(saved.id);
               await loadFeed();
+              if ($("search-dialog").open) searchWork();
               toast("Private correction added. Original evidence preserved.");
             } catch (error) {
               $("source-error").textContent = explain(error);
@@ -741,6 +746,7 @@ async function openMemory(id) {
                   : "Sharing requested. Privacy checks run before publication.",
               );
               await loadFeed();
+              if ($("search-dialog").open) searchWork();
             } catch (e) {
               $("source-error").textContent = explain(e);
             }
@@ -769,6 +775,7 @@ async function openMemory(id) {
             $("source-dialog").close();
             toast("Memory deleted.");
             await loadFeed();
+            if ($("search-dialog").open) searchWork();
           } catch (e) {
             $("source-error").textContent = explain(e);
           }
@@ -1672,13 +1679,176 @@ document.addEventListener("click", (e) => {
     $("account-button").setAttribute("aria-expanded", "false");
   }
 });
+function resetSearch() {
+  state.searchVersion++;
+  state.searchRequest = null;
+  state.searchNext = null;
+  state.searchLoading = false;
+  $("search-submit").disabled = false;
+  $("search-more").disabled = false;
+  $("search-results").removeAttribute("aria-busy");
+  $("search-results").replaceChildren();
+  $("search-status").textContent =
+    "Enter a word or phrase to find recorded work.";
+  for (const id of [
+    "search-error",
+    "search-retry",
+    "search-more",
+    "search-personal-filters",
+  ])
+    show(id, false);
+  const scope = $("search-scope").value;
+  $("search-description").textContent =
+    scope === "mine"
+      ? "Your own recorded work, including private memories."
+      : scope.startsWith("person:")
+        ? `Work ${profile(scope.slice(7)).name} has shared with your company.`
+        : "Work shared with your company.";
+}
 function focusSearch() {
-  setView("home");
-  show("search-form");
+  if (!state.me?.enrolled) return;
+  closeAccountMenu();
+  const person =
+    state.view === "home" && state.person && state.person !== state.me.id
+      ? state.person
+      : null;
+  $("search-scope")
+    .querySelectorAll("option[data-person]")
+    .forEach((option) => option.remove());
+  if (person) {
+    const option = el("option", `${profile(person).name}’s shared work`);
+    option.value = `person:${person}`;
+    option.dataset.person = "true";
+    $("search-scope").append(option);
+  }
+  $("search-scope").value = person
+    ? `person:${person}`
+    : state.view === "home" && state.feed === "mine"
+      ? "mine"
+      : "shared";
+  resetSearch();
+  $("search-dialog").showModal();
   $("search-query").focus();
+  $("search-query").select();
+}
+function searchResult(memory) {
+  const result = el("button", "", "work-search-result");
+  result.type = "button";
+  const meta = el("span", "", "work-search-meta");
+  meta.append(
+    el(
+      "span",
+      memory.owner === state.me.id ? "You" : profile(memory.owner).name,
+    ),
+    privacy(memory.visibility),
+    el("span", date(memory.created_at || memory.captured_at)),
+  );
+  result.append(
+    el("span", memory.title || "Recorded work", "work-search-title"),
+    meta,
+  );
+  if (memory.excerpt)
+    result.append(el("span", memory.excerpt, "work-search-excerpt"));
+  result.onclick = () =>
+    openMemory(memory.id).catch((error) => toast(explain(error)));
+  return result;
+}
+async function searchWork(append = false) {
+  const query = $("search-query").value.trim();
+  if (
+    !query ||
+    state.searchLoading ||
+    !$("search-dialog").open ||
+    !state.me?.enrolled
+  )
+    return;
+  if (append && (state.searchNext === null || !state.searchRequest)) return;
+  const scope = $("search-scope").value;
+  const payload = append
+    ? state.searchRequest
+    : {
+        query,
+        owner:
+          scope === "mine"
+            ? state.me.id
+            : scope.startsWith("person:")
+              ? scope.slice(7)
+              : null,
+        visibility: scope === "mine" ? null : "public",
+        mode: "hybrid",
+        limit: 20,
+      };
+  const version = ++state.searchVersion;
+  state.searchRequest = payload;
+  state.searchLoading = true;
+  $("search-submit").disabled = true;
+  $("search-more").disabled = true;
+  $("search-results").setAttribute("aria-busy", "true");
+  $("search-status").textContent = append
+    ? "Loading more results…"
+    : "Searching…";
+  show("search-error", false);
+  show("search-retry", false);
+  if (!append) {
+    $("search-results").replaceChildren();
+    show("search-more", false);
+    show("search-personal-filters", false);
+  }
+  try {
+    const result = await api("/api/v1/memories/search", {
+      ...payload,
+      offset: append ? state.searchNext : 0,
+    });
+    if (version !== state.searchVersion || !$("search-dialog").open) return;
+    for (const memory of result.results)
+      $("search-results").append(searchResult(memory));
+    state.searchNext = result.next_offset;
+    $("search-status").textContent = result.total
+      ? `${result.total} ${result.total === 1 ? "result" : "results"}`
+      : "No matching work. Try another phrase or search scope.";
+    show("search-personal-filters", result.personal_filters_active);
+    show(
+      "search-more",
+      state.searchNext !== null && state.searchNext !== undefined,
+    );
+  } catch (error) {
+    if (version !== state.searchVersion || !$("search-dialog").open) return;
+    $("search-status").textContent = "";
+    $("search-error").textContent = explain(error);
+    show("search-error");
+    show("search-retry");
+    $("search-retry").onclick = () => searchWork(append);
+  } finally {
+    if (version === state.searchVersion) {
+      state.searchLoading = false;
+      $("search-submit").disabled = false;
+      $("search-more").disabled = false;
+      $("search-results").removeAttribute("aria-busy");
+    }
+  }
 }
 $("global-search-button").onclick = focusSearch;
 $("feed-search-button").onclick = focusSearch;
+$("search-query").oninput = resetSearch;
+$("search-scope").onchange = resetSearch;
+$("close-search").onclick = () => $("search-dialog").close();
+$("search-dialog").addEventListener("close", resetSearch);
+$("search-dialog").addEventListener("click", (event) => {
+  if (event.target !== $("search-dialog")) return;
+  const bounds = $("search-dialog").getBoundingClientRect();
+  if (
+    event.clientX < bounds.left ||
+    event.clientX > bounds.right ||
+    event.clientY < bounds.top ||
+    event.clientY > bounds.bottom
+  )
+    $("search-dialog").close();
+});
+$("search-more").onclick = () => searchWork(true);
+$("search-edit-filters").onclick = () => {
+  $("search-dialog").close();
+  editViewPreferences();
+};
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("account-menu").hidden) {
     closeAccountMenu();
@@ -1702,7 +1872,6 @@ function resetFilterFields() {
     "filter-project",
     "filter-from",
     "filter-before",
-    "search-query",
   ])
     $(id).value = "";
 }
@@ -1712,16 +1881,7 @@ function clearFilters() {
   loadFeed();
 }
 $("clear-filters").onclick = clearFilters;
-$("close-search").onclick = () => {
-  $("search-query").value = "";
-  show("search-form", false);
-  $("feed-search-button").focus();
-  loadFeed();
-};
 $("retry-feed").onclick = () => loadFeed();
-$("search-query").addEventListener("search", () => {
-  if (!$("search-query").value) loadFeed();
-});
 for (const id of [
   "filter-kind",
   "filter-source",
@@ -1732,7 +1892,7 @@ for (const id of [
   $(id).onchange = () => loadFeed();
 $("search-form").onsubmit = (e) => {
   e.preventDefault();
-  loadFeed();
+  searchWork();
 };
 $("load-more").onclick = () => busy($("load-more"), () => loadFeed(true));
 $("home-ask-form").onsubmit = async (event) => {

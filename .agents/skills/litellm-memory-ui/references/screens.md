@@ -14,7 +14,7 @@ Keep the feed chronological. The useful title and work excerpt are more prominen
 
 The home Ask form has a visible label, concise placeholder, send control, and one short privacy line. Avoid a welcome hero, metric cards, progress rings, or recommendation panel above the first entry. The feed should appear within a normal viewport, not beneath an onboarding essay.
 
-Search and Filter are discoverable controls, with saved viewing exclusions in Settings → General. The active-filter note links to that editor. Clear search and clear filters must return to a understandable broader state. Personal viewing exclusions do not change sharing; keep that distinction in the explanation.
+Search opens a native dialog near the top of the viewport, without navigating or rearranging the underlying page. Put query, explicit Company/My work/person scope, and results together. Search only on submission; typing, opening the panel and changing scope do not fetch work. Clear stale results when the input changes, retain the query on failure, and preserve the underlying page, scroll and keyboard focus on close. Source details can open above search and return to the selected result. Metadata filters remain scoped to the Activity feed; saved viewing exclusions in Settings → General apply to both and must be disclosed when active. Personal viewing exclusions do not change sharing.
 
 For someone else's feed, show a compact identity header and Back to Company action; scope the question to their shared work. Person routes survive reload and browser Back. Changing the feed/person clears temporary filters; saved exclusions remain enforced. Do not expose private counts, hidden titles, or inaccessible source previews merely to fill the layout.
 

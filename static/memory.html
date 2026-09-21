@@ -11,7 +11,7 @@
       rel="icon"
     />
     <link href="/static/memory.css" rel="stylesheet" />
-    <script src="/static/memory.js?v=8" type="module"></script>
+    <script src="/static/memory.js?v=9" type="module"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -24,6 +24,8 @@
         class="global-search"
         hidden
         id="global-search-button"
+        aria-haspopup="dialog"
+        aria-controls="search-dialog"
       >
         <span data-icon="search"></span><span>Search</span
         ><kbd id="search-shortcut">⌘ K</kbd>
@@ -414,6 +416,8 @@
                     aria-label="Search this feed"
                     class="icon-button"
                     id="feed-search-button"
+                    aria-haspopup="dialog"
+                    aria-controls="search-dialog"
                   >
                     <span data-icon="search"></span></button
                   ><button
@@ -427,26 +431,6 @@
                   </button>
                 </div>
               </div>
-              <form class="search-form" hidden="" id="search-form">
-                <span data-icon="search"></span
-                ><input
-                  aria-label="Search memories"
-                  id="search-query"
-                  maxlength="2000"
-                  placeholder="Search this work"
-                  type="search"
-                /><button class="button quiet small" type="submit">
-                  Search
-                </button>
-                <button
-                  aria-label="Close search and clear query"
-                  class="icon-button"
-                  id="close-search"
-                  type="button"
-                >
-                  <span data-icon="close"></span>
-                </button>
-              </form>
               <div class="filters" hidden="" id="filters">
                 <label
                   >Type<input
@@ -1262,6 +1246,78 @@ litellm-memory-connector flush</pre>
         LiteLLM</span
       >
     </footer>
+    <dialog
+      aria-labelledby="search-title"
+      class="work-search-dialog"
+      id="search-dialog"
+    >
+      <div class="work-search-heading">
+        <h2 id="search-title">Search work</h2>
+        <button
+          aria-label="Close search"
+          class="icon-button"
+          id="close-search"
+          type="button"
+        >
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <form id="search-form" class="work-search-form">
+        <label class="sr-only" for="search-query">Search work</label>
+        <div class="work-search-input">
+          <span data-icon="search"></span>
+          <input
+            id="search-query"
+            type="search"
+            maxlength="2000"
+            autocomplete="off"
+            placeholder="Search by word or phrase…"
+            aria-describedby="search-description"
+            required
+          />
+          <button class="button primary small" id="search-submit" type="submit">
+            Search
+          </button>
+        </div>
+        <div class="work-search-scope">
+          <label for="search-scope">Search in</label>
+          <select id="search-scope">
+            <option value="shared">Company</option>
+            <option value="mine">My work</option>
+          </select>
+        </div>
+        <p id="search-description" class="field-help">
+          Work shared with your company.
+        </p>
+      </form>
+      <div class="work-search-content">
+        <p id="search-status" role="status">
+          Enter a word or phrase to find recorded work.
+        </p>
+        <p id="search-error" class="inline-error" role="alert" hidden></p>
+        <button id="search-retry" class="button secondary small" hidden>
+          Try again
+        </button>
+        <p id="search-personal-filters" class="field-help" hidden>
+          Your saved browsing filters apply.
+          <button class="text-button" id="search-edit-filters">
+            Edit filters
+          </button>
+        </p>
+        <div
+          id="search-results"
+          role="region"
+          aria-label="Search results"
+        ></div>
+        <button
+          class="button secondary small load-more"
+          id="search-more"
+          hidden
+        >
+          Show more results
+        </button>
+      </div>
+    </dialog>
     <dialog aria-label="Memory" class="source-dialog" id="source-dialog">
       <div class="dialog-top">
         <span id="source-visibility"></span
