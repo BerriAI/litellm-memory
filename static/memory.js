@@ -11,7 +11,7 @@ const state = {
   me: null,
   people: [],
   view: "home",
-  feed: "mine",
+  feed: "shared",
   person: null,
   next: null,
   feedVersion: 0,
@@ -377,7 +377,9 @@ async function loadFeed(append = false) {
   $("home-question").placeholder =
     state.person && state.person !== state.me.id
       ? `Ask about ${profile(state.person).name}’s shared work…`
-      : "Ask about your work…";
+      : state.feed === "shared"
+        ? "Ask about your company’s shared work…"
+        : "Ask about your work…";
   if (!append) {
     state.overviewVersion++;
     $("overview-content").replaceChildren();
@@ -946,7 +948,9 @@ function updateScope() {
     : null;
   $("question").placeholder = person
     ? `Ask about ${person}’s shared work…`
-    : "Ask about your work…";
+    : scope === "shared"
+      ? "Ask about your company’s shared work…"
+      : "Ask about your work…";
   $("chat-scope-description").textContent = person
     ? `Answers use only the work ${person} has shared with you.`
     : scope === "shared"
@@ -1692,7 +1696,9 @@ $("home-ask-form").onsubmit = async (event) => {
   const scope =
     state.person && state.person !== state.me.id
       ? `person:${state.person}`
-      : "mine";
+      : state.feed === "shared"
+        ? "shared"
+        : "mine";
   if (!(await changeScope(scope))) return;
   $("home-question").value = "";
   await ask(question);

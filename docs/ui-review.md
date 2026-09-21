@@ -8,7 +8,7 @@ The maintained [litemem UI skill](../.agents/skills/litemem-ui/SKILL.md) explain
 
 ## Activity
 
-Ask directly, browse your work or company summaries, and open an entry to inspect its source. Private entries carry both a lock and a label.
+Company is the first tab and opens by default; My work is second. Ask about the selected feed, or open an entry to inspect its source. Private entries carry both a lock and a label.
 
 ![Activity](assets/dashboard.jpg)
 

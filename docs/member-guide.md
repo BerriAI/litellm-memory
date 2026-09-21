@@ -14,7 +14,7 @@ An encrypted local outbox retries uploads when you are offline. **Settings → R
 
 ## Browse and ask
 
-**Activity** shows your work newest first. Private items have a lock and a **Private** label. **Company** shows company publications, without a recommendation algorithm. Filters narrow by person, source, type and date; search also uses searchable metadata. Missing original dates stay unknown.
+**Activity** opens on **Company**, showing company publications newest first, without a recommendation algorithm. **My work** is the second tab and shows your own private and shared records. Private items have a lock and a **Private** label. The Activity question box asks about the selected feed. Filters narrow by person, source, type and date; search also uses searchable metadata. Missing original dates stay unknown.
 
 Use the question box on Activity or open **Ask**. Choose a model from your gateway's available models, ask about your own work or choose a person, and open citations to inspect the evidence. You can ask follow-up questions within the same scope. Changing person or audience asks before clearing an existing conversation. Browser Back returns to the previous view.
 

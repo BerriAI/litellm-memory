@@ -6,7 +6,9 @@ These recipes describe the existing product and how to extend it consistently. T
 
 **Task:** understand recent work, find an entry, or ask about it.
 
-**Order:** page title/date and optional Add memory → compact Ask surface → My work/Company selection and filters → chronology → evidence. People and catch-up context are secondary.
+**Order:** page title/date and optional Add memory → compact Ask surface → Company/My work selection and filters → chronology → evidence. Company comes first and is selected on a fresh visit. People and catch-up context are secondary.
+
+The home Ask form follows the selected feed: company-shared work, the user's own work, or a selected person's shared work. Its placeholder and query scope must agree. Switching feed does not publish or change anyone's access.
 
 Keep the feed chronological. The useful title and work excerpt are more prominent than source, timestamp, and processing count. Author identity adds social context; it should not consume more space than the work. The private lock and text remain visible even when metadata wraps.
 
