@@ -32,6 +32,10 @@ For real-history query evaluation, use the [private answer-quality workflow](doc
 
 The internal package name `moegent` is retained for migration compatibility. The original `moegent/app.py` is the legacy assistant, not the new application entry point.
 
+## Interface standards
+
+Use the [litemem UI skill](.agents/skills/litemem-ui/SKILL.md) for interface work. It defines the visual hierarchy, type and spacing roles, reusable components, screen patterns, product language, responsive behavior, and review criteria. The repository’s `AGENTS.md` points coding agents to it automatically.
+
 ## Review expectations
 
 Explain the user-visible problem, the resulting behavior, and relevant checks. Add focused tests for authorization, data integrity, retry behavior or state transitions that your change affects. Check meaningful interface changes in a browser, including narrow layouts and keyboard navigation. Do not substitute synthetic tests for claims of live integration or measured answer quality.

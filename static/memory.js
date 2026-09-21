@@ -48,6 +48,7 @@ const icons = {
   lock: '<circle cx="12" cy="16" r="1" />\n  <rect x="3" y="10" width="18" height="12" rx="2" />\n  <path d="M7 10V7a5 5 0 0 1 10 0v3" />',
   search: '<path d="m21 21-4.34-4.34" />\n  <circle cx="11" cy="11" r="8" />',
   arrow: '<path d="m5 12 7-7 7 7" />\n  <path d="M12 19V5" />',
+  next: '<path d="M5 12h14" /><path d="m12 5 7 7-7 7" />',
   plus: '<path d="M5 12h14" />\n  <path d="M12 5v14" />',
   filter:
     '<path d="M2 5h20" />\n  <path d="M6 12h12" />\n  <path d="M9 19h6" />',
@@ -169,6 +170,7 @@ function safeImage(url) {
 }
 function avatar(person = {}) {
   const n = el("span", "", "avatar");
+  n.setAttribute("aria-hidden", "true");
   const url = safeImage(person.avatar);
   const initial = (person.name || "?").trim().slice(0, 1).toUpperCase();
   if (url) {
@@ -323,10 +325,9 @@ function selectSettings(section) {
     group.hidden = group.dataset.settingsSection !== section;
   });
   document.querySelectorAll("[data-settings]").forEach((button) => {
-    button.setAttribute(
-      "aria-pressed",
-      String(button.dataset.settings === section),
-    );
+    const selected = button.dataset.settings === section;
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
   });
 }
 window.addEventListener("popstate", () => {
@@ -962,6 +963,7 @@ function updateScope() {
     : scope === "shared"
       ? "What decisions has the team shared recently?"
       : "What decisions did I make recently?";
+  suggestions.forEach((button) => button.append(icon("next")));
 }
 async function changeScope(scope) {
   if (state.job) {
@@ -1526,7 +1528,6 @@ async function initialize() {
     }
     document.body.classList.add("workspace-ready");
     show("global-search-button");
-    show("workspace");
     show("navigation");
     show("header-actions");
     $("my-avatar").replaceWith(
@@ -1565,11 +1566,14 @@ async function initialize() {
       loadViewPreferences(),
     ]);
     if (!state.me?.enrolled) return;
+    show("boot-status", false);
+    show("workspace");
     setView(location.hash.slice(1) || "home", { navigate: false });
     const match = location.pathname.match(/^\/memory\/([^/]+)$/);
     if (match) await openMemory(decodeURIComponent(match[1]));
   } catch (error) {
     if (state.me?.enrolled) {
+      show("workspace");
       $("workspace-error-message").textContent = explain(error);
       show("workspace-error");
     } else {
@@ -2009,7 +2013,6 @@ $("leave-workspace").onclick = async () => {
     }
   });
 };
-$("sign-out").onclick = signOut;
 $("menu-sign-out").onclick = signOut;
 $("rotate-gateway-form").onsubmit = (event) => {
   event.preventDefault();
@@ -2072,5 +2075,21 @@ $("retry-workspace").onclick = () => busy($("retry-workspace"), initialize);
 $("retry-initialize").onclick = () => busy($("retry-initialize"), initialize);
 document.querySelectorAll("[data-settings]").forEach((button) => {
   button.onclick = () => selectSettings(button.dataset.settings);
+  button.onkeydown = (event) => {
+    const tabs = [...document.querySelectorAll("[data-settings]")].filter(
+      (tab) => !tab.hidden,
+    );
+    const index = tabs.indexOf(button);
+    const next = {
+      ArrowRight: (index + 1) % tabs.length,
+      ArrowLeft: (index - 1 + tabs.length) % tabs.length,
+      Home: 0,
+      End: tabs.length - 1,
+    }[event.key];
+    if (next === undefined) return;
+    event.preventDefault();
+    selectSettings(tabs[next].dataset.settings);
+    tabs[next].focus();
+  };
 });
 initialize();

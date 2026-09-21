@@ -612,25 +612,27 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         url = escape(settings.public_base_url.rstrip("/"))
         return HTMLResponse(f'''<!doctype html><html lang="en"><meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1"><title>Connect your tools · litemem</title>
-        <link rel="stylesheet" href="/static/memory.css"><main class="auth-card">
-        <a href="/">← Back to litemem</a><p class="eyebrow">Connections</p><h1>Record as you work</h1>
+        <link rel="stylesheet" href="/static/memory.css"><main class="auth-card guide-page">
+        <a href="/#connections">← Connections</a><p class="eyebrow">Connect a tool</p><h1>Record as you work</h1>
         <p>Install the connector once on the computer where you use Codex or Claude Code.
         Sign in with Slack when the browser opens. You don't need an API key or a memory password.</p>
+        <h2>1. Install &amp; connect</h2>
         <pre class="code-block">uv tool install git+https://github.com/moe-berri/litemem.git@codex/litemem-implementation
 litemem-connector connect {url}</pre>
+        <h2>2. Restart your coding tool</h2>
         <p>The installer adds capture hooks and the litemem MCP, preserving your existing connections.
-        Restart your coding tool after installation, then sign in to its litemem MCP when prompted.
+        Restart Codex or Claude Code, then sign in to its litemem MCP when prompted.
         In Codex, open <code>/hooks</code> and review/trust the litemem capture hooks.</p>
         <p>Visible conversation text is recorded privately. Tool outputs, system messages and hidden reasoning
         are excluded. Memories are searched only when you ask.</p>
-        <details><summary>Choose a tool or import history</summary>
+        <details class="advanced"><summary>Choose a tool or import history</summary>
         <pre class="code-block">litemem-connector connect {url} --host codex
 litemem-connector connect {url} --host claude
 litemem-connector backfill ~/.codex/sessions --host codex
 litemem-connector backfill ~/.claude/projects --host claude</pre>
         <p>History import is opt-in. Review which projects you want to import first; a specific folder or
         transcript file works too. Originals and their dates are preserved.</p></details>
-        <details><summary>Status, pause, and disconnect</summary>
+        <details class="advanced"><summary>Status, pause, and disconnect</summary>
         <pre class="code-block">litemem-connector status
 litemem-connector flush
 litemem-connector pause

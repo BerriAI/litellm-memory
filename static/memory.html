@@ -11,7 +11,7 @@
       rel="icon"
     />
     <link href="/static/memory.css" rel="stylesheet" />
-    <script src="/static/memory.js?v=4" type="module"></script>
+    <script src="/static/memory.js?v=5" type="module"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -340,8 +340,8 @@
           <div class="activity-layout">
             <div class="activity-main">
               <form class="home-ask" id="home-ask-form">
-                <label class="sr-only" for="home-question"
-                  >Ask about your work</label
+                <label class="home-ask-label" for="home-question"
+                  >Ask your memory</label
                 ><input
                   autocomplete="off"
                   id="home-question"
@@ -351,8 +351,8 @@
                   <span data-icon="arrow"></span>
                 </button>
                 <p class="ask-privacy" id="home-privacy">
-                  <span data-icon="lock"></span> Only you can see your questions
-                  and answers.
+                  <span data-icon="lock"></span> Your questions and answers stay
+                  private.
                 </p>
               </form>
               <p
@@ -587,7 +587,7 @@
             </button>
           </div>
           <div class="chat-empty" id="chat-empty">
-            <h2>Ask your memory.</h2>
+            <h2>What would you like to know?</h2>
             <p id="chat-scope-description">
               Find an answer in your work and the updates your team shares.
             </p>
@@ -664,9 +664,11 @@
           <div class="page-heading">
             <div>
               <h1>People</h1>
+              <p class="page-description">
+                Explore the work your teammates choose to share.
+              </p>
             </div>
           </div>
-          <p class="muted">See what people have chosen to share.</p>
           <div class="people-toolbar">
             <label class="search-field"
               ><span data-icon="search"></span
@@ -683,24 +685,24 @@
           <div class="page-heading">
             <div>
               <h1>Connections</h1>
+              <p class="page-description">
+                Bring your AI work into your private memory.
+              </p>
             </div>
           </div>
-          <p class="section-intro">
-            Connect your AI tools to your personal memory. Sign in with Slack
-            when prompted.
-          </p>
           <div class="connection-instructions">
             <h2>Record as you work</h2>
             <p class="muted">
-              Connect Codex or Claude Code once. New conversations are recorded
-              privately, with no searches added to your coding turns.
+              Connect Codex or Claude Code once using Slack. Conversations are
+              saved privately as you work. Your agent only searches when you
+              ask.
             </p>
             <a
               class="button primary"
               href="/api/connector/setup"
               id="capture-setup-link"
-              >Set up continuous capture <span aria-hidden="true">→</span></a
-            >
+              >Connect a tool <span data-icon="next"></span
+            ></a>
             <details class="advanced">
               <summary>Manual MCP connection</summary>
               <p class="muted">
@@ -737,329 +739,481 @@
           <h2 class="section-heading">Connected clients</h2>
           <div id="connection-list"></div>
         </section>
-        <section class="page" hidden="" id="settings-view">
-          <div class="page-heading">
+        <section class="page" hidden id="settings-view">
+          <header class="page-heading">
             <div>
               <h1>Settings</h1>
+              <p class="page-description">
+                Your privacy, recording, and workspace.
+              </p>
             </div>
-          </div>
-          <nav aria-label="Settings sections" class="settings-tabs">
-            <button aria-pressed="true" data-settings="privacy">Privacy</button
-            ><button aria-pressed="false" data-settings="recording">
-              Recording</button
-            ><button aria-pressed="false" data-settings="general">
-              General</button
-            ><button
-              aria-pressed="false"
-              data-settings="models"
-              hidden=""
-              id="models-tab"
+          </header>
+          <nav
+            aria-label="Settings sections"
+            class="settings-tabs"
+            role="tablist"
+          >
+            <button
+              role="tab"
+              id="privacy-tab"
+              aria-selected="true"
+              aria-controls="privacy-settings"
+              data-settings="privacy"
             >
-              Workspace</button
-            ><button aria-pressed="false" data-settings="data">
+              Privacy
+            </button>
+            <button
+              role="tab"
+              id="recording-tab"
+              aria-selected="false"
+              tabindex="-1"
+              aria-controls="recording-settings"
+              data-settings="recording"
+            >
+              Recording
+            </button>
+            <button
+              role="tab"
+              id="general-tab"
+              aria-selected="false"
+              tabindex="-1"
+              aria-controls="general-settings"
+              data-settings="general"
+            >
+              General
+            </button>
+            <button
+              role="tab"
+              id="models-tab"
+              aria-selected="false"
+              tabindex="-1"
+              aria-controls="model-settings"
+              data-settings="models"
+              hidden
+            >
+              Workspace
+            </button>
+            <button
+              role="tab"
+              id="data-tab"
+              aria-selected="false"
+              tabindex="-1"
+              aria-controls="data-settings"
+              data-settings="data"
+            >
               Your data
             </button>
           </nav>
           <p class="inline-status" id="settings-status" role="status"></p>
           <div
             class="settings-group"
+            role="tabpanel"
+            aria-labelledby="privacy-tab"
             data-settings-section="privacy"
             id="privacy-settings"
           >
-            <h2>You choose what’s shared.</h2>
-            <p>
-              Memories start private. Share a summary when you’re ready. The
-              original conversation stays yours.
-            </p>
-
-            <div class="quiet-note" id="sharing-note">
-              <span data-icon="lock"></span> Company sharing is off. Your work
-              stays private.
-            </div>
-            <form hidden="" id="sharing-form">
-              <p class="fine-print" id="legacy-sharing-note" hidden>
-                An existing type restriction still applies to your sharing.
-              </p>
-              <label class="setting-row"
-                ><span
-                  ><strong>Share new summaries with my company</strong
-                  ><small
-                    >Private-topic rules apply. Existing history stays
-                    private.</small
-                  ></span
-                ><input id="auto-share" role="switch" type="checkbox"
-              /></label>
-              <button class="button secondary">Save changes</button>
-              <p class="inline-status" id="sharing-status" role="status"></p>
-            </form>
-            <h3 class="section-heading">Never share these topics</h3>
-            <p class="muted">
-              Describe a topic. Jev checks existing and future work before
-              sharing. You can still ask about it privately.
-            </p>
-            <form class="inline-form" id="rule-form">
-              <input
-                aria-label="Private topic"
-                id="rule-input"
-                maxlength="1000"
-                placeholder="e.g. customer names, personal conversations"
-                required=""
-              /><button class="button secondary">Add topic</button>
-            </form>
-            <p class="inline-error" id="rule-error" role="alert"></p>
-            <div id="rule-list"></div>
+            <section class="settings-section">
+              <div class="section-copy">
+                <h2>Sharing</h2>
+                <p>
+                  Memories start private. Only summaries you choose to share are
+                  visible to your company.
+                </p>
+              </div>
+              <div class="section-controls">
+                <div class="quiet-note" id="sharing-note">
+                  <span data-icon="lock"></span
+                  ><span>Company sharing is off. Your work stays private.</span>
+                </div>
+                <form hidden id="sharing-form">
+                  <label class="setting-row"
+                    ><span
+                      ><strong>Automatically share new summaries</strong
+                      ><small
+                        >Private topics are excluded. Original conversations and
+                        existing history stay private.</small
+                      ></span
+                    ><input id="auto-share" role="switch" type="checkbox"
+                  /></label>
+                  <p class="fine-print" id="legacy-sharing-note" hidden>
+                    An existing type restriction still applies to your sharing.
+                  </p>
+                  <div class="form-footer">
+                    <span
+                      class="inline-status"
+                      id="sharing-status"
+                      role="status"
+                    ></span
+                    ><button class="button primary">Save changes</button>
+                  </div>
+                </form>
+              </div>
+            </section>
+            <section class="settings-section">
+              <div class="section-copy">
+                <h2>Private topics</h2>
+                <p>
+                  Keep specific topics out of shared summaries. You can still
+                  ask about them privately.
+                </p>
+              </div>
+              <div class="section-controls">
+                <form id="rule-form">
+                  <label class="field-label" for="rule-input"
+                    >Never share work about</label
+                  >
+                  <div class="inline-form">
+                    <input
+                      id="rule-input"
+                      aria-describedby="rule-help rule-error"
+                      maxlength="1000"
+                      placeholder="e.g. customer names or personal conversations"
+                      required
+                    /><button class="button secondary">Add topic</button>
+                  </div>
+                  <p class="field-help" id="rule-help">
+                    Jev checks each topic against existing and future work.
+                  </p>
+                  <p class="inline-error" id="rule-error" role="alert"></p>
+                </form>
+                <div id="rule-list"></div>
+              </div>
+            </section>
           </div>
           <div
             class="settings-group"
+            role="tabpanel"
+            aria-labelledby="recording-tab"
             data-settings-section="recording"
-            hidden=""
+            hidden
             id="recording-settings"
           >
-            <h2>Recording &amp; processing</h2>
-            <label class="setting-row"
-              ><span
-                ><strong>Record new work</strong
-                ><small
-                  >Pause capture without deleting your history.</small
-                ></span
-              ><input
-                id="capture-enabled"
-                role="switch"
-                type="checkbox" /></label
-            ><label class="setting-row"
-              ><span
-                ><strong>Personal agent access</strong
-                ><small
-                  >Allow your agent to organize and answer questions about your
-                  records.</small
-                ></span
-              ><input id="agent-enabled" role="switch" type="checkbox"
-            /></label>
-            <div class="setting-row">
-              <span id="processing-summary"></span
-              ><button class="button quiet small" id="retry-processing">
-                Retry failed items
-              </button>
-            </div>
+            <section class="settings-section">
+              <div class="section-copy">
+                <h2>Recording</h2>
+                <p>
+                  Control what your connected tools save and what your personal
+                  agent can use.
+                </p>
+              </div>
+              <div class="section-controls">
+                <label class="setting-row"
+                  ><span
+                    ><strong>Record new work</strong
+                    ><small
+                      >Pause capture without deleting your history.</small
+                    ></span
+                  ><input id="capture-enabled" role="switch" type="checkbox"
+                /></label>
+                <label class="setting-row"
+                  ><span
+                    ><strong>Personal agent access</strong
+                    ><small
+                      >Let your agent organize and answer questions about your
+                      records.</small
+                    ></span
+                  ><input id="agent-enabled" role="switch" type="checkbox"
+                /></label>
+              </div>
+            </section>
+            <section class="settings-section">
+              <div class="section-copy">
+                <h2>Processing</h2>
+                <p>New records are organized automatically.</p>
+              </div>
+              <div class="section-controls">
+                <div class="setting-row">
+                  <span id="processing-summary"></span
+                  ><button class="button secondary small" id="retry-processing">
+                    Retry failed items
+                  </button>
+                </div>
+              </div>
+            </section>
           </div>
           <div
             class="settings-group"
+            role="tabpanel"
+            aria-labelledby="general-tab"
             data-settings-section="general"
             hidden
             id="general-settings"
           >
-            <h2>Dates &amp; catch-ups</h2>
-            <form id="display-settings-form">
-              <div class="model-grid">
-                <label
-                  >Your time zone<select id="display-timezone"></select
-                ></label>
+            <section class="settings-section">
+              <div class="section-copy">
+                <h2>Dates &amp; times</h2>
+                <p>Choose how dates appear in your feed and filters.</p>
               </div>
-              <p>
-                Used for dates and feed filters. Daily catch-ups use the
-                workspace time zone below.
-              </p>
-              <div class="form-footer">
-                <button class="button secondary" id="save-display-settings">
-                  Save time zone
-                </button>
-                <span id="display-settings-status" role="status"></span>
-              </div>
-            </form>
-            <h3>Daily catch-ups</h3>
-            <p>
-              Organize the previous day's work. New work stays searchable
-              throughout the day.
-            </p>
-            <p id="schedule-summary" role="status">
-              Loading the workspace schedule…
-            </p>
-            <form id="schedule-settings-form" hidden>
-              <fieldset id="schedule-fields" disabled class="schedule-fields">
-                <div class="model-grid">
-                  <label
-                    >Workspace time zone<select id="workspace-timezone"></select
-                  ></label>
-                  <label
-                    >Daily refresh at<input
-                      type="time"
-                      id="daily-time"
-                      required
-                  /></label>
-                </div>
+              <form class="section-controls" id="display-settings-form">
+                <label class="field-label" for="display-timezone"
+                  >Your time zone</label
+                ><select id="display-timezone" class="full-width"></select>
                 <div class="form-footer">
-                  <button class="button secondary" id="save-schedule-settings">
-                    Save schedule
+                  <span id="display-settings-status" role="status"></span
+                  ><button class="button primary" id="save-display-settings">
+                    Save time zone
                   </button>
                 </div>
-              </fieldset>
-            </form>
-            <p id="schedule-settings-status" role="status"></p>
-            <button
-              type="button"
-              class="button quiet small"
-              id="reload-schedule"
-              hidden
-            >
-              Reload schedule
-            </button>
+              </form>
+            </section>
+            <section class="settings-section">
+              <div class="section-copy">
+                <h2>Daily catch-ups</h2>
+                <p>
+                  A daily view of the previous day’s work. New records remain
+                  searchable throughout the day.
+                </p>
+              </div>
+              <div class="section-controls">
+                <p class="field-help" id="schedule-summary" role="status">
+                  Loading the workspace schedule…
+                </p>
+                <form id="schedule-settings-form" hidden>
+                  <fieldset
+                    id="schedule-fields"
+                    disabled
+                    class="schedule-fields"
+                  >
+                    <div class="model-grid">
+                      <label
+                        >Workspace time zone<select
+                          id="workspace-timezone"
+                        ></select></label
+                      ><label
+                        >Refresh at<input type="time" id="daily-time" required
+                      /></label>
+                    </div>
+                    <div class="form-footer">
+                      <button
+                        class="button primary"
+                        id="save-schedule-settings"
+                      >
+                        Save schedule
+                      </button>
+                    </div>
+                  </fieldset>
+                </form>
+                <p
+                  class="inline-status"
+                  id="schedule-settings-status"
+                  role="status"
+                ></p>
+                <button
+                  type="button"
+                  class="text-button"
+                  id="reload-schedule"
+                  hidden
+                >
+                  Reload schedule
+                </button>
+              </div>
+            </section>
           </div>
           <div
             class="settings-group"
+            role="tabpanel"
+            aria-labelledby="models-tab"
             data-settings-section="models"
-            hidden=""
+            hidden
             id="model-settings"
           >
-            <div hidden="" id="workspace-sharing-control">
-              <label class="setting-row"
-                ><span
-                  ><strong>Company sharing</strong
-                  ><small
-                    >Workspace setting. Each person still controls what they
-                    share.</small
-                  ></span
-                ><input
-                  id="workspace-sharing-enabled"
-                  role="switch"
-                  type="checkbox"
-              /></label>
-            </div>
-            <h2>Models</h2>
-            <p>
-              All models run through your LiteLLM gateway. Slack and background
-              work use the default agent unless you choose another model.
-            </p>
-            <form id="model-settings-form">
-              <div class="model-grid">
-                <label
-                  >Default agent<select
-                    id="setting-agent_model"
-                    required=""
-                  ></select></label
-                ><label
-                  >Embeddings<select
-                    id="setting-embedding_model"
-                    required=""
-                  ></select></label
-                ><label
-                  >Slack agent<select id="setting-slack_model"></select></label
-                ><label
-                  >Background work<select id="setting-background_model"></select
-                ></label>
+            <section
+              class="settings-section"
+              hidden
+              id="workspace-sharing-control"
+            >
+              <div class="section-copy">
+                <h2>Company sharing</h2>
+                <p>Make sharing available to your workspace.</p>
               </div>
-              <details class="advanced">
-                <summary>Classification</summary>
-                <label
-                  >TypeSafe Jev model<input
-                    id="setting-classifier_model"
-                    maxlength="200"
-                    required=""
-                    value="jev-latest"
+              <div class="section-controls">
+                <label class="setting-row"
+                  ><span
+                    ><strong>Allow shared summaries</strong
+                    ><small
+                      >Each person still chooses what they share.</small
+                    ></span
+                  ><input
+                    id="workspace-sharing-enabled"
+                    role="switch"
+                    type="checkbox"
                 /></label>
-                <p class="fine-print">
-                  Jev is required and is checked through your gateway before
-                  saving. Changing it queues a fresh classification pass.
-                </p>
-              </details>
-              <div class="form-footer">
-                <button class="button secondary" id="save-models">
-                  Check &amp; save models</button
-                ><span id="model-settings-status" role="status"></span>
               </div>
-            </form>
-            <button class="button quiet small" id="reload-models">
-              Refresh available models
-            </button>
-            <details class="advanced">
-              <summary>LiteLLM connection</summary>
-              <p class="fine-print" id="current-gateway-url"></p>
-              <form id="rotate-gateway-form">
-                <label
-                  >New LiteLLM key<input
-                    autocomplete="off"
-                    id="replacement-gateway-key"
-                    maxlength="8000"
-                    required=""
-                    type="password"
-                /></label>
-                <p class="fine-print">
-                  Every configured model and Jev are checked before the current
-                  key is replaced.
-                </p>
-                <button class="button secondary">
-                  Check &amp; replace key
+            </section>
+            <section class="settings-section">
+              <div class="section-copy">
+                <h2>Models</h2>
+                <p>Available models come from your LiteLLM gateway.</p>
+                <button class="text-button" id="reload-models">
+                  Refresh available models
                 </button>
-                <p id="gateway-rotation-status" role="status"></p>
-              </form>
-            </details>
-            <details class="advanced" hidden="" id="admin-transfer-panel">
-              <summary>Transfer workspace administration</summary>
-              <form id="admin-transfer-form">
-                <label
-                  >New administrator<select id="next-admin" required=""></select
-                ></label>
-                <p class="fine-print">
-                  Only workspace settings move. Each person's private memory
-                  stays with them.
+              </div>
+              <form class="section-controls" id="model-settings-form">
+                <div class="model-grid">
+                  <label
+                    >Default agent<select
+                      id="setting-agent_model"
+                      required
+                    ></select></label
+                  ><label
+                    >Embeddings<select
+                      id="setting-embedding_model"
+                      required
+                    ></select></label
+                  ><label
+                    >Slack agent<select
+                      id="setting-slack_model"
+                    ></select></label
+                  ><label
+                    >Background work<select
+                      id="setting-background_model"
+                    ></select
+                  ></label>
+                </div>
+                <p class="field-help">
+                  Slack and background work use the default agent unless you
+                  choose another model.
                 </p>
-                <button class="button secondary">
-                  Transfer administration
-                </button>
+                <details class="advanced">
+                  <summary>Classification model</summary>
+                  <label
+                    >TypeSafe Jev<input
+                      id="setting-classifier_model"
+                      maxlength="200"
+                      required
+                      value="jev-latest"
+                  /></label>
+                  <p class="field-help">
+                    Jev is checked before saving. Changing it queues a fresh
+                    classification pass.
+                  </p>
+                </details>
+                <div class="form-footer">
+                  <span id="model-settings-status" role="status"></span
+                  ><button class="button primary" id="save-models">
+                    Check &amp; save models
+                  </button>
+                </div>
               </form>
-            </details>
+            </section>
+            <section class="settings-section">
+              <div class="section-copy">
+                <h2>Administration</h2>
+                <p>Manage the gateway connection and workspace ownership.</p>
+              </div>
+              <div class="section-controls">
+                <details class="advanced">
+                  <summary>LiteLLM connection</summary>
+                  <p class="field-help" id="current-gateway-url"></p>
+                  <form id="rotate-gateway-form">
+                    <label
+                      >New LiteLLM key<input
+                        autocomplete="off"
+                        id="replacement-gateway-key"
+                        maxlength="8000"
+                        required
+                        type="password"
+                    /></label>
+                    <p class="field-help">
+                      Every configured model and Jev are checked before
+                      replacing the key.
+                    </p>
+                    <div class="form-footer">
+                      <button class="button secondary">
+                        Check &amp; replace key
+                      </button>
+                    </div>
+                    <p
+                      class="inline-status"
+                      id="gateway-rotation-status"
+                      role="status"
+                    ></p>
+                  </form>
+                </details>
+                <details class="advanced" hidden id="admin-transfer-panel">
+                  <summary>Transfer administration</summary>
+                  <form id="admin-transfer-form">
+                    <label
+                      >New administrator<select
+                        id="next-admin"
+                        required
+                      ></select
+                    ></label>
+                    <p class="field-help">
+                      Only workspace settings move. Private memories stay with
+                      their owners.
+                    </p>
+                    <div class="form-footer">
+                      <button class="button secondary">
+                        Transfer administration
+                      </button>
+                    </div>
+                  </form>
+                </details>
+              </div>
+            </section>
           </div>
           <div
             class="settings-group"
+            role="tabpanel"
+            aria-labelledby="data-tab"
             data-settings-section="data"
-            hidden=""
+            hidden
             id="data-settings"
           >
-            <h2>Your data</h2>
-            <div class="setting-row">
-              <span
-                ><strong>Copy to another litemem</strong
-                ><small
-                  >Transfer your history securely. Sign in with Slack on both
-                  installations; no export password needed.</small
-                ></span
-              >
-              <button class="button secondary" id="transfer-data">
-                Transfer history
-              </button>
-            </div>
-            <p class="fine-print">
-              <a href="/transfer/receive">View recent imports</a>
-            </p>
-            <div class="setting-row">
-              <span
-                ><strong>Export your memories</strong
-                ><small
-                  >Download your records and original evidence. Choose an
-                  encrypted backup or readable JSONL.</small
-                ></span
-              >
-              <div class="export-actions">
-                <button class="button secondary" id="encrypted-export">
-                  Encrypted export
-                </button>
-                <button class="button quiet small" id="export-data">
-                  Readable JSONL
+            <section class="settings-section">
+              <div class="section-copy">
+                <h2>Transfer history</h2>
+                <p>Copy your work to another litemem installation.</p>
+              </div>
+              <div class="section-controls">
+                <p class="control-description">
+                  Sign in with Slack on both installations. Your history
+                  transfers securely, with no export password.
+                </p>
+                <div class="action-row">
+                  <button class="button secondary" id="transfer-data">
+                    Transfer history</button
+                  ><a class="text-link" href="/transfer/receive"
+                    >View recent imports</a
+                  >
+                </div>
+              </div>
+            </section>
+            <section class="settings-section">
+              <div class="section-copy">
+                <h2>Export memories</h2>
+                <p>Download your records and original evidence.</p>
+              </div>
+              <div class="section-controls">
+                <p class="control-description">
+                  Keep an encrypted backup, or download a readable JSONL file.
+                </p>
+                <div class="action-row">
+                  <button class="button secondary" id="encrypted-export">
+                    Encrypted export</button
+                  ><button class="button quiet" id="export-data">
+                    Readable JSONL
+                  </button>
+                </div>
+              </div>
+            </section>
+            <section class="settings-section">
+              <div class="section-copy">
+                <h2>Leave workspace</h2>
+                <p>Disconnect your account from this workspace.</p>
+              </div>
+              <div class="section-controls">
+                <p class="control-description">
+                  This revokes your connections and agent access. Export first
+                  if you want a copy.
+                </p>
+                <button class="button secondary danger" id="leave-workspace">
+                  Leave workspace
                 </button>
               </div>
-            </div>
-            <div class="setting-row">
-              <span
-                ><strong>Leave this workspace</strong
-                ><small
-                  >Revoke your connections and agent access. Export first if you
-                  want a copy.</small
-                ></span
-              ><button class="button quiet danger" id="leave-workspace">
-                Leave
-              </button>
-            </div>
+            </section>
           </div>
-          <button class="button quiet" id="sign-out">Sign out</button>
         </section>
       </div>
     </main>
@@ -1109,7 +1263,7 @@
             id="capture-content"
             maxlength="200000"
             minlength="1"
-            placeholder="A decision, an update, a finding. Keep the context that matters."
+            placeholder="Write what you want to remember."
             required=""
             rows="8"
           ></textarea>
