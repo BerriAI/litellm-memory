@@ -1,4 +1,4 @@
-name: Verify litemem
+name: Verify LiteLLM Memory
 on:
   push:
   pull_request:
@@ -31,7 +31,7 @@ jobs:
           fi
       - name: Verify actual hooks and visible transcript capture
         env:
-          LITEMEM_DISPOSABLE_HOST_TEST: "1"
+          LITELLM_MEMORY_DISPOSABLE_HOST_TEST: "1"
         run: uv run python tests/smoke_hosts.py '${{ matrix.host }}'
   tests:
     runs-on: ubuntu-latest
@@ -52,31 +52,33 @@ jobs:
       POSTGRES_PASSWORD: ci_disposable_database_only
     steps:
       - uses: actions/checkout@v4
+      - name: Verify isolated and legacy state bindings
+        run: python3 tests/check_compose_names.py
       - name: Build and start the documented stack
         run: docker compose up --build --wait --wait-timeout 240 -d
       - name: Verify encrypted storage, bootstrap hardening, and setup access
-        run: docker compose exec -T litemem python - < tests/smoke_bundle.py
+        run: docker compose exec -T litellm-memory python - < tests/smoke_bundle.py
       - name: Restart and verify persistent state
         run: |
-          docker compose restart litemem
+          docker compose restart litellm-memory
           docker compose up --wait --wait-timeout 180 -d
-          docker compose exec -T litemem python - < tests/smoke_bundle.py
+          docker compose exec -T litellm-memory python - < tests/smoke_bundle.py
       - name: Back up consistent app and Ente state
         run: |
           umask 077
-          docker compose stop litemem
-          docker compose exec -T postgres pg_dump -U litemem -d litemem -Fc > /tmp/litemem-ente.dump
-          docker compose run --rm --no-deps -T litemem sh -c 'tar -cf - -C /data .' > /tmp/litemem-state.tar
+          docker compose stop litellm-memory
+          docker compose exec -T postgres pg_dump -U litellm_memory -d litellm_memory -Fc > /tmp/litellm-memory-ente.dump
+          docker compose run --rm --no-deps -T litellm-memory sh -c 'tar -cf - -C /data .' > /tmp/litellm-memory-state.tar
       - name: Restore into clean volumes and verify data and tombstones
         run: |
-          docker compose -p litemem-restored build litemem
-          docker compose -p litemem-restored up -d --wait postgres
-          docker compose -p litemem-restored exec -T postgres pg_restore -U litemem -d litemem < /tmp/litemem-ente.dump
-          docker compose -p litemem-restored run --rm --no-deps -T litemem sh -c 'tar -xf - -C /data' < /tmp/litemem-state.tar
-          RECOVERY_MODE=true docker compose -p litemem-restored up -d --wait --wait-timeout 180
-          docker compose -p litemem-restored exec -T litemem python -c "import httpx; c=httpx.Client(base_url='http://127.0.0.1:8000'); assert c.get('/health').json()['status']=='recovery'; assert c.post('/slack/events',json={}).status_code==503; assert c.post('/mcp',json={}).status_code==503"
-          docker compose -p litemem-restored up -d --wait --wait-timeout 180
-          docker compose -p litemem-restored exec -T litemem python - < tests/smoke_bundle.py
+          docker compose -p litellm-memory-restored build litellm-memory
+          docker compose -p litellm-memory-restored up -d --wait postgres
+          docker compose -p litellm-memory-restored exec -T postgres pg_restore -U litellm_memory -d litellm_memory < /tmp/litellm-memory-ente.dump
+          docker compose -p litellm-memory-restored run --rm --no-deps -T litellm-memory sh -c 'tar -xf - -C /data' < /tmp/litellm-memory-state.tar
+          RECOVERY_MODE=true docker compose -p litellm-memory-restored up -d --wait --wait-timeout 180
+          docker compose -p litellm-memory-restored exec -T litellm-memory python -c "import httpx; c=httpx.Client(base_url='http://127.0.0.1:8000'); assert c.get('/health').json()['status']=='recovery'; assert c.post('/slack/events',json={}).status_code==503; assert c.post('/mcp',json={}).status_code==503"
+          docker compose -p litellm-memory-restored up -d --wait --wait-timeout 180
+          docker compose -p litellm-memory-restored exec -T litellm-memory python - < tests/smoke_bundle.py
       - name: Show content-free service status
         if: always()
         run: docker compose ps
@@ -84,4 +86,4 @@ jobs:
         if: always()
         run: |
           docker compose down -v
-          docker compose -p litemem-restored down -v
+          docker compose -p litellm-memory-restored down -v

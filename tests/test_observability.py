@@ -45,8 +45,8 @@ async def test_query_and_tool_spans_keep_usage_but_not_tool_arguments(tmp_path):
     spans = exporter.get_finished_spans()
     data = json.dumps([span.to_json() for span in spans])
     assert 'PRIVATE_QUERY_CANARY' not in data and 'PRIVATE_RESULT_CANARY' not in data
-    query = next(s for s in spans if s.name == 'litemem.query')
-    tool = next(s for s in spans if s.name == 'litemem.tool')
+    query = next(s for s in spans if s.name == 'litellm-memory.query')
+    tool = next(s for s in spans if s.name == 'litellm-memory.tool')
     assert tool.parent.span_id == query.context.span_id
     assert query.attributes['source'] == 'mcp'
     assert query.attributes['input_tokens'] == 32

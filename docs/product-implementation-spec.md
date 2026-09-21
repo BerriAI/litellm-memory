@@ -1,6 +1,6 @@
-# litemem product contract
+# LiteLLM Memory product contract
 
-litemem is a queryable record of what people do with AI. It captures work continuously, lets people browse it, and answers questions when asked. It is not an automatic context-injection system for coding agents.
+LiteLLM Memory is a queryable record of what people do with AI. It captures work continuously, lets people browse it, and answers questions when asked. It is not an automatic context-injection system for coding agents.
 
 This document describes the implementation on the feature branch. It replaces the earlier development plan. Deployment and live validation are tracked separately in the [release checklist](release-checklist.md).
 

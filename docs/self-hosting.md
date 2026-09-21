@@ -1,8 +1,10 @@
-# Self-hosting litemem
+# Self-hosting LiteLLM Memory
+
+Upgrading an existing litemem installation? Follow the [upgrade guide](upgrading.md) before changing resource names.
 
 ## Deployment shape
 
-The supported starter topology is one litemem web container with a durable `/data` volume and one PostgreSQL 17 service. The web container supervises the app and a private Ente Museum process on loopback port 9080. Only the web port is published. Museum stores encrypted entities in PostgreSQL; app state, wrapped keys, access policies, encrypted jobs and the encrypted local search source live on `/data`.
+The supported starter topology is one LiteLLM Memory web container with a durable `/data` volume and one PostgreSQL 17 service. The web container supervises the app and a private Ente Museum process on loopback port 9080. Only the web port is published. Museum stores encrypted entities in PostgreSQL; app state, wrapped keys, access policies, encrypted jobs and the encrypted local search source live on `/data`.
 
 One app replica is intentional: SQLite and process-local job coordination require a single writer deployment. Do not scale this image to multiple replicas or attach its volume to competing app processes. Larger teams should size the instance from measured workloads; see the release checklist for current performance evidence.
 
@@ -16,7 +18,7 @@ The root `render.yaml` and `Dockerfile` provision the complete starter topology.
 
 Open the deployed HTTPS URL and paste the setup code to claim it. The code is for installation administration, not for member sign-in. It rotates when claimed. If setup is interrupted, the browser retains a time-limited setup session; otherwise retrieve the current code from the private `/data/setup-code` file in Render's shell.
 
-The page keeps the gateway connection, model choices and Slack progress together. Provide only a LiteLLM URL/key for inference. The Slack app needs its normal Slack application credentials; litemem supplies a manifest/create link, validates the installation and returns to the same page. Complete sign-in using an eligible Slack account. Finish is enabled only after model, Jev, Slack identity and encrypted-storage checks pass.
+The page keeps the gateway connection, model choices and Slack progress together. Provide only a LiteLLM URL/key for inference. The Slack app needs its normal Slack application credentials; LiteLLM Memory supplies a manifest/create link, validates the installation and returns to the same page. Complete sign-in using an eligible Slack account. Finish is enabled only after model, Jev, Slack identity and encrypted-storage checks pass.
 
 Render auto-deploy is disabled in the reusable Blueprint so an upstream commit cannot update other people's installations without their decision. The current private pilot is separate from this reusable deployment and remains owner-only with sharing disabled.
 
@@ -38,9 +40,9 @@ The database port is not published. Museum is loopback-only. Do not expose Museu
 
 Jev's built-in pass-through integration was introduced in **LiteLLM v1.103.0-rc**. A gateway on an older release can serve chat and embeddings normally while returning HTTP 404 for Jev. See the [launch announcement](https://docs.litellm.ai/blog/typesafe_jev) and [integration instructions](https://docs.litellm.ai/docs/pass_through/typesafe).
 
-The gateway operator must deploy a release containing the integration, set `TYPESAFE_API_KEY` in the **gateway's secret environment**, and restart or redeploy the gateway. Keep existing model routes and credentials in place. The TypeSafe provider key is not a LiteLLM virtual key and does not belong in litemem's connection form or repository.
+The gateway operator must deploy a release containing the integration, set `TYPESAFE_API_KEY` in the **gateway's secret environment**, and restart or redeploy the gateway. Keep existing model routes and credentials in place. The TypeSafe provider key is not a LiteLLM virtual key and does not belong in LiteLLM Memory's connection form or repository.
 
-litemem uses its existing LiteLLM key to call `POST /typesafe/v1/systemone` with a harmless typed question. A successful typed response is the readiness check; absence from `/v1/models` does not mean Jev is unsupported. On HTTP 404, setup also tries to show the gateway's reported version. Version discovery is optional and never replaces the real probe, so custom builds and backports can work.
+LiteLLM Memory uses its existing LiteLLM key to call `POST /typesafe/v1/systemone` with a harmless typed question. A successful typed response is the readiness check; absence from `/v1/models` does not mean Jev is unsupported. On HTTP 404, setup also tries to show the gateway's reported version. Version discovery is optional and never replaces the real probe, so custom builds and backports can work.
 
 After enabling the integration, select **Check again** on the same setup page. If the route still returns 404, check gateway reverse-proxy routing and the configured Jev alias. HTTP 401/403 requires checking the LiteLLM key's route permissions and the gateway's upstream credentials. Verify the deployed pass-through's no-log behavior before processing real histories; a successful classification alone does not prove logging is disabled.
 
@@ -82,7 +84,7 @@ Personal display timezones are controlled in **Settings → General**, persist i
 
 ## External Ente
 
-Set both `ENTE_BASE_URL` and `ENTE_AUTH_TOKEN` for a dedicated service account on a compatible Museum deployment. The app initializes the `memory` entity-key namespace through Ente's API, then stores per-member encrypted objects. Museum registration should be disabled after provisioning. You do not need Ente Photos, its web UI, or an object-storage bucket for litemem's entity API.
+Set both `ENTE_BASE_URL` and `ENTE_AUTH_TOKEN` for a dedicated service account on a compatible Museum deployment. The app initializes the `memory` entity-key namespace through Ente's API, then stores per-member encrypted objects. Museum registration should be disabled after provisioning. You do not need Ente Photos, its web UI, or an object-storage bucket for LiteLLM Memory's entity API.
 
 The app's root key and member-key envelopes must be backed up independently of Ente. Possession of Ente ciphertext alone is insufficient to recover memories.
 
@@ -90,26 +92,26 @@ The app's root key and member-key envelopes must be backed up independently of E
 
 Back up **both** `/data` and the Museum PostgreSQL database. The app's root key, encrypted deployment configuration, encrypted SQLite databases and member-key envelopes are required to recover. A database-only backup is incomplete. Keep backups encrypted with your infrastructure's backup encryption and restrict operator access.
 
-For a consistent starter backup, stop the litemem service, back up its volume and PostgreSQL, then restart it. A restore must use matching application and Ente snapshots, preserve the root key and deployment secrets, and run on an isolated hostname with `RECOVERY_MODE=true` until verified. This prevents queued Slack/model work from restarting. Preserve deletion tombstones; never restore an old snapshot over a live instance and assume revoked records remain revoked. The clean-volume restore is tested in [CI](https://github.com/moe-berri/litemem/actions/runs/35532804507).
+For a consistent starter backup, stop the LiteLLM Memory service, back up its volume and PostgreSQL, then restart it. A restore must use matching application and Ente snapshots, preserve the root key and deployment secrets, and run on an isolated hostname with `RECOVERY_MODE=true` until verified. This prevents queued Slack/model work from restarting. Preserve deletion tombstones; never restore an old snapshot over a live instance and assume revoked records remain revoked. The clean-volume restore is tested in [CI](https://github.com/moe-berri/litellm-memory/actions/runs/35532804507).
 
 For Compose, with a protected backup directory prepared:
 
 ```sh
 umask 077
-docker compose --env-file .env.selfhost stop litemem
-docker compose --env-file .env.selfhost exec -T postgres pg_dump -U litemem -d litemem -Fc > /private/backup/ente.dump
-docker compose --env-file .env.selfhost run --rm --no-deps -T litemem sh -c 'tar -cf - -C /data .' > /private/backup/state.tar
+docker compose --env-file .env.selfhost stop litellm-memory
+docker compose --env-file .env.selfhost exec -T postgres pg_dump -U litellm_memory -d litellm_memory -Fc > /private/backup/ente.dump
+docker compose --env-file .env.selfhost run --rm --no-deps -T litellm-memory sh -c 'tar -cf - -C /data .' > /private/backup/state.tar
 docker compose --env-file .env.selfhost up -d --wait
 ```
 
 Encrypt the resulting backup files using your backup system. The tar includes root keys and is not protected merely because records inside SQLite are encrypted. Restore into a **new project/volumes**, with the original release checked out and a private environment file configured for the new database, isolated URL and `RECOVERY_MODE=true`:
 
 ```sh
-docker compose --env-file .env.restore -p litemem-restore build litemem
-docker compose --env-file .env.restore -p litemem-restore up -d --wait postgres
-docker compose --env-file .env.restore -p litemem-restore exec -T postgres pg_restore -U litemem -d litemem < /private/backup/ente.dump
-docker compose --env-file .env.restore -p litemem-restore run --rm --no-deps -T litemem sh -c 'tar -xf - -C /data' < /private/backup/state.tar
-docker compose --env-file .env.restore -p litemem-restore up -d --wait
+docker compose --env-file .env.restore -p litellm-memory-restore build litellm-memory
+docker compose --env-file .env.restore -p litellm-memory-restore up -d --wait postgres
+docker compose --env-file .env.restore -p litellm-memory-restore exec -T postgres pg_restore -U litellm_memory -d litellm_memory < /private/backup/ente.dump
+docker compose --env-file .env.restore -p litellm-memory-restore run --rm --no-deps -T litellm-memory sh -c 'tar -xf - -C /data' < /private/backup/state.tar
+docker compose --env-file .env.restore -p litellm-memory-restore up -d --wait
 ```
 
 Use a separate host or a different host port so the restored service does not compete with the live service. `/health` must report `recovery`. Verify both databases, key availability, known evidence and deletion tombstones through a private operator shell; reconcile changes since the backup before cutover. Only then set `RECOVERY_MODE=false`, recreate the service and restore callbacks/capture. The disposable synthetic proof in `tests/smoke_bundle.py` is for CI, not a script to run against real users' databases.
@@ -133,8 +135,8 @@ Limits are two active transfers per member, 100,000 records and 512 MB of staged
 Members can also download an encrypted export or readable JSONL. The optional encrypted file has its own passphrase, independent of Slack sign-in. It contains original evidence and metadata. With the connector signed into the destination account, use:
 
 ```sh
-litemem-transfer export my-memory-export.litemem
-litemem-transfer restore my-memory-export.litemem
+litellm-memory-transfer export my-memory-export.litellm-memory
+litellm-memory-transfer restore my-memory-export.litellm-memory
 ```
 
 Passwords are entered interactively, never command-line arguments. Restore verifies the complete authenticated file before uploading, resumes safely by original source identity, keeps imports private and respects destination deletion tombstones. A different Slack identity requires an explicit `--allow-owner-remap`; review attribution before using it. If capture is paused, restore also remains paused until the member resumes it.

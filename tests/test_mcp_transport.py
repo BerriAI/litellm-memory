@@ -21,7 +21,7 @@ async def test_real_mcp_sdk_initializes_captures_searches_and_cannot_cross_accou
             async with streamable_http_client('http://localhost:8000/mcp/', http_client=http) as streams:
                 async with ClientSession(*streams) as session:
                     initialized = await session.initialize()
-                    assert initialized.server_info.name == 'litemem'
+                    assert initialized.server_info.name == 'litellm-memory'
                     listing = await session.list_tools()
                     assert {t.name for t in listing.tools} == {
                         'record_work', 'search_memories', 'read_memory', 'ask_memories', 'capture_status', 'pause_capture'}

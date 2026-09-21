@@ -104,12 +104,12 @@ def import_plan(base_url, token, plan, *, client=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Preview or import legacy memories into litemem, preserving originals.")
+    parser = argparse.ArgumentParser(description="Preview or import legacy memories into LiteLLM Memory, preserving originals.")
     parser.add_argument("repository", type=Path)
     parser.add_argument("--actor", action="append", required=True, help="GitHub uploader to include; repeat as needed")
     parser.add_argument("--exclude-shared-notes", action="store_true")
-    parser.add_argument("--url", help="litemem installation URL; omit for a read-only preview")
-    parser.add_argument("--token-file", type=Path, help="Private file holding a personal litemem connection token")
+    parser.add_argument("--url", help="LiteLLM Memory installation URL; omit for a read-only preview")
+    parser.add_argument("--token-file", type=Path, help="Private file holding a personal LiteLLM Memory connection token")
     parser.add_argument("--manifest", type=Path)
     args = parser.parse_args()
     plan = legacy_plan(args.repository, allowed_actors=set(args.actor), include_shared_notes=not args.exclude_shared_notes)

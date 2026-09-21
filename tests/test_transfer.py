@@ -44,7 +44,7 @@ def test_real_api_export_roundtrip_preserves_originals_and_restore_is_private_id
         assert response.status_code == 200 and 'PRIVATE_EXACT_TEXT' not in response.text
         records = list(read_export(io.StringIO(response.text), 'test passphrase long enough'))
         assert records[0]['original']['content'] == original['content']
-        path = tmp_path / 'export.litemem'
+        path = tmp_path / 'export.litellm-memory'
         path.write_text(response.text)
     destination_app = application(tmp_path / 'destination', [])
     with TestClient(destination_app) as destination:
@@ -72,7 +72,7 @@ def test_real_api_export_roundtrip_preserves_originals_and_restore_is_private_id
 
 def test_restore_verifies_entire_file_and_owner_before_any_upload(tmp_path):
     record = {'owner': 'T:OWNER', 'original': {'source_id': 'a', 'content': 'private'}}
-    path = tmp_path / 'bad.litemem'
+    path = tmp_path / 'bad.litellm-memory'
     path.write_text('\n'.join(file_bytes([record]).splitlines()[:-1]) + '\n')
     calls = []
     transport = httpx.MockTransport(lambda request: calls.append(request) or httpx.Response(200, json={}))
@@ -84,3 +84,18 @@ def test_restore_verifies_entire_file_and_owner_before_any_upload(tmp_path):
     with pytest.raises(ValueError, match='identity'):
         restore(path, 'test passphrase long enough', {**connection, 'owner': 'T:OTHER'}, transport=transport)
     assert not calls
+
+
+def test_legacy_export_restores_and_format_label_is_authenticated(monkeypatch):
+    records = [{'owner': 'T:OWNER', 'original': {'source_id': 'legacy', 'content': 'unchanged source'}}]
+    with monkeypatch.context() as legacy:
+        legacy.setattr('moegent.transfer.FORMAT', 'litemem-transfer')
+        old_export = file_bytes(records)
+    assert list(read_export(io.StringIO(old_export), 'test passphrase long enough')) == records
+    new_export = file_bytes(records)
+    assert json.loads(new_export.splitlines()[0])['format'] == 'litellm-memory-transfer'
+    assert list(read_export(io.StringIO(new_export), 'test passphrase long enough')) == records
+    # Accepting both formats must not allow editing authenticated export metadata.
+    changed = old_export.replace('litemem-transfer', 'litellm-memory-transfer', 1)
+    with pytest.raises(CryptoError):
+        list(read_export(io.StringIO(changed), 'test passphrase long enough'))

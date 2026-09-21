@@ -272,7 +272,7 @@ def test_cli_invalid_private_input_does_not_echo_validation_context(local, tmp_p
     path = tmp_path / 'private.json'
     path.write_text('{"PRIVATE_QUESTION_CANARY": "TOKEN_CANARY"}')
     path.chmod(0o600)
-    monkeypatch.setattr('sys.argv', ['litemem-evaluate', '--directory', str(local.directory), 'start', str(path)])
+    monkeypatch.setattr('sys.argv', ['litellm-memory-evaluate', '--directory', str(local.directory), 'start', str(path)])
     with pytest.raises(SystemExit) as stopped:
         main()
     assert stopped.value.code == 1

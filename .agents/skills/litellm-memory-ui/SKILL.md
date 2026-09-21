@@ -1,13 +1,13 @@
 ---
-name: litemem-ui
-description: Design, implement, and review litemem screens using the project's visual hierarchy, interaction patterns, product language, and privacy semantics. Use for litemem UI changes and extensions, including setup, activity, chat, settings, and responsive states.
+name: litellm-memory-ui
+description: Design, implement, and review LiteLLM Memory screens using the project's visual hierarchy, interaction patterns, product language, and privacy semantics. Use for LiteLLM Memory UI changes and extensions, including setup, activity, chat, settings, and responsive states.
 ---
 
-# litemem UI
+# LiteLLM Memory UI
 
-Build an interface people can understand before they read instructions. litemem is a private, queryable history of work, with company sharing and an explicit Ask interface. Its character comes from clear organization and careful details: quiet, precise, useful, lightly social. It is an internal work tool, not a marketing page or engagement feed.
+Build an interface people can understand before they read instructions. LiteLLM Memory is a private, queryable history of work, with company sharing and an explicit Ask interface. Its character comes from clear organization and careful details: quiet, precise, useful, lightly social. It is an internal work tool, not a marketing page or engagement feed.
 
-These are litemem's project conventions, not universal design rules. Current user instructions and verified product behavior override this document. Preserve existing functionality, originals, privacy boundaries, and unsaved input. A UI task does not authorize changing who can access data, enrolling people, or deploying to production.
+These are LiteLLM Memory's project conventions, not universal design rules. Current user instructions and verified product behavior override this document. Preserve existing functionality, originals, privacy boundaries, and unsaved input. A UI task does not authorize changing who can access data, enrolling people, or deploying to production.
 
 ## Start with the task, then the eye path
 

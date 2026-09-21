@@ -329,15 +329,13 @@ kbd {
   display: inline-flex;
   align-items: baseline;
   color: var(--ink);
-  font-size: 22px;
+  font-size: 17px;
   font-weight: 700;
-  letter-spacing: -1px;
-  padding: 0 12px;
+  letter-spacing: -0.6px;
+  padding: 0 10px;
+  white-space: nowrap;
   height: 34px;
   flex-shrink: 0;
-}
-.brand-dot {
-  color: var(--accent);
 }
 .brand:hover {
   text-decoration: none;
@@ -1978,7 +1976,7 @@ dialog::backdrop {
   .brand {
     padding: 0;
     height: 32px;
-    font-size: 19px;
+    font-size: 17px;
   }
   #navigation {
     grid-row: 2;

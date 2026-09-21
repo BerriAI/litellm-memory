@@ -27,9 +27,9 @@ class AccessPolicy:
         if self.settings.access_mode == "public":
             return
         if not principal.user_id:
-            raise HTTPException(401, "Sign in with Slack to use litemem.")
+            raise HTTPException(401, "Sign in with Slack to use LiteLLM Memory.")
         if principal.identity not in self.allowed:
-            raise HTTPException(403, "Your account does not have access to litemem.")
+            raise HTTPException(403, "Your account does not have access to LiteLLM Memory.")
 
     def owner(self, principal: Principal) -> bool:
         return bool(self.settings.slack_owner_user_id) and (

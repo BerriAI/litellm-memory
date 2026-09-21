@@ -1,5 +1,6 @@
+name: ${COMPOSE_PROJECT_NAME:-litellm-memory}
 services:
-  litemem:
+  litellm-memory:
     build:
       context: .
       dockerfile: Dockerfile
@@ -7,7 +8,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      DATABASE_URL: postgresql://litemem:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/litemem?sslmode=disable
+      DATABASE_URL: postgresql://${MEMORY_DB_USER:-litellm_memory}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${MEMORY_DB_NAME:-litellm_memory}?sslmode=disable
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
       SETUP_CODE: ${SETUP_CODE:-}
       ALLOWED_EMAIL_DOMAIN: ${ALLOWED_EMAIL_DOMAIN:-berri.ai}
@@ -19,7 +20,7 @@ services:
       OTLP_TRACES_ENDPOINT: ${OTLP_TRACES_ENDPOINT:-}
       RECOVERY_MODE: ${RECOVERY_MODE:-false}
     volumes:
-      - litemem-state:/data
+      - litellm-memory-state:/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,16 +34,17 @@ services:
     image: postgres:17-bookworm
     restart: unless-stopped
     environment:
-      POSTGRES_DB: litemem
-      POSTGRES_USER: litemem
+      POSTGRES_DB: ${MEMORY_DB_NAME:-litellm_memory}
+      POSTGRES_USER: ${MEMORY_DB_USER:-litellm_memory}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U litemem -d litemem"]
+      test: ["CMD-SHELL", "pg_isready -U ${MEMORY_DB_USER:-litellm_memory} -d ${MEMORY_DB_NAME:-litellm_memory}"]
       interval: 5s
       timeout: 5s
       retries: 20
 volumes:
-  litemem-state:
+  litellm-memory-state:
+    name: ${MEMORY_STATE_VOLUME:-${COMPOSE_PROJECT_NAME:-litellm-memory}_litellm-memory-state}
   postgres-data:

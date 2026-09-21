@@ -1,12 +1,12 @@
 # Evaluating work-history answers
 
-`litemem-evaluate` runs explicit questions through the deployed `/api/v1/chat` and owned job APIs. It uses the existing connector's Slack sign-in, takes chat models from the LiteLLM-backed catalog, and saves an encrypted local journal. It does not import work, change sharing, send Slack messages or ask a second model to grade its own answer.
+`litellm-memory-evaluate` runs explicit questions through the deployed `/api/v1/chat` and owned job APIs. It uses the existing connector's Slack sign-in, takes chat models from the LiteLLM-backed catalog, and saves an encrypted local journal. It does not import work, change sharing, send Slack messages or ask a second model to grade its own answer.
 
 This checks **API answer quality**. It does not replace live Slack audience tests, original-record reconciliation, the separate review of derived work entries, or the other [release gates](release-checklist.md). No real-history score has been measured yet. The automated test suite uses synthetic fixtures only.
 
 ## Prepare a private question set
 
-Connect your own account with `litemem-connector` first. Recording can remain paused: evaluation refreshes OAuth without uploading queued captures. The target installation needs functioning LiteLLM/Jev processing and the approved historical import before a real-history run is useful.
+Connect your own account with `litellm-memory-connector` first. Recording can remain paused: evaluation refreshes OAuth without uploading queued captures. The target installation needs functioning LiteLLM/Jev processing and the approved historical import before a real-history run is useful.
 
 Keep the JSON question file **outside Git checkouts**, with permissions `0600`. It contains private questions, expected evidence and possibly private canaries. Use opaque UUIDs for dataset/case IDs; do not encode personal facts in IDs or model names. A minimal synthetic example:
 
@@ -57,10 +57,10 @@ Choose required citations carefully: they are a strict minimum, so list records 
 
 ```sh
 chmod 600 /private/path/questions.json
-litemem-evaluate start /private/path/questions.json
+litellm-memory-evaluate start /private/path/questions.json
 # Optional: --model <an actual chat model ID from this installation's LiteLLM catalog>
-litemem-evaluate resume <run-uuid>
-litemem-evaluate cancel <run-uuid>
+litellm-memory-evaluate resume <run-uuid>
+litellm-memory-evaluate cancel <run-uuid>
 ```
 
 Use `--directory /private/path/connector-state` before the command when using a nondefault connector directory. Runs live in that directory's `evaluations/` folder. Inputs, answers and judgments are encrypted with its local vault key and written atomically with owner-only file permissions. The local account holding that key can decrypt them; this is the same local trust boundary as the connector, not protection from the device owner. Keep the directory out of backups or sharing locations that are inappropriate for your work history.
@@ -72,8 +72,8 @@ Cancellation stops known pending jobs and prevents unstarted cases from running.
 ## Review and report
 
 ```sh
-litemem-evaluate review <run-uuid>
-litemem-evaluate report <run-uuid>
+litellm-memory-evaluate review <run-uuid>
+litellm-memory-evaluate report <run-uuid>
 ```
 
 `review` deliberately displays private question text, evidence rubrics and answers in your terminal. Use a private terminal with appropriate scrollback/logging settings. Read the cited original records in your authenticated dashboard, then judge correctness/support or appropriate qualification/abstention, and whether every disclosed fact is allowed for the case's audience. Plans presented as completed work, invented attribution and missing corrections fail the supported-answer judgment. `s` skips without passing; `q` preserves progress. Judgments are bound to the exact answer hash and saved after each case. Terminal control characters in source/model text are escaped.

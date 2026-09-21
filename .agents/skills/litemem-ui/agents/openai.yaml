@@ -1,4 +1,0 @@
-interface:
-  display_name: "litemem UI"
-  short_description: "Design and review the litemem interface"
-  default_prompt: "Use $litemem-ui to design and implement this litemem interface change with consistent hierarchy and behavior."

@@ -63,7 +63,7 @@ Pending question quotas are atomic and survive restarts: defaults are four per p
   "content": "We decided to keep setup on one page. The Slack callback returns to it.",
   "title": "Keep setup together",
   "occurred_at": "2026-09-20T12:00:00Z",
-  "metadata": {"role": "user", "project": "litemem"},
+  "metadata": {"role": "user", "project": "litellm-memory"},
   "historical": false
 }
 ```
@@ -92,7 +92,7 @@ Use **Transfer history** for passwordless browser migration. The receiving invit
 
 Packets are immutable and duplicate uploads are idempotent. `frames` in status gives the next upload index, allowing retries to skip acknowledged packets. After finish, state is `importing`, `waiting`, or `complete`; further uploads are rejected. `wait_reason` distinguishes paused recording, unavailable Slack verification and unavailable storage. Receipt counts report restored, duplicate and excluded records. Cancellation stops after any in-flight archive write and preserves already imported records. Grant limits and retention are documented under [personal portability](self-hosting.md#personal-portability).
 
-`POST /api/v1/export` without a body returns readable JSONL. For a protected download, send `{"encrypted":true,"passphrase":"at least twelve characters"}`. The passphrase applies only to the file and is not saved or used for sign-in. Restore with `litemem-transfer restore my-memory-export.litemem`; the CLI verifies the complete authenticated stream and original identity before any upload. Original source IDs, content, dates and metadata are preserved, imports remain private, and existing deletion tombstones prevent replay.
+`POST /api/v1/export` without a body returns readable JSONL. For a protected download, send `{"encrypted":true,"passphrase":"at least twelve characters"}`. The passphrase applies only to the file and is not saved or used for sign-in. Restore with `litellm-memory-transfer restore my-memory-export.litellm-memory`; the CLI verifies the complete authenticated stream and original identity before any upload. Original source IDs, content, dates and metadata are preserved, imports remain private, and existing deletion tombstones prevent replay.
 
 Corrections accept `content`, optional `title` and `reason`. For safe retries, also send a stable UUID `request_id` and the original `occurred_at` timestamp; reuse both with the unchanged content. The ID is scoped to the original record. They create new dated evidence with a `supersedes` reference; original bytes remain unchanged. The original's publication is withdrawn immediately. Owner reads include available revision links. Export/restore rebuilds links when retaining the same Slack identity; cross-identity migration preserves the original provenance IDs but does not translate revision links.
 

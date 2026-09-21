@@ -1,10 +1,10 @@
 # Third-party notices
 
-litemem is a LiteLLM Labs product. It is not an official Ente client and is not affiliated with Ente's hosted service.
+LiteLLM Memory is a LiteLLM Labs product. It is not an official Ente client and is not affiliated with Ente's hosted service.
 
 ## Ente Museum
 
-The portable image copies the **unmodified Ente Museum server executable and runtime assets** from `ghcr.io/ente/server`. Museum provides authenticated encrypted-entity storage backed by PostgreSQL. litemem uses its HTTP API; it does not write to Ente's database schema directly.
+The portable image copies the **unmodified Ente Museum server executable and runtime assets** from `ghcr.io/ente/server`. Museum provides authenticated encrypted-entity storage backed by PostgreSQL. LiteLLM Memory uses its HTTP API; it does not write to Ente's database schema directly.
 
 - License: GNU Affero General Public License, version 3. A copy is in [LICENSE](LICENSE).
 - Corresponding upstream source for the pinned executable: [ente-io/ente at 163f45c26f130090abed03649530f53d2d976565](https://github.com/ente-io/ente/tree/163f45c26f130090abed03649530f53d2d976565).

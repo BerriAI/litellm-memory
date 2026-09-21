@@ -130,7 +130,7 @@ class Gateway:
     async def probe_model(self, model: str, kind="chat"):
         await self.validate_model(model, kind)
         if kind == "embedding":
-            vector = (await self.embeddings(["litemem connection check"], model=model))[0]
+            vector = (await self.embeddings(["LiteLLM Memory connection check"], model=model))[0]
             return {"status": "ready", "dimensions": len(vector)}
         if kind == "generation":
             import json
@@ -162,7 +162,7 @@ class Gateway:
 
     async def probe_jev(self, model=None):
         try:
-            result = await self.classify("litemem setup check. This is a synthetic test.",
+            result = await self.classify("LiteLLM Memory setup check. This is a synthetic test.",
                                          {"test": "Is this a synthetic test?"}, model=model)
             return {"status": "ready", "model": result.model, "required": True}
         except GatewayError as exc:
@@ -178,7 +178,7 @@ class Gateway:
                             " Use a release with Jev support, configure TYPESAFE_API_KEY on the gateway,"
                             " and check that its TypeSafe route is accessible to your LiteLLM key.")}
             return {"status": status, "required": True, "message": (
-                "litemem needs TypeSafe Jev. Enable it on your LiteLLM gateway and allow this key to use it.")}
+                "LiteLLM Memory needs TypeSafe Jev. Enable it on your LiteLLM gateway and allow this key to use it.")}
         except (httpx.HTTPError, ValueError, KeyError, TypeError):
             return {"status": "unavailable", "required": True,
                     "message": "The gateway did not return a valid Jev response. Check its TypeSafe integration."}

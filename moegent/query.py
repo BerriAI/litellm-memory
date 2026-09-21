@@ -141,7 +141,7 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
 
     async with gateway.chat_client() as client:
         agent = Agent(
-            name="litemem",
+            name="LiteLLM Memory",
             instructions=f"""You answer questions about people's work from their recorded evidence.
 Current UTC time: {datetime.now(UTC).isoformat()}. Your user's identity is {reader.owner}.
 The delivery audience is {reader.audience}. Tools enforce it; you cannot expand it.

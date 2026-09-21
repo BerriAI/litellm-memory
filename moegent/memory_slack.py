@@ -67,7 +67,7 @@ class MemorySlack(Slack):
         return True
 
     async def reconcile_members(self):
-        """Expire positive checks even when someone no longer visits litemem."""
+        """Expire positive checks even when someone no longer visits LiteLLM Memory."""
         slots = asyncio.Semaphore(4)
         async def check(owner):
             async with slots:

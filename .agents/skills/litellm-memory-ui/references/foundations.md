@@ -6,7 +6,7 @@ Product character · attention and hierarchy · typography · color · layout an
 
 ## Product character
 
-litemem should feel like a well-made workspace: familiar, composed, and easy to read. The content is the interesting part. A person should recognize a colleague, scan a useful update, and ask a question without interpreting decorative UI.
+LiteLLM Memory should feel like a well-made workspace: familiar, composed, and easy to read. The content is the interesting part. A person should recognize a colleague, scan a useful update, and ask a question without interpreting decorative UI.
 
 The product can feel social through real Slack identities, authorship, chronology, and shared work. Do not introduce popularity signals, reactions, recommendation ranking, achievements, streaks, or synthetic activity as visual filler. These require a separate product request.
 
@@ -144,3 +144,7 @@ Do not hide Settings or Connections behind unfamiliar unlabeled icons just to ke
 When asked for a new surface, map it to an existing task pattern first. A notification preference is a Settings section; a source import status is a list/status task; a follow-up question belongs to Ask. Reuse the same components and size roles even if the content is new.
 
 Introduce a new pattern only when the old one materially fails the task. Explain the failure, implement the smallest shared addition, and document where it applies. Do not create an app-wide abstraction for a one-off margin or invent a new product feature to showcase the design system.
+
+## Product wordmark
+
+Use **LiteLLM Memory** in the workspace header and page titles. The sidebar wordmark is 17px, weight 700, with a -0.6px letter spacing. Keep the full name on one line at desktop and mobile widths; do not add decorative punctuation or shorten it to an old product name. The repository/package identifier is `litellm-memory`; the Slack app is **LiteLLM Memory** and the bot mention is `@memory`.

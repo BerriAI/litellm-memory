@@ -9,7 +9,7 @@ import httpx
 from nacl.exceptions import CryptoError
 
 from .archive import WorkInput
-from .connector import LocalCapture
+from .connector import LocalCapture, capture_directory
 from .transfer import read_export
 
 
@@ -40,8 +40,8 @@ def restore(path, passphrase, connection, *, allow_owner_remap=False, transport=
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Export/restore your own work through the litemem API.')
-    parser.add_argument('--directory', type=Path, default=Path.home() / '.local/share/litemem')
+    parser = argparse.ArgumentParser(description='Export/restore your own work through the LiteLLM Memory API.')
+    parser.add_argument('--directory', type=Path, default=capture_directory())
     parser.add_argument('command', choices=['export', 'restore'])
     parser.add_argument('file', type=Path)
     parser.add_argument('--allow-owner-remap', action='store_true',
@@ -52,7 +52,7 @@ def main():
         local.flush(limit=0)  # Refreshes OAuth without uploading queued captures.
         connection = local.get('connection')
         if not connection or local.get('status') not in {'connected', 'outbox_full'}:
-            raise ValueError('Connect to your destination litemem with litemem-connector first.')
+            raise ValueError('Connect to your destination LiteLLM Memory with litellm-memory-connector first.')
         passphrase = getpass.getpass('Export passphrase (not your Slack password): ')
         if args.command == 'export':
             if passphrase != getpass.getpass('Confirm export passphrase: '):

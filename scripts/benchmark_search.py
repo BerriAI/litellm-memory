@@ -18,7 +18,7 @@ from moegent.crypto import KeyVault, encrypt_blob
 
 
 async def benchmark(count, people, cache_mb, parallel):
-    with tempfile.TemporaryDirectory(prefix='litemem-benchmark-') as directory:
+    with tempfile.TemporaryDirectory(prefix='litellm-memory-benchmark-') as directory:
         root = Path(directory)
         archive = Archive(root / 'memory.sqlite3', KeyVault(root), None, sharing_enabled=True)
         await archive.open()

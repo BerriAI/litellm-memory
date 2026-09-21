@@ -65,9 +65,9 @@ Test at least one relevant recoverable failure with the draft retained. Check th
 
 ## Nielsen's heuristics, applied to this product
 
-These checks apply [Nielsen's usability heuristics](https://www.nngroup.com/articles/ten-usability-heuristics/) to litemem; they are design judgments, not a formal certification.
+These checks apply [Nielsen's usability heuristics](https://www.nngroup.com/articles/ten-usability-heuristics/) to LiteLLM Memory; they are design judgments, not a formal certification.
 
-| Principle | Concrete litemem question |
+| Principle | Concrete LiteLLM Memory question |
 | --- | --- |
 | Status visibility | Can someone tell saved, queued, processing, failed, and finished apart? |
 | Familiar language | Does this say work/topic/person rather than an internal memory schema? |

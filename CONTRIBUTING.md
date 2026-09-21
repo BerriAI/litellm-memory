@@ -1,6 +1,6 @@
-# Contributing to litemem
+# Contributing to LiteLLM Memory
 
-litemem is a LiteLLM Labs work-history product built with Ente and LiteLLM. Contributions should preserve simple setup, source evidence and clear privacy boundaries.
+LiteLLM Memory is a LiteLLM Labs work-history product built with Ente and LiteLLM. Contributions should preserve simple setup, source evidence and clear privacy boundaries.
 
 ## Local development
 
@@ -34,7 +34,7 @@ The internal package name `moegent` is retained for migration compatibility. The
 
 ## Interface standards
 
-Use the [litemem UI skill](.agents/skills/litemem-ui/SKILL.md) for interface work. It defines the visual hierarchy, type and spacing roles, reusable components, screen patterns, product language, responsive behavior, and review criteria. The repository’s `AGENTS.md` points coding agents to it automatically.
+Use the [LiteLLM Memory UI skill](.agents/skills/litellm-memory-ui/SKILL.md) for interface work. It defines the visual hierarchy, type and spacing roles, reusable components, screen patterns, product language, responsive behavior, and review criteria. The repository’s `AGENTS.md` points coding agents to it automatically.
 
 ## Review expectations
 

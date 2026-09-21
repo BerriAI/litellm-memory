@@ -262,7 +262,7 @@ class Slack:
             history = await self.store.history(session)
             history.extend({"role": "user", "content": q} for q in p.get("prior_questions", []))
             if p["thread_ts"] != p.get("message_ts"):
-                history.insert(0, {"role": "user", "content": "[Slack thread retrieval is unavailable. Only litemem's saved exchanges follow; do not claim to have read the full thread.]"})
+                history.insert(0, {"role": "user", "content": "[Slack thread retrieval is unavailable. Only LiteLLM Memory's saved exchanges follow; do not claim to have read the full thread.]"})
             return history
 
     async def monitor(self):

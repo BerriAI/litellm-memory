@@ -1,7 +1,7 @@
 """Portable launcher: optional local Museum, first-run provisioning, and the web app.
 
 Only the web port is published. Museum stores ciphertext in Postgres; member
-identity and encryption delegation are owned by litemem, not Ente's Photos UI.
+identity and encryption delegation are owned by LiteLLM Memory, not Ente's Photos UI.
 """
 
 import asyncio
@@ -53,7 +53,7 @@ async def provision_account(base_url, server_secrets, transport=None):
         if not response.is_success:
             raise BootError(f'Encrypted storage account initialization failed (HTTP {response.status_code}).')
         response = await client.post('/users/verify-email', json={
-            'email': server_secrets['email'], 'ott': server_secrets['ott'], 'source': 'litemem'})
+            'email': server_secrets['email'], 'ott': server_secrets['ott'], 'source': 'litellm-memory'})
         if not response.is_success:
             raise BootError(f'Encrypted storage account verification failed (HTTP {response.status_code}).')
         data = response.json()
@@ -97,7 +97,7 @@ async def start_museum(settings, vault, deployment):
         server_secrets = {'encryption': base64.b64encode(secrets.token_bytes(32)).decode(),
                           'hash': base64.b64encode(secrets.token_bytes(64)).decode(),
                           'jwt': base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
-                          'email': 'litemem-service@localhost.internal', 'ott': secrets.token_urlsafe(40)}
+                          'email': 'litellm-memory-service@localhost.internal', 'ott': secrets.token_urlsafe(40)}
         deployment.save(museum_server=server_secrets)
     token = deployment.values.get('museum_token')
 
@@ -156,7 +156,7 @@ async def serve():
             sys.executable, '-m', 'uvicorn', 'moegent.application:app', '--host', '0.0.0.0',
             '--port', os.environ.get('PORT', '8000'), '--no-access-log', '--log-level', 'warning')
         processes.append(web)
-        print('litemem is starting. Finish setup in the web app. Setup code: private STATE_DIR/setup-code file.', flush=True)
+        print('LiteLLM Memory is starting. Finish setup in the web app. Setup code: private STATE_DIR/setup-code file.', flush=True)
         waiting = [asyncio.create_task(process.wait()) for process in processes]
         waiting.append(asyncio.create_task(stopping.wait()))
         done, pending = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
@@ -164,7 +164,7 @@ async def serve():
             task.cancel()
         await asyncio.gather(*pending, return_exceptions=True)
         if not stopping.is_set() and any(p.returncode not in {None, 0} for p in processes):
-            raise BootError('A required service stopped. The process supervisor will restart litemem.')
+            raise BootError('A required service stopped. The process supervisor will restart LiteLLM Memory.')
     finally:
         for process in reversed(processes):
             await stop(process)
@@ -178,7 +178,7 @@ def main():
         raise SystemExit(1) from None
     except Exception as error:
         # Never print upstream payloads, URLs with credentials, or tracebacks.
-        print(f'litemem could not start ({type(error).__name__}). Check deployment configuration.', file=sys.stderr)
+        print(f'LiteLLM Memory could not start ({type(error).__name__}). Check deployment configuration.', file=sys.stderr)
         raise SystemExit(1) from None
 
 

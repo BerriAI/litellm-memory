@@ -48,7 +48,7 @@ def install_oauth(app, settings, store, archive, account, same_origin):
     @app.get("/.well-known/oauth-protected-resource/mcp")
     async def resource_metadata():
         return {"resource": resource, "authorization_servers": [issuer], "scopes_supported": ["memory"],
-                "bearer_methods_supported": ["header"], "resource_name": "litemem"}
+                "bearer_methods_supported": ["header"], "resource_name": "LiteLLM Memory"}
 
     @app.post("/oauth/register", status_code=201)
     async def register(body: ClientRegistration):
@@ -81,8 +81,8 @@ def install_oauth(app, settings, store, archive, account, same_origin):
         request.session["oauth_pending"] = {**p, "nonce": nonce, "created": time.time()}
         client_name = escape(client["client_name"])
         return HTMLResponse(f'''<!doctype html><html lang="en"><meta name="viewport" content="width=device-width">
-        <title>Connect to litemem</title><link rel="stylesheet" href="/static/memory.css">
-        <main class="auth-card"><p class="eyebrow">litemem</p><h1>Connect {client_name}</h1>
+        <title>Connect to LiteLLM Memory</title><link rel="stylesheet" href="/static/memory.css">
+        <main class="auth-card"><p class="eyebrow">LiteLLM Memory</p><h1>Connect {client_name}</h1>
         <p>This client can record your work and search your private and shared memories.</p>
         <p>You can revoke access from Connections at any time. It cannot change sharing settings.</p>
         <form method="post" action="/oauth/authorize"><input type="hidden" name="nonce" value="{nonce}">

@@ -1,0 +1,4 @@
+interface:
+  display_name: "LiteLLM Memory UI"
+  short_description: "Design and review the LiteLLM Memory interface"
+  default_prompt: "Use $litellm-memory-ui to design and implement this LiteLLM Memory interface change with consistent hierarchy and behavior."
