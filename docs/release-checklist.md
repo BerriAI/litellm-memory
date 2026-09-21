@@ -4,6 +4,8 @@ This file distinguishes implementation from verified deployment. It is not a cla
 
 ## Verified on September 20, 2026
 
+- [CI run 35550943460](https://github.com/moe-berri/litemem/actions/runs/35550943460) passed on source `0cc21d2`: **145 tests**, Ruff, four frontend module checks, both actual Codex/Claude capture-hook checks, and the complete Docker/PostgreSQL/Ente build, restart and clean-volume recovery/restore. This verifies the new evaluation runner and read-only token-refresh fix with synthetic data; the real-history and live integration gates below remain open.
+
 - The private answer-quality runner passes **145 local tests** with the full suite. It uses the versioned API and existing Slack connector authentication, retains encrypted questions/results/reviews, resumes uncertain submissions with their original request IDs, and requires answer-bound human judgments. Failure tests cover rate limiting, cancellation, access changes, private partial/failed output, terminal control characters and synthetic/unreviewed score rejection. Capture can remain paused during read-only OAuth refresh. The [evaluation guide](answer-quality.md) explains the required 100-question coverage; **no real-history score has been measured**.
 
 - [CI run 35549695308](https://github.com/moe-berri/litemem/actions/runs/35549695308) passed on source `efef0f9`: **134 tests**, Ruff, four frontend module checks, both real Codex/Claude hook checks, and full Docker/PostgreSQL/Ente build, restart and clean-volume recovery/restore. The restore proof now includes encrypted workspace scheduling and personal display preferences. The initial fixture mixed live setup and direct configuration writes; the corrected sequence preserves the same restart/restore assertions.
