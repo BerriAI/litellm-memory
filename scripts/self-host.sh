@@ -4,10 +4,12 @@ cd "$(dirname "$0")/.."
 command -v docker >/dev/null 2>&1 || { echo 'Install Docker with Compose, then run this command again.' >&2; exit 1; }
 # Refuse to silently create an empty workspace beside a standard legacy install.
 if docker volume inspect litemem_litemem-state >/dev/null 2>&1; then
-  if [ ! -f .env.selfhost ] || ! grep -q '^MEMORY_STATE_VOLUME=litemem_litemem-state$' .env.selfhost; then
-    echo 'Existing litemem data found. Follow docs/upgrading.md to bind the original volumes before starting.' >&2
-    exit 1
-  fi
+  for task_binding in COMPOSE_PROJECT_NAME=litemem MEMORY_STATE_VOLUME=litemem_litemem-state MEMORY_DB_NAME=litemem MEMORY_DB_USER=litemem; do
+    if [ ! -f .env.selfhost ] || ! grep -qx "$task_binding" .env.selfhost; then
+      echo 'Existing litemem data found. Follow docs/upgrading.md to bind the original volumes and database before starting.' >&2
+      exit 1
+    fi
+  done
 fi
 if [ ! -f .env.selfhost ]; then
   command -v openssl >/dev/null 2>&1 || { echo 'Install OpenSSL to generate deployment credentials.' >&2; exit 1; }
