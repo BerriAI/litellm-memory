@@ -69,15 +69,24 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
       $("create-slack-app").href = manifest.create_url;
     }
     show("slack-create-options", !status.slack_configured);
-    show("install-slack", status.slack_configured && !status.slack_installed);
+    const slackNeedsUpdate = status.slack_installed && status.slack_missing_scopes.length > 0;
+    const slackAccessReady = status.slack_installed && !slackNeedsUpdate;
+    $("install-slack").textContent = slackNeedsUpdate ? "Update Slack access" : "Install in Slack";
+    show("install-slack", status.slack_configured && !slackAccessReady);
+    $("slack-access-help").textContent = slackNeedsUpdate
+      ? "Approve the required permissions so LiteLLM Memory can verify company members."
+      : "";
+    show("slack-access-help", slackNeedsUpdate);
     show(
       "verify-slack-identity",
-      status.slack_installed && !status.identity_verified,
+      slackAccessReady && !status.identity_verified,
     );
-    const slackReady = status.slack_installed && status.identity_verified;
+    const slackReady = slackAccessReady && status.identity_verified;
     $("slack-badge").textContent = slackReady
       ? "Connected"
-      : status.slack_installed
+      : slackNeedsUpdate
+        ? "Update required"
+        : status.slack_installed
         ? "Verify your account"
         : status.slack_configured
           ? "Ready to install"

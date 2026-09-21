@@ -18,8 +18,9 @@ from .observability import Telemetry
 
 
 class GatewayError(RuntimeError):
-    def __init__(self, operation: str, status: int = 503):
+    def __init__(self, operation: str, status: int = 503, *, provider_auth_failed=False):
         self.operation, self.status = operation, status
+        self.provider_auth_failed = provider_auth_failed
         super().__init__(f"The gateway could not complete {operation} (HTTP {status}).")
 
 
@@ -135,8 +136,10 @@ class Gateway:
         if kind == "generation":
             import json
             try:
-                result = await self.generate([{"role": "user", "content": 'Return JSON: {"ok": true}'}],
-                                             model=model, json_output=True)
+                result = await self.generate([
+                    {"role": "system", "content": "Describe the work briefly. Return a JSON object."},
+                    {"role": "user", "content": "Synthetic setup check: reviewed the workspace onboarding."},
+                ], model=model, json_output=True)
                 if not isinstance(json.loads(result), dict):
                     raise ValueError()
             except (ValueError, TypeError):
@@ -166,8 +169,16 @@ class Gateway:
                                          {"test": "Is this a synthetic test?"}, model=model)
             return {"status": "ready", "model": result.model, "required": True}
         except GatewayError as exc:
-            status = {401: "invalid_key", 403: "access_denied", 404: "not_enabled", 429: "rate_limited"}.get(
+            if exc.provider_auth_failed:
+                return {"status": "provider_auth_failed", "required": True, "message": (
+                    "TypeSafe rejected the credential supplied by your LiteLLM gateway (HTTP 401)."
+                    " Check TYPESAFE_API_KEY or the gateway's TypeSafe pass-through credentials, then try again.")}
+            status = {401: "authentication_failed", 403: "access_denied", 404: "not_enabled", 429: "rate_limited"}.get(
                 exc.status, "unavailable")
+            if exc.status in {401, 403}:
+                return {"status": status, "required": True, "message": (
+                    f"The TypeSafe Jev request was denied (HTTP {exc.status}). Check this LiteLLM key's route access"
+                    " and the gateway's TypeSafe credential.")}
             if exc.status == 404:
                 version = await self.reported_version()
                 reported = f" This gateway reports LiteLLM {version}." if version else ""
@@ -212,7 +223,18 @@ class Gateway:
             async with self._jev_slots:
                 response = await self.http.post(self.root + path, json=body)
             if not response.is_success:
-                raise GatewayError("Jev classification", response.status_code)
+                # TypeSafe's known error envelope distinguishes its credential from
+                # the client's LiteLLM key. Never retain or expose upstream text.
+                provider_auth_failed = False
+                if response.status_code == 401:
+                    try:
+                        detail = response.json().get("detail")
+                        provider_auth_failed = (isinstance(detail, dict)
+                                                and detail.get("error_type") == "authentication_error")
+                    except (ValueError, AttributeError):
+                        pass
+                raise GatewayError("Jev classification", response.status_code,
+                                   provider_auth_failed=provider_auth_failed)
             result = JevResult.model_validate(response.json())
             if set(result.answers) != set(questions):
                 raise GatewayError("complete Jev classification")
@@ -241,8 +263,13 @@ class Gateway:
     async def generate(self, messages: list[dict], *, model: str | None = None, json_output=False):
         with self.telemetry.operation(
                 'generation', model=model or self.settings.background_model or self.settings.litellm_model):
+            # A chat route may translate system messages into Responses instructions.
+            # JSON mode requires the word "JSON" in input messages as well, so a
+            # system-only instruction can fail on an otherwise working model.
+            inputs = [*messages, {"role": "user", "content": "Return only the requested JSON object."}] \
+                if json_output else messages
             body = {"model": model or self.settings.background_model or self.settings.litellm_model,
-                    "messages": messages, "no-log": True}
+                    "messages": inputs, "no-log": True}
             if json_output:
                 body["response_format"] = {"type": "json_object"}
             response = await self.http.post(self.root + "/v1/chat/completions", json=body)

@@ -105,3 +105,44 @@ async def test_version_discovery_failure_preserves_missing_jev_diagnosis():
         result = await gateway.probe_jev()
     assert result["status"] == "not_enabled" and result["gateway_version"] is None
     assert "PRIVATE" not in str(result)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('body,status', [
+    ({'detail': {'error_type': 'authentication_error', 'message': 'PRIVATE SECRET'}}, 'provider_auth_failed'),
+    ({'error': {'type': 'auth_error', 'message': 'PRIVATE SECRET'}}, 'authentication_failed'),
+    ({'detail': 'PRIVATE SECRET'}, 'authentication_failed'),
+    (['PRIVATE SECRET'], 'authentication_failed'),
+])
+async def test_jev_auth_diagnosis_distinguishes_provider_key_without_exposing_errors(body, status):
+    async with Gateway(Settings(_env_file=None), httpx.MockTransport(
+            lambda request: httpx.Response(401, json=body))) as gateway:
+        result = await gateway.probe_jev()
+    assert result['status'] == status
+    assert 'PRIVATE' not in str(result)
+    assert 'HTTP 401' in result['message']
+    if status == 'provider_auth_failed':
+        assert 'TYPESAFE_API_KEY' in result['message']
+
+
+@pytest.mark.asyncio
+async def test_json_generation_survives_system_messages_becoming_responses_instructions():
+    import json
+
+    messages = [{'role': 'system', 'content': 'Summarize as JSON.'},
+                {'role': 'user', 'content': 'The demo is planned for Thursday.'}]
+    original = [dict(message) for message in messages]
+
+    def responses_gateway(request):
+        body = json.loads(request.content)
+        inputs = [m for m in body['messages'] if m['role'] != 'system']
+        # Responses validates JSON mode against input, excluding instructions.
+        assert any('json' in m['content'].lower() for m in inputs)
+        assert body['messages'][:2] == original
+        assert body['response_format'] == {'type': 'json_object'}
+        assert body['no-log'] is True
+        return httpx.Response(200, json={'choices': [{'message': {'content': '{"ok":true}'}}]})
+
+    async with Gateway(Settings(_env_file=None), httpx.MockTransport(responses_gateway)) as gateway:
+        assert await gateway.generate(messages, json_output=True) == '{"ok":true}'
+    assert messages == original

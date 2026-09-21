@@ -1,24 +1,29 @@
 # Release status
 
-The implementation is on `main`. The existing hosted assistant has not been switched to the new app. This repository is still private; publishing and production cutover are separate release actions.
+The implementation is on `main`, and the private Render service runs the new application through the portable launcher. Admin onboarding is not yet complete. This repository is still private; owner onboarding, team rollout and open-source publication are separate milestones.
 
 ## Verification
 
-CI runs unit/API tests, Ruff, frontend syntax checks, real Codex/Claude hook dispatch against disposable fixtures, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. [Current checks](https://github.com/moe-berri/litellm-memory/pull/1/checks).
+CI runs unit/API tests, Ruff, frontend syntax checks, real Codex/Claude hook dispatch against disposable fixtures, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. [Current checks](https://github.com/moe-berri/litellm-memory/actions/workflows/verify.yml).
 
 The core-loop revision passed [CI run 35648509804](https://github.com/moe-berri/litellm-memory/actions/runs/35648509804), source `0da818f`: **153 tests**, Ruff, four frontend syntax checks, both real host-hook checks, and Docker/PostgreSQL/Ente build, restart and clean-volume restore. Browser review uses synthetic records and simulated inference; [screenshots and review scope](ui-review.md). No synthetic check is a real-history quality score.
 
 Frontend format checks also pass. Browser checks cover first-use intake status, person browsing and routes, query scope, privacy preview, saved-filter recovery and 390px/320px layouts. Automated daily overview sweeps are removed; source processing and explicit Ask remain.
 
+The September 21 readiness revision passes **166 local tests**, Ruff and frontend syntax checks. Setup checks Jev, tool calling, JSON generation and embeddings through the configured gateway; regression cases cover absent agent/embedding routes, upstream TypeSafe authentication errors and a JSON-mode failure found with the live Luna route. Slack permission recovery was reviewed at desktop and 390px widths, including keyboard access and browser errors.
+
+A synthetic integration run inside Render passed capture, parallel processing, cached Jev classification, encrypted Ente storage, a private-topic exclusion, denial of peer access to originals, a cited Luna answer and preserved originals after reopening its temporary archive. This run used the candidate JSON-request fix with actual gateway/Ente services; all five temporary encrypted objects were deleted. It does not establish hosted Slack authentication, real-history answer quality or complete gateway logging suppression.
+
 ## Before the owner-only pilot
 
-- [ ] Enable TypeSafe Jev on the actual LiteLLM gateway and pass the typed probe. Last checked: gateway 1.102.0 returned 404; its key could not administer the missing route.
+- [x] Enable TypeSafe Jev on the actual LiteLLM gateway and pass the typed probe. On September 21, gateway 1.103.0 returned `jev-1.13.0` through the deployment's existing LiteLLM key after its TypeSafe credential was saved using the admin configuration API.
 - [ ] Verify content logging suppression for chat, embeddings and TypeSafe calls on that gateway.
-- [ ] Update and verify required Slack identity scopes, then complete personal Slack OAuth and hosted capture.
+- [ ] Update and verify required Slack identity scopes, then complete personal Slack OAuth and hosted capture. The installed token authenticates, but its live `users.info` check reports `missing_scope`; `users:read` and `users:read.email` must be approved through the installation flow.
 - [ ] Verify a personal DM and shared-channel audience checks using explicitly authorized test participants.
 - [ ] Import approved owner history, reconcile original hashes/counts, and verify interrupted replay.
 - [ ] Complete the reviewed [real-history answer-quality evaluation](answer-quality.md).
-- [ ] Deploy `litellm_memory.application:app` through the portable launcher, initially owner-only and sharing-off. Verify capture → Ente → processing → explicit Ask → valid citation after restart.
+- [x] Deploy `litellm_memory.application:app` through the portable launcher, initially owner-only and sharing-off. The live service reports Ente storage; an encrypted write/read/delete round trip from the Render instance passed on September 21.
+- [ ] Verify authenticated hosted capture → Ente → processing → explicit Ask → valid citation after restart.
 - [ ] If telemetry is enabled, confirm a test trace arrives and inspect its attributes. Logfire cloud has not been connected by the repository's tests.
 
 ## Before publishing or team rollout

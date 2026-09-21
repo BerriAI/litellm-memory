@@ -16,7 +16,9 @@ The root `render.yaml` and `Dockerfile` provision the complete starter topology.
 
 Open the deployed HTTPS URL and paste the setup code to claim it. The code is for installation administration, not for member sign-in. It rotates when claimed. If setup is interrupted, the browser retains a time-limited setup session; otherwise retrieve the current code from the private `/data/setup-code` file in Render's shell.
 
-The page keeps the gateway connection, model choices and Slack progress together. Provide only a LiteLLM URL/key for inference. The Slack app needs its normal Slack application credentials; LiteLLM Memory supplies a manifest/create link, validates the installation and returns to the same page. Complete sign-in using an eligible Slack account. Finish is enabled only after model, Jev, Slack identity and encrypted-storage checks pass.
+The page keeps the gateway connection, model choices and Slack progress together. Provide only a LiteLLM URL/key for inference. Setup discovers the models available to that key, requires agent and embedding candidates, and makes real requests to verify tool calling, structured background generation, embeddings and TypeSafe Jev. A model appearing in the list alone is not enough to pass setup. Failed checks leave the workspace inactive and show what needs attention.
+
+The Slack app needs its normal Slack application credentials; LiteLLM Memory supplies a manifest/create link, validates the installation and returns to the same page. Complete sign-in using an eligible Slack account. Activation requires model, Jev, Slack identity and encrypted-storage checks to pass.
 
 Render auto-deploy is disabled in the reusable Blueprint so an upstream commit cannot update other people's installations without their decision. The current private pilot is separate from this reusable deployment and remains owner-only with sharing disabled.
 
@@ -38,11 +40,13 @@ The database port is not published. Museum is loopback-only. Do not expose Museu
 
 Jev's built-in pass-through integration was introduced in **LiteLLM v1.103.0-rc**. A gateway on an older release can serve chat and embeddings normally while returning HTTP 404 for Jev. See the [launch announcement](https://docs.litellm.ai/blog/typesafe_jev) and [integration instructions](https://docs.litellm.ai/docs/pass_through/typesafe).
 
-The gateway operator must deploy a release containing the integration, set `TYPESAFE_API_KEY` in the **gateway's secret environment**, and restart or redeploy the gateway. Keep existing model routes and credentials in place. The TypeSafe provider key is not a LiteLLM virtual key and does not belong in LiteLLM Memory's connection form or repository.
+The gateway operator must deploy a release containing the integration and configure `TYPESAFE_API_KEY` on the **gateway**. This can be a secret deployment environment variable followed by a restart. On gateways supporting the admin configuration API, an administrator can instead send `POST /config/update` with only `{"environment_variables":{"TYPESAFE_API_KEY":"<provider key>"}}`; LiteLLM stores the value encrypted and reloads its configuration. Preserve all other settings. A successful typed probe must confirm that the live workers picked up the credential. The TypeSafe provider key is not a LiteLLM virtual key and does not belong in LiteLLM Memory's connection form or repository. The built-in TypeSafe route does not require another model or custom endpoint.
 
 LiteLLM Memory uses its existing LiteLLM key to call `POST /typesafe/v1/systemone` with a harmless typed question. A successful typed response is the readiness check; absence from `/v1/models` does not mean Jev is unsupported. On HTTP 404, setup also tries to show the gateway's reported version. Version discovery is optional and never replaces the real probe, so custom builds and backports can work.
 
-After enabling the integration, select **Check again** on the same setup page. If the route still returns 404, check gateway reverse-proxy routing and the configured Jev alias. HTTP 401/403 requires checking the LiteLLM key's route permissions and the gateway's upstream credentials. Verify the deployed pass-through's no-log behavior before processing real histories; a successful classification alone does not prove logging is disabled.
+After enabling the integration, select **Check again** on the same setup page. If the route still returns 404, check gateway reverse-proxy routing and the configured Jev alias. HTTP 401/403 requires checking the LiteLLM key's route permissions and the gateway's upstream credentials. When TypeSafe reports its own authentication error, setup identifies the gateway's provider credential rather than labelling the LiteLLM key invalid. Verify the deployed pass-through's no-log behavior before processing real histories; a successful classification alone does not prove logging is disabled.
+
+An installed Slack app can still be missing required permissions. Setup shows **Update Slack access** when the recorded installation lacks any required scope, and prevents activation until the updated installation completes. Approve it with the workspace's eligible installer account, then complete **Confirm with Slack**. The app checks current membership and the verified company email domain before enrollment.
 
 ## Configuration
 
