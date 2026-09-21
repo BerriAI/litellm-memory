@@ -65,5 +65,12 @@ class Settings(BaseSettings):
         return self.state_dir / "memory"
 
     @property
+    def operational_database(self) -> Path:
+        # Keep existing data and SQLite journals together; never silently select
+        # an empty database because the product name changed.
+        legacy = self.state_dir / "moegent.sqlite3"
+        return legacy if legacy.exists() else self.state_dir / "litellm-memory.sqlite3"
+
+    @property
     def secure_cookies(self) -> bool:
         return self.public_base_url.startswith("https://")

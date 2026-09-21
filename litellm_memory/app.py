@@ -48,7 +48,7 @@ def create_app(settings=None, agent_fn=answer, start_worker=True):
             secret_path.chmod(0o600)
         settings.session_secret = secret_path.read_text().strip()
     policy = AccessPolicy(settings)
-    store = Storage(settings.state_dir / "moegent.sqlite3")
+    store = Storage(settings.operational_database)
     slack = Slack(settings, store)
     running = {}
     slack.running = running

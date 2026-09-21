@@ -6,8 +6,8 @@ from unittest.mock import patch
 import pytest
 from test_archive import archive as archive_fixture
 
-from moegent.archive import Reader, WorkInput
-from moegent.work_views import ViewRequest, WorkViews
+from litellm_memory.archive import Reader, WorkInput
+from litellm_memory.work_views import ViewRequest, WorkViews
 
 archive = archive_fixture
 
@@ -54,7 +54,7 @@ async def test_worker_only_builds_explicitly_requested_views(archive):
     async def stop_when_idle(_):
         raise asyncio.CancelledError
 
-    with patch('moegent.work_views.asyncio.sleep', side_effect=stop_when_idle):
+    with patch('litellm_memory.work_views.asyncio.sleep', side_effect=stop_when_idle):
         with pytest.raises(asyncio.CancelledError):
             await views.worker()
         assert gateway.inputs == []  # Starting a worker never sweeps everyone's history.

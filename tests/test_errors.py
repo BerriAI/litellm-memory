@@ -5,8 +5,8 @@ from fastapi.testclient import TestClient
 from openai import RateLimitError
 from test_app import config, signed_event
 
-from moegent.app import create_app
-from moegent.errors import explain_error
+from litellm_memory.app import create_app
+from litellm_memory.errors import explain_error
 
 
 def rate_limit(message):

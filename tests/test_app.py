@@ -9,8 +9,8 @@ from fastapi.testclient import TestClient
 from itsdangerous import TimestampSigner
 from slack_sdk.signature import SignatureVerifier
 
-from moegent.app import create_app
-from moegent.config import Settings
+from litellm_memory.app import create_app
+from litellm_memory.config import Settings
 
 
 def config(tmp_path, **extra):
@@ -133,7 +133,8 @@ def test_web_pages_require_login_and_preserve_source_target(tmp_path):
             assert target == ("/" if path.startswith("/static") else path)
             assert response.headers["cache-control"] == "no-store"
         assert client.get("/health").status_code == 200
-        assert client.get("/static/moegent-icon.jpg").status_code == 200
+        assert client.get("/static/litellm-memory-icon.jpg").status_code == 200
+        assert client.get("/static/moegent-icon.jpg").content == client.get("/static/litellm-memory-icon.jpg").content
         assert client.get("/api/jobs/example").status_code == 401
         assert client.post("/api/jobs/example/cancel").status_code == 401
 
@@ -207,7 +208,7 @@ def test_missing_inviter_fails_closed_and_dm_is_allowed(tmp_path):
 
 @pytest.mark.asyncio
 async def test_storage_recovers_running_job_without_losing_answer(tmp_path):
-    from moegent.storage import Storage
+    from litellm_memory.storage import Storage
     path = tmp_path / "db"
     store = Storage(path)
     await store.open()

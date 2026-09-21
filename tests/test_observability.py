@@ -4,8 +4,8 @@ import pytest
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from moegent.config import Settings
-from moegent.observability import configure
+from litellm_memory.config import Settings
+from litellm_memory.observability import configure
 
 
 def test_observability_is_off_by_default_and_enabled_spans_never_record_exception_text(tmp_path):
@@ -54,7 +54,7 @@ async def test_query_and_tool_spans_keep_usage_but_not_tool_arguments(tmp_path):
 
 
 def test_payload_and_identity_attributes_are_rejected_even_when_tracing_is_off():
-    from moegent.observability import Telemetry
+    from litellm_memory.observability import Telemetry
     for attribute in ['prompt', 'answer', 'email', 'member_id', 'token', 'url']:
         with pytest.raises(ValueError, match='Unsupported telemetry attribute'):
             with Telemetry().operation('query', **{attribute: 'PRIVATE_CANARY'}):

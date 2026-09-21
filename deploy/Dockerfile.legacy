@@ -12,10 +12,11 @@ COPY --from=uv /uv /usr/local/bin/uv
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
+COPY litellm_memory ./litellm_memory
 COPY moegent ./moegent
 COPY static ./static
 COPY vendor/product-team-knowledge ./vendor/product-team-knowledge
 COPY --from=memory /memory/node_modules ./vendor/product-team-knowledge/node_modules
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 STATE_DIR=/data PORT=10000
 EXPOSE 10000
-CMD ["sh", "-c", "exec uvicorn moegent.app:app --host 0.0.0.0 --port ${PORT:-10000} --no-access-log"]
+CMD ["sh", "-c", "exec uvicorn litellm_memory.app:app --host 0.0.0.0 --port ${PORT:-10000} --no-access-log"]

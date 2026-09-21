@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from moegent.boot import BootError, database_config, museum_config, provision_account
+from litellm_memory.boot import BootError, database_config, museum_config, provision_account
 
 
 def test_museum_boot_configuration_is_private_and_hardened_after_bootstrap():

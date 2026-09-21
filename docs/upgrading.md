@@ -15,11 +15,15 @@ The new `litellm-memory-connector`, `litellm-memory-transfer` and `litellm-memor
 
 If `~/.local/share/litemem` exists, all three tools continue using it, including its encrypted queue, credentials, evaluation runs, account binding and keys. Fresh installs use `~/.local/share/litellm-memory`. If both directories exist, the legacy directory wins; use `--directory` to explicitly select another. Do not merge directories or move them while hooks are running.
 
-Existing MCP entries named `litemem` retain that name and their host OAuth configuration. New entries use `litellm-memory`. Reconnecting replaces old managed hooks without adding a second recorder. Disconnect recognizes both names and only removes MCP entries for the connected URL. The internal Python package remains `moegent` so installed hook commands keep working.
+Existing MCP entries named `litemem` retain that name and their host OAuth configuration. New entries use `litellm-memory`. Reconnecting replaces old managed hooks without adding a second recorder. Disconnect recognizes both names and only removes MCP entries for the connected URL.
+
+The Python package is now `litellm_memory`. New hooks and launch commands use it. A small `moegent` compatibility namespace resolves older module commands from the same source, so installed `python -m moegent.connector` hooks and existing application entry points keep working. Use the canonical package for new code; do not mix both import namespaces in one process.
 
 ## Hosted application
 
 Keep the same `STATE_DIR`, database and secrets. Existing `/etc/secrets/litemem.env` and `/etc/secrets/moegent.env` files still load; `/etc/secrets/litellm-memory.env` is the new preferred name and takes precedence. Saved model configuration keeps its original storage key. Existing encrypted exports ending in `.litemem` still restore; new exports use `.litellm-memory`.
+
+Fresh installs store query jobs and operational settings in `litellm-memory.sqlite3`. If `moegent.sqlite3` exists, it takes precedence, including when both filenames exist. The app uses it in place without moving a live SQLite database or losing its journal. Memory originals remain in the same Ente storage and `memory.sqlite3` index. Legacy browser storage and session-cookie names remain compatible; cached pages can still load the old icon URL.
 
 ### Docker Compose
 

@@ -18,7 +18,7 @@ Frontend format checks also pass. Browser checks cover first-use intake status, 
 - [ ] Verify a personal DM and shared-channel audience checks using explicitly authorized test participants.
 - [ ] Import approved owner history, reconcile original hashes/counts, and verify interrupted replay.
 - [ ] Complete the reviewed [real-history answer-quality evaluation](answer-quality.md).
-- [ ] Deploy `moegent.application:app` through the portable launcher, initially owner-only and sharing-off. Verify capture → Ente → processing → explicit Ask → valid citation after restart.
+- [ ] Deploy `litellm_memory.application:app` through the portable launcher, initially owner-only and sharing-off. Verify capture → Ente → processing → explicit Ask → valid citation after restart.
 - [ ] If telemetry is enabled, confirm a test trace arrives and inspect its attributes. Logfire cloud has not been connected by the repository's tests.
 
 ## Before publishing or team rollout

@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 from nacl.exceptions import CryptoError
 from test_model_settings import application, enroll
 
-from moegent.transfer import ExportStream, read_export
-from moegent.transfer_cli import restore
+from litellm_memory.transfer import ExportStream, read_export
+from litellm_memory.transfer_cli import restore
 
 
 def file_bytes(records):
@@ -89,7 +89,7 @@ def test_restore_verifies_entire_file_and_owner_before_any_upload(tmp_path):
 def test_legacy_export_restores_and_format_label_is_authenticated(monkeypatch):
     records = [{'owner': 'T:OWNER', 'original': {'source_id': 'legacy', 'content': 'unchanged source'}}]
     with monkeypatch.context() as legacy:
-        legacy.setattr('moegent.transfer.FORMAT', 'litemem-transfer')
+        legacy.setattr('litellm_memory.transfer.FORMAT', 'litemem-transfer')
         old_export = file_bytes(records)
     assert list(read_export(io.StringIO(old_export), 'test passphrase long enough')) == records
     new_export = file_bytes(records)

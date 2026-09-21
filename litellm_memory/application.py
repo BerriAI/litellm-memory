@@ -118,7 +118,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     archive = Archive(settings.state_dir / "memory.sqlite3", vault, museum, sharing_enabled=settings.sharing_enabled)
     transfers = Transfers(settings, archive)
     archive.search_index.budget = settings.search_cache_mb * 1024 * 1024
-    store = Storage(settings.state_dir / "moegent.sqlite3", vault)
+    store = Storage(settings.operational_database, vault)
     model_service = ModelSettingsService(settings, store, gateway, archive)
     views = WorkViews(archive, gateway, deployment)
     archive.views = views

@@ -1,6 +1,6 @@
 import pytest
 
-from moegent.query import CitationError, validate_citations
+from litellm_memory.query import CitationError, validate_citations
 
 
 def test_citations_must_resolve_to_evidence_read_in_this_authorized_run():

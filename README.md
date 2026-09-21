@@ -83,7 +83,7 @@ uv run pytest -q
 uv run ruff check .
 ```
 
-The new app is `moegent.application:app`; the portable launcher is `python -m moegent.boot`. The Python package retains its original internal name to make migration easier. `moegent.app:app`, `deploy/Dockerfile.legacy`, and the vendored knowledge runtime are legacy migration paths, not dependencies of the new memory service.
+The app is `litellm_memory.application:app`; the portable launcher is `python -m litellm_memory.boot`. `litellm_memory.app:app`, `deploy/Dockerfile.legacy`, and the vendored knowledge runtime are legacy migration paths, not dependencies of the new memory service. See [upgrading](docs/upgrading.md) for compatibility with older installations.
 
 [Architecture](docs/architecture.md) · [Product specification](docs/product-implementation-spec.md) · [Release checklist](docs/release-checklist.md) · [Answer-quality evaluation](docs/answer-quality.md)
 

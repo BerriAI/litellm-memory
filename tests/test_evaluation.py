@@ -9,8 +9,8 @@ import pytest
 from fastapi.testclient import TestClient
 from test_model_settings import application, enroll
 
-from moegent.connector import LocalCapture
-from moegent.evaluation import (
+from litellm_memory.connector import LocalCapture
+from litellm_memory.evaluation import (
     CATEGORIES,
     Case,
     Dataset,

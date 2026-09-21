@@ -52,7 +52,7 @@ Work is attributed to its transcript role and original session/date. Historical 
 For the older product-team knowledge repository, the read-only preview/import adapter is:
 
 ```sh
-uv run python -m moegent.imports /path/to/private/snapshot --actor YOUR_GITHUB_ACTOR --manifest /private/path/manifest.json
+uv run python -m litellm_memory.imports /path/to/private/snapshot --actor YOUR_GITHUB_ACTOR --manifest /private/path/manifest.json
 ```
 
 Read its `--help` before upload. Preview output describes included/skipped records; exact original files and provenance are retained in encrypted evidence. An uploader is not necessarily the speaker. Do not include mixed/unknown-provenance shared notes without checking their source boundary. Keep the legacy MCP until explicit cutover, after the replacement's live capture, historical search and citations are verified.

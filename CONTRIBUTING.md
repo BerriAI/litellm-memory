@@ -22,15 +22,15 @@ For real-history query evaluation, use the [private answer-quality workflow](doc
 
 ## Where to work
 
-- `moegent/application.py`: web API, identity and authorization boundaries.
-- `moegent/archive.py`, `crypto.py`, `ente.py`: encrypted originals, per-person keys, publications and lifecycle.
+- `litellm_memory/application.py`: web API, identity and authorization boundaries.
+- `litellm_memory/archive.py`, `crypto.py`, `ente.py`: encrypted originals, per-person keys, publications and lifecycle.
 - `gateway.py`, `model_settings.py`, `processing.py`: LiteLLM discovery, model settings and cached Jev classification.
 - `observability.py`: allowlisted content-free Logfire/OTLP spans; [setup and usage](docs/observability.md).
 - `query.py`, `memory_slack.py`, `mcp_api.py`: query agent and interfaces.
 - `connector.py`, `imports.py`, `transfer.py`, `migration.py`: capture, historical imports, encrypted files and temporary recipient-key browser transfers.
 - `static/`: the dashboard and progressive setup flow, without a frontend build step.
 
-The internal package name `moegent` is retained for migration compatibility. The original `moegent/app.py` is the legacy assistant, not the new application entry point.
+All application code lives in `litellm_memory`. The original `litellm_memory/app.py` is the legacy assistant; the current entry point is `litellm_memory.application:app`. Compatibility for older launch commands is documented in [upgrading](docs/upgrading.md).
 
 ## Interface standards
 

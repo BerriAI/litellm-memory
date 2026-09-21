@@ -8,6 +8,7 @@ COPY --from=uv /uv /usr/local/bin/uv
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
+COPY litellm_memory ./litellm_memory
 COPY moegent ./moegent
 COPY static ./static
 COPY LICENSE THIRD_PARTY_NOTICES.md ./
@@ -18,4 +19,4 @@ COPY --from=ente /mail-templates /opt/ente/mail-templates
 COPY --from=ente /web-templates /opt/ente/web-templates
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 STATE_DIR=/data PORT=8000
 EXPOSE 8000
-CMD ["python", "-m", "moegent.boot"]
+CMD ["python", "-m", "litellm_memory.boot"]

@@ -27,20 +27,20 @@ dependencies = [
 dev = ["pytest>=8.3", "pytest-asyncio>=0.25", "ruff>=0.11"]
 
 [project.scripts]
-litellm-memory-connector = "moegent.connector:main"
-litellm-memory-transfer = "moegent.transfer_cli:main"
-litellm-memory-evaluate = "moegent.evaluation:main"
+litellm-memory-connector = "litellm_memory.connector:main"
+litellm-memory-transfer = "litellm_memory.transfer_cli:main"
+litellm-memory-evaluate = "litellm_memory.evaluation:main"
 # Compatibility for installed scripts and existing hook commands.
-litemem-connector = "moegent.connector:main"
-litemem-transfer = "moegent.transfer_cli:main"
-litemem-evaluate = "moegent.evaluation:main"
+litemem-connector = "litellm_memory.connector:main"
+litemem-transfer = "litellm_memory.transfer_cli:main"
+litemem-evaluate = "litellm_memory.evaluation:main"
 
 [build-system]
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["moegent*"]
+include = ["litellm_memory*", "moegent"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -1,5 +1,5 @@
 # Render provisions the application and its encrypted Ente data store together.
-# Museum runs privately beside the web process, managed by moegent.boot.
+# Museum runs privately beside the web process, managed by litellm_memory.boot.
 services:
   - type: web
     name: litellm-memory

@@ -7,9 +7,9 @@ import httpx
 from fastapi.testclient import TestClient
 from itsdangerous import TimestampSigner
 
-from moegent.application import create_app
-from moegent.config import Settings
-from moegent.gateway import Gateway
+from litellm_memory.application import create_app
+from litellm_memory.config import Settings
+from litellm_memory.gateway import Gateway
 
 
 class Museum:

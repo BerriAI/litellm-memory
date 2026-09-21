@@ -18,7 +18,7 @@ On Render, use the service's Environment settings and redeploy. With `scripts/se
 
 ```sh
 docker compose --env-file .env.selfhost up -d litellm-memory
-docker compose --env-file .env.selfhost exec litellm-memory python -m moegent.observability
+docker compose --env-file .env.selfhost exec litellm-memory python -m litellm_memory.observability
 ```
 
 Look for `litellm-memory.setup_check` to confirm the backend actually received the test trace. The command's successful completion alone does not prove delivery. Keep write tokens out of Git.

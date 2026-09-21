@@ -12,7 +12,7 @@ The portable image copies the **unmodified Ente Museum server executable and run
 - Verified Linux amd64 child: `sha256:e8770139ea7d58bd9b3661d32f1239473a25079bd3f034aac1effe25de87be71`.
 - Image `GIT_COMMIT` and the running server's `/ping` reported the source revision above.
 
-`moegent/crypto.py` implements compatible libsodium secretstream and secretbox formats. It is not the Ente Photos application, and hosted key custody is different from Ente Photos' client-side, zero-knowledge design. Read [security.md](docs/security.md).
+`litellm_memory/crypto.py` implements compatible libsodium secretstream and secretbox formats. It is not the Ente Photos application, and hosted key custody is different from Ente Photos' client-side, zero-knowledge design. Read [security.md](docs/security.md).
 
 ## Other components
 
