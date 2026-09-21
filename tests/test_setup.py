@@ -6,6 +6,8 @@ from itsdangerous import TimestampSigner
 from test_archive import FakeMuseum
 from test_model_settings import application
 
+from litellm_memory.slack_manifest import BOT_SCOPES
+
 
 def claim(client, app):
     code = app.state.deployment.claim_path.read_text()
@@ -76,6 +78,8 @@ def test_setup_finishes_only_with_verified_installer_models_and_real_storage_rou
         verified_owner(client)
         assert client.post('/api/setup/finish', json={}).status_code == 409
         client.portal.call(app.state.store.setting, 'slack_bot_token', 'TEST-BOT-TOKEN')
+        assert client.post('/api/setup/finish', json={}).status_code == 409
+        client.portal.call(app.state.store.setting, 'slack_scopes', ','.join(BOT_SCOPES))
         async def slack_api(method, payload):
             assert method == 'users.info'
             return {'user': {'id': 'OWNER', 'team_id': 'T', 'profile': {'email': 'owner@berri.ai'}}}
@@ -89,6 +93,22 @@ def test_setup_finishes_only_with_verified_installer_models_and_real_storage_rou
         assert client.get('/api/setup/models').status_code == 403
         assert client.get('/api/me').json()['enrolled']
         assert client.get('/api/setup/status').json() == {'required': False, 'claimed': False}
+
+
+def test_setup_detects_installed_slack_app_missing_required_scopes(tmp_path):
+    app = application(tmp_path, [])
+    with TestClient(app) as client:
+        claim(client, app)
+        assert client.get('/api/setup/status').json()['slack_missing_scopes'] == []
+        client.portal.call(app.state.store.setting, 'slack_bot_token', 'PRIVATE_BOT_TOKEN')
+        previous_scopes = set(BOT_SCOPES) - {'users:read', 'users:read.email'}
+        client.portal.call(app.state.store.setting, 'slack_scopes', ','.join(previous_scopes))
+        result = client.get('/api/setup/status')
+        assert result.json()['slack_installed'] is True
+        assert result.json()['slack_missing_scopes'] == ['users:read', 'users:read.email']
+        assert 'PRIVATE_BOT_TOKEN' not in result.text
+        client.portal.call(app.state.store.setting, 'slack_scopes', ','.join(BOT_SCOPES))
+        assert client.get('/api/setup/status').json()['slack_missing_scopes'] == []
 
 
 def test_setup_rejects_cross_origin_and_credentials_in_gateway_url(tmp_path):

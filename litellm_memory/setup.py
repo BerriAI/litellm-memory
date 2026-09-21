@@ -130,6 +130,9 @@ def install_setup(app, api, deployment, settings, store, archive, gateway, model
     async def status(request: Request):
         result = {"required": not deployment.complete, "claimed": deployment.authorized(request)}
         if result["claimed"]:
+            slack_installed = bool(await store.setting("slack_bot_token") or settings.slack_bot_token)
+            scopes = set((await store.setting("slack_scopes") or "").split(","))
+            missing_scopes = sorted(set(BOT_SCOPES) - scopes) if slack_installed else []
             identity = request.session.get('identity', {})
             verified = bool(identity.get('team_id') == settings.slack_team_id
                             and identity.get('user_id') == settings.slack_owner_user_id
@@ -141,7 +144,7 @@ def install_setup(app, api, deployment, settings, store, archive, gateway, model
                           models_checked=bool(model_service.configuration),
                           jev=deployment.values.get("jev"), storage_configured=bool(archive.museum),
                           slack_configured=bool(settings.slack_client_id),
-                          slack_installed=bool(await store.setting("slack_bot_token") or settings.slack_bot_token),
+                          slack_installed=slack_installed, slack_missing_scopes=missing_scopes,
                           workspace=settings.slack_team_id, identity_verified=verified,
                           allowed_email_domain=settings.allowed_email_domain,
                           timezone=deployment.values.get("timezone", "UTC"))
@@ -256,6 +259,9 @@ def install_setup(app, api, deployment, settings, store, archive, gateway, model
         if (not model_service.configuration or not archive.museum
                 or not (await store.setting("slack_bot_token") or settings.slack_bot_token)):
             raise HTTPException(409, "Connect and check the models and encrypted storage first.")
+        scopes = set((await store.setting("slack_scopes") or "").split(","))
+        if not set(BOT_SCOPES).issubset(scopes):
+            raise HTTPException(409, "Update Slack access before finishing setup. Return to the Slack step to continue.")
         owner = f"{identity['team_id']}:{identity['user_id']}"
         if not await slack.verify_member(owner, fresh=True):
             raise HTTPException(403, 'The installer must be a current eligible Slack member.')

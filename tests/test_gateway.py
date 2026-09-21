@@ -105,3 +105,21 @@ async def test_version_discovery_failure_preserves_missing_jev_diagnosis():
         result = await gateway.probe_jev()
     assert result["status"] == "not_enabled" and result["gateway_version"] is None
     assert "PRIVATE" not in str(result)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('body,status', [
+    ({'detail': {'error_type': 'authentication_error', 'message': 'PRIVATE SECRET'}}, 'provider_auth_failed'),
+    ({'error': {'type': 'auth_error', 'message': 'PRIVATE SECRET'}}, 'authentication_failed'),
+    ({'detail': 'PRIVATE SECRET'}, 'authentication_failed'),
+    (['PRIVATE SECRET'], 'authentication_failed'),
+])
+async def test_jev_auth_diagnosis_distinguishes_provider_key_without_exposing_errors(body, status):
+    async with Gateway(Settings(_env_file=None), httpx.MockTransport(
+            lambda request: httpx.Response(401, json=body))) as gateway:
+        result = await gateway.probe_jev()
+    assert result['status'] == status
+    assert 'PRIVATE' not in str(result)
+    assert 'HTTP 401' in result['message']
+    if status == 'provider_auth_failed':
+        assert 'TYPESAFE_API_KEY' in result['message']

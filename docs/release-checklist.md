@@ -1,6 +1,6 @@
 # Release status
 
-The implementation is on `main`. The existing hosted assistant has not been switched to the new app. This repository is still private; publishing and production cutover are separate release actions.
+The implementation is on `main`, and the private Render service runs the new application through the portable launcher. Admin onboarding is not yet complete. This repository is still private; owner onboarding, team rollout and open-source publication are separate milestones.
 
 ## Verification
 
@@ -12,13 +12,14 @@ Frontend format checks also pass. Browser checks cover first-use intake status, 
 
 ## Before the owner-only pilot
 
-- [ ] Enable TypeSafe Jev on the actual LiteLLM gateway and pass the typed probe. Last checked: gateway 1.102.0 returned 404; its key could not administer the missing route.
+- [x] Enable TypeSafe Jev on the actual LiteLLM gateway and pass the typed probe. On September 21, gateway 1.103.0 returned `jev-1.13.0` through the deployment's existing LiteLLM key after its TypeSafe credential was saved using the admin configuration API.
 - [ ] Verify content logging suppression for chat, embeddings and TypeSafe calls on that gateway.
-- [ ] Update and verify required Slack identity scopes, then complete personal Slack OAuth and hosted capture.
+- [ ] Update and verify required Slack identity scopes, then complete personal Slack OAuth and hosted capture. The installed token authenticates, but its live `users.info` check reports `missing_scope`; `users:read` and `users:read.email` must be approved through the installation flow.
 - [ ] Verify a personal DM and shared-channel audience checks using explicitly authorized test participants.
 - [ ] Import approved owner history, reconcile original hashes/counts, and verify interrupted replay.
 - [ ] Complete the reviewed [real-history answer-quality evaluation](answer-quality.md).
-- [ ] Deploy `litellm_memory.application:app` through the portable launcher, initially owner-only and sharing-off. Verify capture → Ente → processing → explicit Ask → valid citation after restart.
+- [x] Deploy `litellm_memory.application:app` through the portable launcher, initially owner-only and sharing-off. The live service reports Ente storage; an encrypted write/read/delete round trip from the Render instance passed on September 21.
+- [ ] Verify authenticated hosted capture → Ente → processing → explicit Ask → valid citation after restart.
 - [ ] If telemetry is enabled, confirm a test trace arrives and inspect its attributes. Logfire cloud has not been connected by the repository's tests.
 
 ## Before publishing or team rollout
