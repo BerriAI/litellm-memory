@@ -4,6 +4,8 @@ This file distinguishes implementation from verified deployment. It is not a cla
 
 ## Verified on September 20, 2026
 
+- [CI run 35549695308](https://github.com/moe-berri/litemem/actions/runs/35549695308) passed on source `efef0f9`: **134 tests**, Ruff, four frontend module checks, both real Codex/Claude hook checks, and full Docker/PostgreSQL/Ente build, restart and clean-volume recovery/restore. The restore proof now includes encrypted workspace scheduling and personal display preferences. The initial fixture mixed live setup and direct configuration writes; the corrected sequence preserves the same restart/restore assertions.
+
 - The scheduling/date audit passes **134 local tests**. Daily schedules and personal display zones are editable; daily views retain their timezone, late records refresh the relevant day, and unchanged synthesis is reused after access revalidation. The search index caches UTC ordering/boundaries while preserving originals. Browser checks covered save/reload, changed visible dates and an interrupted schedule save/retry. Configuration writes now retain the active state when persistence fails.
 
 - [CI run 35548067130](https://github.com/moe-berri/litemem/actions/runs/35548067130) passed on source `5e82228`: **123 tests**, Ruff, four frontend module checks, both actual CLI hook checks and full Docker/PostgreSQL/Ente build, restart and clean-volume recovery/restore. This source includes the versioned API and compatibility controls.
