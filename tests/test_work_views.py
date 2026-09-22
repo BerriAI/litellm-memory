@@ -45,7 +45,7 @@ async def ready(archive, name, text, when, *, public=False):
 
 
 @pytest.mark.asyncio
-async def test_worker_only_builds_explicitly_requested_views(archive):
+async def test_worker_builds_daily_summaries_automatically_and_current_views_on_request(archive):
     await ready(archive, 'work', 'A source worth asking about', '2026-09-19T01:00:00Z')
     gateway = ViewGateway()
     views = WorkViews(archive, gateway, SimpleNamespace(values={'timezone': 'UTC'}))
@@ -57,13 +57,14 @@ async def test_worker_only_builds_explicitly_requested_views(archive):
     with patch('litellm_memory.work_views.asyncio.sleep', side_effect=stop_when_idle):
         with pytest.raises(asyncio.CancelledError):
             await views.worker()
-        assert gateway.inputs == []  # Starting a worker never sweeps everyone's history.
+        assert len(gateway.inputs) == 1
+        assert gateway.inputs[0]['request']['kind'] == 'daily'
         await views.get(Reader('T1:A'), 'T1:A', ViewRequest())
         with pytest.raises(asyncio.CancelledError):
             await views.worker()
-    assert len(gateway.inputs) == 1
-    assert views.schedule_status()['next_run_at'] is None
-    assert views.schedule_status()['automatic_refresh'] is False
+    assert len(gateway.inputs) == 2
+    assert views.schedule_status()['next_run_at'] is not None
+    assert views.schedule_status()['automatic_refresh'] is True
 
 
 @pytest.mark.asyncio
@@ -96,7 +97,8 @@ async def test_views_keep_private_sources_out_of_public_and_do_not_regenerate_un
 async def test_daily_views_use_work_date_timezone_and_report_pending_or_undated(archive):
     before = await ready(archive, 'before', 'Earlier work', '2026-09-19T01:00:00Z')
     await ready(archive, 'next', 'Next day work', '2026-09-19T12:00:00Z')
-    await archive.capture('T1:A', WorkInput(source_id='pending', content='Unprocessed', occurred_at='2026-09-19T02:00:00Z'))
+    pending = await archive.capture('T1:A', WorkInput(source_id='pending', content='Unprocessed',
+                                                   occurred_at='2026-09-19T02:00:00Z'))
     await archive.capture('T1:A', WorkInput(source_id='undated', content='Unknown date'))
     gateway = ViewGateway()
     views = WorkViews(archive, gateway, SimpleNamespace(values={'timezone': 'America/Los_Angeles'}))
@@ -105,8 +107,8 @@ async def test_daily_views_use_work_date_timezone_and_report_pending_or_undated(
     await views.get(Reader('T1:A'), 'T1:A', request)
     await views.build(await views.next())
     view = (await views.get(Reader('T1:A'), 'T1:A', request))['view']
-    assert view['source_ids'] == [before]
-    assert view['coverage'] == {'total': 2, 'included': 1, 'pending': 1, 'older_not_included': 0, 'undated': 1}
+    assert set(view['source_ids']) == {before, pending['id']}
+    assert view['coverage'] == {'total': 2, 'included': 2, 'pending': 1, 'older_not_included': 0, 'undated': 1}
     await archive.delete('T1:A', before)
     assert not any(key.startswith('view:') for key in archive.museum.entities)
     assert (await views.get(Reader('T1:A'), 'T1:A', request))['view'] is None

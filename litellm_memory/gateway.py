@@ -271,7 +271,8 @@ class Gateway:
                 raise GatewayError("complete finite embeddings", 502) from None
             return vectors
 
-    async def generate(self, messages: list[dict], *, model: str | None = None, json_output=False):
+    async def generate(self, messages: list[dict], *, model: str | None = None, json_output=False,
+                       timeout=90, max_tokens=None):
         with self.telemetry.operation(
                 'generation', model=model or self.settings.background_model or self.settings.litellm_model):
             # A chat route may translate system messages into Responses instructions.
@@ -283,7 +284,9 @@ class Gateway:
                     "messages": inputs, "no-log": True}
             if json_output:
                 body["response_format"] = {"type": "json_object"}
-            response = await self.http.post(self.root + "/v1/chat/completions", json=body)
+            if max_tokens is not None:
+                body['max_tokens'] = max_tokens
+            response = await self.http.post(self.root + "/v1/chat/completions", json=body, timeout=timeout)
             if not response.is_success:
                 raise GatewayError("generation", response.status_code)
             content = response.json()["choices"][0]["message"]["content"]

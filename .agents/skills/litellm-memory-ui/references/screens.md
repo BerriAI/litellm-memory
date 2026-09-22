@@ -18,6 +18,14 @@ Search opens a native dialog near the top of the viewport, without navigating or
 
 For someone else's feed, show a compact identity header and Back to Company action; scope the question to their shared work. Person routes survive reload and browser Back. Changing the feed/person clears temporary filters; saved exclusions remain enforced. Do not expose private counts, hidden titles, or inaccessible source previews merely to fill the layout.
 
+## Daily summaries
+
+**Task:** understand what a person or the company worked on during a particular day.
+
+**Order:** page/person identity → Company/My work and date → author/audience → readable summary → sources. Use one reading column with quiet separators between people. Previous/Next skip to dates with accessible memories; a native date input opens any date. Show the workspace timezone. Summaries cover completed days only; today’s work is available in Activity. Do not infer inactivity from an empty day.
+
+Person pages provide Activity and Daily summaries navigation using the same summary renderer. Person, scope and date routes survive reload and Back. Keep loading, updating, paused and failed states distinct. Owner summaries show a lock and Private; company summaries contain only approved publications. Reuse the source dialog for citations. The same summaries are available to Ask and Slack; the UI does not generate a separate account of the day.
+
 ## Ask: empty, active, answered
 
 **Task:** get a grounded answer about accessible work.

@@ -17,9 +17,10 @@ The actual application, shown with synthetic local records. See [Ask](docs/asset
 ## What it does
 
 - **Browse:** Company opens first, with a chronological feed and Slack profiles. Open a teammate’s shared activity or switch to My work.
+- **Daily summaries:** browse a day of company work or your own history, or switch between Activity and Daily summaries on a person’s page. Complete days generate automatically from all of that day’s accessible memories, in chronological order.
 - **Record:** connect Codex or Claude Code once. Your agent saves useful work context and can skip turns with nothing new. Connection status shows when work actually arrives.
 - **Share deliberately:** work starts private. Preview a memory before sharing it, or opt in to sharing new memories. Agent-written memories are kept as written, without another model rewrite. TypeSafe Jev checks your private topics in parallel and caches completed checks.
-- **Ask:** get cited answers through the web, Slack, API or MCP, limited to the evidence the audience can access. No automatic recall on coding turns or scheduled daily digests.
+- **Ask:** get cited answers through the web, Slack, API or MCP, limited to the evidence the audience can access. Daily summaries are available in the app and to the same agent in Slack. No automatic recall on coding turns.
 - **Use your gateway:** model choices come from LiteLLM. Optional [Pydantic Logfire](docs/observability.md) shows usage and latency without private content.
 
 See the [member guide](docs/member-guide.md) for filtering, privacy, exports and account controls.

@@ -9,10 +9,16 @@ const $ = (id) => document.getElementById(id);
 initializeTransfer();
 const state = {
   me: null,
+  routeReady: false,
   people: [],
   view: "home",
   feed: "shared",
   person: null,
+  dailyPerson: null,
+  dailyScope: "shared",
+  dailyDay: null,
+  dailyVersion: 0,
+  dailyTimer: null,
   next: null,
   feedVersion: 0,
   searchVersion: 0,
@@ -44,6 +50,7 @@ const state = {
 };
 // Lucide paths: one 24px grid and one stroke system, no nested icon wrappers.
 const icons = {
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
   refresh:
     '<path d="M3 11a9 9 0 0 1 15-6l3 3M21 3v5h-5M21 13a9 9 0 0 1-15 6l-3-3M3 21v-5h5" />',
   activity:
@@ -301,8 +308,12 @@ function markdown(target, text) {
   });
 }
 function expireSession() {
+  state.routeReady = false;
   state.sessionVersion++;
   state.feedVersion++;
+  state.dailyVersion++;
+  clearTimeout(state.dailyTimer);
+  $("daily-list").replaceChildren();
   state.searchVersion++;
   state.searchRequest = null;
   state.chatVersion++;
@@ -352,6 +363,7 @@ const viewNames = {
   home: "Activity",
   ask: "Ask",
   people: "People",
+  daily: "Daily summaries",
   connections: "Connections",
   settings: "Settings",
 };
@@ -359,6 +371,8 @@ function setView(view, { navigate = true } = {}) {
   if (!viewNames[view]) view = "home";
   const changed = state.view !== view;
   state.view = view;
+  clearTimeout(state.dailyTimer);
+  if (view !== "daily") state.dailyVersion++;
   document.body.dataset.view = view;
   document.title = `${viewNames[view]} · LiteLLM Memory`;
   for (const name of Object.keys(viewNames))
@@ -377,7 +391,7 @@ function setView(view, { navigate = true } = {}) {
         : state.feed === "mine"
           ? "mine"
           : "home"
-      : view;
+      : view === "daily" ? dailyRoute() : view;
   if (navigate && location.hash !== `#${route}`)
     history.pushState(null, "", `/#${route}`);
   if (view === "connections")
@@ -387,6 +401,7 @@ function setView(view, { navigate = true } = {}) {
       $("settings-status").textContent = explain(error);
     });
   if (view === "people") renderPeople();
+  if (view === "daily") loadDaily();
   if (changed) {
     window.scrollTo({ top: 0, behavior: "instant" });
     if (view === "ask") $("question").focus({ preventScroll: true });
@@ -421,6 +436,11 @@ function openFeed(feed = "shared", person = null, { navigate = true } = {}) {
 }
 function restoreRoute() {
   const route = location.hash.slice(1);
+  if (route === "daily" || route.startsWith("daily?")) {
+    const params = new URLSearchParams(route.split("?")[1] || "");
+    return openDaily({ person: params.get("person"), scope: params.get("scope") || "shared",
+      day: params.get("day"), navigate: false });
+  }
   if (route === "mine") return openFeed("mine", null, { navigate: false });
   if (route.startsWith("person/")) {
     let id;
@@ -440,7 +460,7 @@ function restoreRoute() {
   setView(route, { navigate: false });
 }
 window.addEventListener("popstate", () => {
-  if (state.me?.enrolled) restoreRoute();
+  if (state.me?.enrolled && state.routeReady) restoreRoute();
 });
 function showEmpty(container, title, description, action) {
   const box = el("div", "", "empty-state");
@@ -485,6 +505,7 @@ async function loadFeed(append = false) {
   const selected =
     state.person && state.person !== state.me.id ? profile(state.person) : null;
   show("person-context", Boolean(selected));
+  show("person-views", Boolean(selected) || state.feed === "mine");
   if (selected) {
     const identity = $("person-context-identity");
     const copy = el("div");
@@ -681,6 +702,136 @@ function feedCard(memory) {
 function openPerson(id) {
   openFeed(id === state.me.id ? "mine" : "shared", id);
 }
+
+function dailyRoute() {
+  const params = new URLSearchParams({ scope: state.dailyScope });
+  if (state.dailyPerson) params.set("person", state.dailyPerson);
+  if (state.dailyDay) params.set("day", state.dailyDay);
+  return "daily?" + params;
+}
+function openDaily({ person = null, scope = "shared", day = null, navigate = true } = {}) {
+  state.dailyPerson = person;
+  state.dailyScope = scope === "mine" ? "mine" : "shared";
+  state.dailyDay = day;
+  setView("daily", { navigate });
+}
+function summaryCard(summary) {
+  const card = el("article", "", "daily-summary");
+  const cited = [...new Set((summary.view?.items || []).flatMap((item) => item.sources))];
+  const heading = el("div", "", "daily-summary-heading");
+  const person = profile(summary.owner);
+  const name = el("button", summary.owner === state.me.id ? "You" : person.name, "person-link");
+  name.onclick = () => openDaily({ person: summary.owner, scope: state.dailyScope, day: state.dailyDay });
+  const title = el("h2");
+  title.append(name);
+  heading.append(avatar(person), title);
+  card.append(heading);
+  const meta = el("p", "", "daily-summary-meta");
+  if (summary.audience === "owner") meta.append(icon("lock"));
+  meta.append(document.createTextNode(summary.audience === "owner" ? "Private" : "Company"));
+  if (summary.view) {
+    const count = summary.view.coverage.included;
+    meta.append(document.createTextNode(` · ${count} ${count === 1 ? "memory" : "memories"}`));
+  }
+  card.append(meta);
+  if (summary.status !== "ready" || summary.stale) {
+    const status = summary.status === "paused" ? "Summary generation is paused in Settings."
+      : summary.status === "failed" ? "Couldn’t finish this summary. It will retry automatically."
+      : summary.stale && summary.view ? "Updating with the latest memories…" : "Preparing this day’s summary…";
+    card.append(el("p", status, "field-help"));
+  }
+  for (const item of summary.view?.items || []) {
+    const paragraph = el("div", "", "daily-paragraph");
+    paragraph.append(el("p", item.text));
+    const links = el("div", "", "daily-sources");
+    item.sources.forEach((id) => {
+      const link = el("a", `Source ${cited.indexOf(id) + 1}`);
+      link.href = `/memory/${encodeURIComponent(id)}`;
+      link.onclick = (event) => {
+        event.preventDefault();
+        openMemory(id).catch((error) => toast(explain(error)));
+      };
+      links.append(link);
+    });
+    paragraph.append(links);
+    card.append(paragraph);
+  }
+  if (summary.view && !summary.view.items.length) card.append(el("p", "No summary is available for these memories."));
+  return card;
+}
+async function loadDaily({ background = false } = {}) {
+  if (!state.me?.enrolled || state.view !== "daily") return;
+  clearTimeout(state.dailyTimer);
+  const version = ++state.dailyVersion;
+  const params = new URLSearchParams({ audience: state.dailyScope === "mine" ? "owner" : "public" });
+  if (state.dailyPerson || state.dailyScope === "mine") params.set("owner", state.dailyPerson || state.me.id);
+  if (state.dailyDay) params.set("day", state.dailyDay);
+  const person = state.dailyPerson ? profile(state.dailyPerson) : null;
+  show("daily-person-context", Boolean(person));
+  show("daily-person-views", Boolean(person) || state.dailyScope === "mine");
+  show("daily-scopes", !person);
+  if (person) {
+    const copy = el("div");
+    copy.append(el("h2", person.name), el("p", state.dailyScope === "mine" && person.id === state.me.id
+      ? "Your recorded work" : "Work shared with your company"));
+    $("daily-person-identity").replaceChildren(avatar(person), copy);
+  }
+  document.querySelectorAll("[data-daily-scope]").forEach((button) => {
+    const selected = button.dataset.dailyScope === state.dailyScope;
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  show("daily-error", false);
+  if (!background) {
+    $("daily-list").replaceChildren();
+    $("daily-status").textContent = "Loading summaries…";
+    $("daily-previous").disabled = true;
+    $("daily-next").disabled = true;
+  }
+  try {
+    const result = await api("/api/v1/daily-summaries?" + params);
+    if (version !== state.dailyVersion || state.view !== "daily") return;
+    state.dailyDay = result.day;
+    history.replaceState(null, "", `/#${dailyRoute()}`);
+    $("daily-date").value = result.day;
+    $("daily-date").max = result.latest_day;
+    $("daily-timezone").textContent = `Days use ${result.timezone.replaceAll("_", " ")} time.`;
+    $("daily-status").textContent = "";
+    show("daily-filters", result.personal_filters_active);
+    const earlier = result.days.find((day) => day < result.day);
+    const later = [...result.days].reverse().find((day) => day > result.day);
+    for (const [id, day] of [["daily-previous", earlier], ["daily-next", later]]) {
+      $(id).disabled = !day;
+      $(id).onclick = () => openDaily({ person: state.dailyPerson, scope: state.dailyScope, day });
+    }
+    const list = $("daily-list");
+    list.replaceChildren(...result.summaries.map(summaryCard));
+    if (!result.summaries.length) showEmpty(list, "No recorded work for this day",
+      state.dailyScope === "shared" ? "Shared memories will appear here as daily summaries." : "Choose another day to see your recorded work.");
+    if (result.summaries.some((s) => ["pending", "processing", "failed"].includes(s.status) || (s.stale && s.status !== "paused"))) {
+      state.dailyTimer = setTimeout(() => {
+        if (!document.hidden && !list.contains(document.activeElement)) loadDaily({ background: true });
+      }, 5000);
+    }
+  } catch (error) {
+    if (version !== state.dailyVersion || !state.me) return;
+    $("daily-status").textContent = "";
+    $("daily-error").textContent = explain(error) + " Use Refresh to try again.";
+    show("daily-error");
+  }
+}
+$("person-daily").onclick = () => openDaily({ person: state.person || state.me.id, scope: state.feed });
+$("daily-company").onclick = () => openDaily({ day: state.dailyDay });
+$("daily-activity").onclick = () => state.dailyPerson ? openPerson(state.dailyPerson) : openFeed(state.dailyScope);
+$("refresh-daily").onclick = () => busy($("refresh-daily"), () => loadDaily());
+$("daily-date").onchange = () => {
+  if ($("daily-date").value && $("daily-date").checkValidity())
+    openDaily({ person: state.dailyPerson, scope: state.dailyScope, day: $("daily-date").value });
+};
+$("daily-filters").onclick = () => editViewPreferences();
+document.querySelectorAll("[data-daily-scope]").forEach((button) => {
+  button.onclick = () => openDaily({ scope: button.dataset.dailyScope, day: state.dailyDay });
+});
 
 async function openMemory(id) {
   const version = ++state.memoryVersion;
@@ -1723,6 +1874,7 @@ async function signOut() {
   }
 }
 async function initialize() {
+  state.routeReady = false;
   for (const span of document.querySelectorAll("[data-icon]"))
     span.replaceChildren(icon(span.dataset.icon));
   renderToday();
@@ -1812,6 +1964,7 @@ async function initialize() {
     if (!state.me?.enrolled) return;
     show("boot-status", false);
     show("workspace");
+    state.routeReady = true;
     restoreRoute();
     refreshRecording();
     const match = location.pathname.match(/^\/memory\/([^/]+)$/);
@@ -1834,6 +1987,7 @@ async function initialize() {
 document.querySelectorAll("[data-view]").forEach((button) => {
   button.addEventListener("click", () => {
     if (button.dataset.view === "home") openFeed();
+    else if (button.dataset.view === "daily") openDaily();
     else setView(button.dataset.view);
   });
 });

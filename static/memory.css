@@ -478,8 +478,7 @@ kbd {
   border: 0;
   padding: 0;
 }
-.workspace-ready #main,
-.workspace-ready .footer {
+.workspace-ready #main {
   margin-left: var(--sidebar-width);
 }
 body:not(.workspace-ready) .sidebar {
@@ -488,10 +487,6 @@ body:not(.workspace-ready) .sidebar {
   height: 72px;
   border: 0;
   background: var(--paper);
-}
-body:not(.workspace-ready) .footer {
-  max-width: 1000px;
-  margin: auto;
 }
 .page {
   width: 100%;
@@ -521,19 +516,6 @@ body:not(.workspace-ready) .footer {
   font-size: 12px;
   color: var(--muted);
   margin: 7px 0 0;
-}
-.footer {
-  padding: 18px 36px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  gap: 16px;
-}
-.footer > span:first-child {
-  font-weight: 600;
 }
 
 /* Activity has one primary reading column and a small contextual rail. */
@@ -1187,9 +1169,6 @@ button.privacy-filtered:hover {
 .chat-composer .fine-print {
   font-size: 11px;
   margin-top: 9px;
-}
-body[data-view="ask"] .footer {
-  display: none;
 }
 
 /* People and settings expose information in small, consistent groups. */
@@ -2178,7 +2157,7 @@ dialog::backdrop {
     grid-column: 1 / -1;
     margin: 8px 0 0;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
   }
   .nav-caption {
@@ -2409,10 +2388,6 @@ dialog::backdrop {
   }
   .copy-row .button {
     min-height: 40px;
-  }
-  .footer {
-    padding: 20px 18px;
-    font-size: 10px;
   }
   dialog {
     padding: 20px;
@@ -2800,4 +2775,28 @@ dialog::backdrop {
   #settings-view .settings-tabs {
     gap: 16px;
   }
+}
+
+/* Daily summaries share one reading surface across company and person routes. */
+#daily-view { max-width: 880px; }
+.person-views { display: flex; gap: 24px; border-bottom: 1px solid var(--line); margin: 0 0 24px; }
+.person-views button { padding: 10px 0; font-size: var(--text-control); border-bottom: 2px solid transparent; }
+.person-views button[aria-current] { border-color: var(--ink); font-weight: 600; }
+.daily-toolbar, .daily-date-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.daily-toolbar { justify-content: space-between; }
+.daily-date-controls input { width: auto; min-width: 0; font-size: var(--text-control); }
+.daily-summary { padding: 28px 0; border-bottom: 1px solid var(--line); }
+.daily-summary-heading { display: flex; align-items: center; gap: 12px; }
+.daily-summary-heading h2 { margin: 0; font-size: var(--text-section); }
+.daily-summary-meta { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: var(--text-meta); margin: 8px 0 20px; }
+.daily-summary-meta .icon { width: 12px; height: 12px; }
+.daily-paragraph { margin-top: 20px; }
+.daily-paragraph p { margin: 0; line-height: 1.75; color: var(--body); overflow-wrap: anywhere; }
+.daily-sources { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; font-size: var(--text-meta); }
+#daily-status:empty { display: none; }
+@media (max-width: 560px) {
+  .daily-toolbar { align-items: stretch; gap: 8px; }
+  .daily-date-controls { gap: 4px; justify-content: space-between; width: 100%; }
+  .daily-date-controls .button { padding-inline: 6px; }
+  .daily-summary { padding: 24px 0; }
 }

@@ -6,7 +6,7 @@ from contextvars import ContextVar
 from functools import wraps
 
 request_source = ContextVar('litellm_memory_request_source', default='api')
-TOOLS = {'search_work', 'read_work', 'list_people', 'work_overview', 'update_status'}
+TOOLS = {'search_work', 'read_work', 'list_people', 'work_overview', 'daily_summaries', 'update_status'}
 
 
 class Operation:

@@ -6,7 +6,7 @@ import hashlib
 import json
 import secrets
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import date, datetime
 from html import escape
 from typing import Literal
 from urllib.parse import urlsplit
@@ -475,6 +475,11 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     async def overview(owner: str, body: ViewRequest, request: Request):
         same_origin(request)
         return await views.get(Reader(await account(request)), owner, body)
+
+    @api.get('/daily-summaries')
+    async def daily_summaries(request: Request, day: date | None = None, owner: str | None = None,
+                              audience: Literal['owner', 'public'] = 'public'):
+        return await views.daily(Reader(await account(request), audience), day=day, owner=owner)
 
     @api.post("/memories")
     async def capture(body: WorkInput, request: Request):

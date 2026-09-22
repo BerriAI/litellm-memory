@@ -28,7 +28,11 @@ In **Settings → Preferences → Browsing → Exclude from my feed and Ask**, h
 
 Project and source names match without regard to capitalization. Enter one per line. Existing type metadata remains searchable; older saved type exclusions are retained. Changing viewing choices does not call Jev again.
 
-Ask questions such as “What did Tin work on yesterday?” directly in Ask. There is no separate Catch up screen or automatic daily-summary sweep. Requested overviews use dated sources and do not rewrite originals. **Connections** shows processing failures and a retry action.
+**Daily summaries** lets you choose Company or My work and browse by date. Previous and Next move between days with accessible memories; the date picker opens any day. On a person’s page, switch between Activity and Daily summaries. Summaries cover completed days and generate automatically. Use Activity for today’s work. Refresh checks for new memories. Summaries use the workspace timezone shown beside the date controls, so everyone means the same day.
+
+Each summary reads all of that day’s permitted memories in chronological order and links back to its sources. Your private summary can include private work; a teammate’s summary contains only company-shared work. Undated live memories use their recorded time; undated historical imports are not assigned a guessed day. Missing records are not evidence that someone did no work.
+
+Ask “What did Tin work on yesterday?” in Ask or Slack. Both agents can read the same daily summaries and inspect sources for more detail. Summary generation and retries run in the background; the page distinguishes preparing, updating, failed and paused states. **Connections** shows individual-memory processing failures and their retry action.
 
 **Settings → Preferences** lets you choose your display time zone or follow your device. Dates and feed date filters use that choice; original timestamps stay unchanged. A date without an original timezone is marked as incomplete and excluded from exact date ranges.
 

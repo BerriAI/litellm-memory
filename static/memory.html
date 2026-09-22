@@ -34,6 +34,9 @@
         <button class="nav-link active" data-view="home">
           <span data-icon="activity"></span>Activity
         </button>
+        <button class="nav-link" data-view="daily">
+          <span data-icon="calendar"></span>Daily summaries
+        </button>
         <button class="nav-link" data-view="ask">
           <span data-icon="chat"></span>Ask
         </button>
@@ -396,6 +399,10 @@
                   Back to Company
                 </button>
               </section>
+              <nav class="person-views" id="person-views" aria-label="Person views" hidden>
+                <button aria-current="page" type="button">Activity</button>
+                <button id="person-daily" type="button">Daily summaries</button>
+              </nav>
               <form class="home-ask" id="home-ask-form">
                 <label class="home-ask-label" for="home-question"
                   >Ask about this work</label
@@ -604,6 +611,37 @@
               Reload models
             </button>
           </form>
+        </section>
+        <section class="page" hidden id="daily-view">
+          <div class="page-heading">
+            <h1>Daily summaries</h1>
+            <button class="button quiet small" id="refresh-daily"><span data-icon="refresh"></span>Refresh</button>
+          </div>
+          <section class="person-context" id="daily-person-context" hidden aria-label="Selected person">
+            <div class="person-context-identity" id="daily-person-identity"></div>
+            <button class="text-button" id="daily-company">Back to Company</button>
+          </section>
+          <nav class="person-views" id="daily-person-views" aria-label="Person views" hidden>
+            <button id="daily-activity" type="button">Activity</button>
+            <button aria-current="page" type="button">Daily summaries</button>
+          </nav>
+          <div class="daily-toolbar">
+            <div class="segmented" id="daily-scopes" role="group" aria-label="Summary visibility">
+              <button data-daily-scope="shared" aria-pressed="true" class="selected">Company</button>
+              <button data-daily-scope="mine" aria-pressed="false">My work</button>
+            </div>
+            <div class="daily-date-controls">
+              <button class="button quiet small" id="daily-previous" aria-label="Previous day with memories">Previous</button>
+              <label class="sr-only" for="daily-date">Summary date</label>
+              <input type="date" id="daily-date" />
+              <button class="button quiet small" id="daily-next" aria-label="Next day with memories">Next</button>
+            </div>
+          </div>
+          <p class="field-help" id="daily-timezone"></p>
+          <button class="text-button" id="daily-filters" hidden>Personal viewing filters are active</button>
+          <p class="inline-error" id="daily-error" role="alert" hidden></p>
+          <p class="field-help" id="daily-status" role="status"></p>
+          <div id="daily-list"></div>
         </section>
         <section class="page" hidden="" id="people-view">
           <div class="page-heading">
@@ -1224,13 +1262,6 @@
         </section>
       </div>
     </main>
-    <footer class="footer">
-      <span>LiteLLM Memory</span
-      ><span
-        >LiteLLM Labs <span aria-hidden="true">·</span> Built with Ente &amp;
-        LiteLLM</span
-      >
-    </footer>
     <dialog
       aria-labelledby="search-title"
       class="work-search-dialog"

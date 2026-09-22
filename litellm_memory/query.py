@@ -5,7 +5,7 @@ import contextlib
 import json
 import re
 import time
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from urllib.parse import urlsplit
 
 from agents import Agent, ModelSettings, OpenAIChatCompletionsModel, RunConfig, Runner, function_tool
@@ -159,6 +159,24 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
         return json.dumps(result)
 
     @function_tool
+    @telemetry.tool("daily_summaries")
+    async def daily_summaries(day: str | None = None, person: str | None = None) -> str:
+        """Read stored summaries for completed days. day is YYYY-MM-DD; omit for the latest available day.
+
+        Uses the same summaries as the app. A person ID is optional for a team catch-up.
+        """
+        await check_access()
+        if scope and person and person != scope:
+            return json.dumps({'error': 'Outside the selected person’s scope'})
+        await report('Reading daily summaries')
+        result = await archive.views.daily(reader, day=date.fromisoformat(day) if day else None,
+                                           owner=scope or person)
+        for summary in result['summaries']:
+            if summary.get('view'):
+                sources.update(summary['view']['source_ids'])
+        return json.dumps(result)
+
+    @function_tool
     @telemetry.tool("update_status")
     async def update_status(message: str) -> str:
         """Show one brief, concrete progress update while looking up a question."""
@@ -178,6 +196,12 @@ For "what has someone been up to", give 3–5 short bullets about their latest w
 with citations. Default to at most 200 words unless the question asks for more detail. Do not turn a
 short burst of updates into a long chronological narrative or add praise about the quality of the work.
 For a work question, search, then read the relevant records. Resolve a person's ID with list_people.
+For a daily recap or what someone did on a particular day, start with daily_summaries. It returns
+the same stored summaries shown in the app, their dates, timezone, freshness, and source IDs.
+Use its timezone and today to resolve relative dates. Cite its source IDs; read_work is available
+for details or verification. Summaries cover completed days only; search source records for today.
+If a summary is pending, stale, failed, or paused, say so and search
+the day's source records when needed. Do not present a partial summary as the complete day.
 Use exact names/IDs and dates as well as meaning. Follow leads with further searches when helpful.
 Cite each supported claim with [source title]({settings.public_base_url}/memory/ACTUAL_RECORD_ID).
 Use only actual returned IDs. Explain when evidence is incomplete or processing is pending.
@@ -201,7 +225,7 @@ Before substantial research give a short update with update_status; skip for gre
 """,
             model=OpenAIChatCompletionsModel(model=model, openai_client=client),
             model_settings=ModelSettings(extra_body={"no-log": True}, parallel_tool_calls=True),
-            tools=[search_work, read_work, list_people, work_overview, update_status],
+            tools=[search_work, read_work, list_people, work_overview, daily_summaries, update_status],
         )
         result = Runner.run_streamed(agent, [*(history or [])[-16:], {"role": "user", "content": question}],
                                      max_turns=settings.max_agent_turns,

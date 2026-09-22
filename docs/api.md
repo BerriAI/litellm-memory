@@ -8,7 +8,7 @@ The web app, Slack adapter and remote MCP share one API/backend. The public API 
 | --- | --- |
 | `GET /api/v1/me` | Browser identity, enrollment and settings summary. |
 | `GET /api/v1/recording-status` | Own connection count, persisted intake receipt and processing counts; never teammate activity. |
-| `GET /api/v1/schedule` | Legacy date configuration; automatic refresh is off and `next_run_at` is null. |
+| `GET /api/v1/schedule` | Workspace date configuration, automatic daily refresh and the next scheduled time. |
 | `PUT /api/v1/admin/schedule` | Browser admin saves timezone/daily time with the current revision. |
 | `GET /api/v1/display-preferences` | Authenticated member reads their private display timezone; null follows the device. |
 | `PUT /api/v1/display-preferences` | Browser member changes their own display timezone, without changing access or sharing. |
@@ -24,6 +24,7 @@ The web app, Slack adapter and remote MCP share one API/backend. The public API 
 | `GET /api/v1/sharing/preview-existing` | Owner browser only; counts of eligible and skipped private records, plus a confirmation revision. |
 | `POST /api/v1/sharing/existing` | Owner browser only; `{"revision":"…"}` queues only eligible records from the unchanged preview. Stale previews return 400 and require review again. |
 | `GET /api/v1/people` | Enrolled Slack profiles, without others' private activity counts. |
+| `GET /api/v1/daily-summaries` | Browse available dates and stored summaries; optional completed `day=YYYY-MM-DD`, `owner`, and `audience=public` (default) or `owner`. Identity still constrains access. Returns timezone, today, latest completed day, available days, summaries and processing state. Missing/stale views are queued. |
 | `POST /api/v1/people/{owner}/overview` | Current/daily/project overview and coverage. |
 | `POST /api/v1/chat` | Queue an explicit memory query; returns a job ID. |
 | `GET /api/v1/jobs/{id}` | Authorized query progress/result. |
@@ -113,9 +114,9 @@ Retry network errors, `429` after its indicated delay, and temporary `5xx` using
 
 ## Scheduling and display
 
-Overview generation is on demand. The worker only builds views explicitly requested through Ask or the overview API; it does not periodically scan everyone’s history. Existing generated views remain available and are checked against current evidence and permissions.
+Daily summaries generate automatically for completed days. The existing worker reconciles source metadata once a minute, catches up missed days, and refreshes affected days after late captures. The date browser or agents can also queue missing summaries. Current overviews remain on demand. Generated views are checked against current evidence and permissions before delivery.
 
-The compatibility schedule endpoints retain `timezone`, `daily_time` and `revision`. They return `automatic_refresh: false` and `next_run_at: null`; saving them does not enable a scheduler. The timezone still defines requested daily view boundaries, and a queued view retains its original timezone.
+Schedule endpoints return `timezone`, `daily_time`, `revision`, `automatic_refresh: true` and `next_run_at`. The workspace timezone defines daily boundaries, and a queued view retains its original timezone. The default daily time is 02:00. Today and future dates are rejected by daily-summary reads; agents use source records to answer questions about today.
 
 `GET /api/v1/recording-status` returns only the authenticated member’s `capture_enabled`, `agent_enabled`, `connected_clients`, `received`, `last_received_at` (Unix seconds or null), and processing `stats`. Receipts exclude historical imports, deleted records and intake awaiting storage. They are not hook heartbeats. A client counts as connected only while not revoked and its access credential or unconsumed refresh credential remains valid. The endpoint does not run inference or retrieval.
 

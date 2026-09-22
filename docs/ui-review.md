@@ -16,7 +16,7 @@ Setup uses one spacing pattern: section title and explanation, related fields, t
 
 ## Search and the compact header
 
-Search opens a panel near the top of the window, keeping scope and results together. It leaves the page underneath in place. Submit explicitly, open sources from results, and use Escape or Close to return. In the compact header the wordmark, Search and account control share a center line; the five destinations are evenly spaced below.
+Search opens a panel near the top of the window, keeping scope and results together. It leaves the page underneath in place. Submit explicitly, open sources from results, and use Escape or Close to return. In the compact header the wordmark, Search and account control share a center line; the six destinations occupy two evenly spaced rows below on narrow screens.
 
 ![Search](assets/search.jpg)
 
@@ -27,6 +27,12 @@ Search opens a panel near the top of the window, keeping scope and results toget
 Company is the first tab and opens by default; My work is second. Ask about the selected feed, or open an entry to inspect its source. Private entries carry both a lock and a label. Date and time align at the right. Read more expands the complete memory inline; Show less collapses it. The title independently opens detail.
 
 ![Activity](assets/dashboard.jpg)
+
+## Daily summaries
+
+The sidebar date browser has Company/My work scopes, Previous/Next navigation across available days and a date picker. Person views reuse the same summaries with Activity/Daily summaries navigation. Each author has one readable text section, an audience label and source links. Summaries cover completed days only; today stays in Activity. All dates use the displayed workspace timezone.
+
+The September 22 review uses synthetic records and simulated inference. The new view was checked at desktop, 687px, 390px and 320px, including loading, populated, empty-day and read-failure/retry states; person navigation, reload/Back, date changes, private labels and source dialogs. The workspace footer has been removed. Existing screenshots below predate the additional navigation destination. This review does not certify million-token inference or live Slack delivery.
 
 ## People and recording
 

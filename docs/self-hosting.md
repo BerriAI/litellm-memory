@@ -78,11 +78,13 @@ In **Settings → Models → LiteLLM connection**, an administrator can rotate t
 
 Domain-mode workspaces can transfer administration to another enrolled, currently eligible Slack member from Settings. This transfers workspace configuration authority, without granting access to private memories. The owner-only pilot disables this control.
 
-## Dates and on-demand overviews
+## Dates and daily summaries
 
-New records are processed continuously. Current or daily overviews are built only when requested through Ask or the overview API; no periodic history sweep or external cron is required. Existing source records and saved views remain available.
+New records are processed continuously. The existing view worker generates daily summaries for completed days at the workspace daily time (02:00 by default), catches up after downtime, and updates affected days after late captures. Metadata reconciliation runs once a minute; unchanged inputs do not generate another model call. No external cron or additional service is required. Current overviews remain on demand.
 
-Personal display timezones are controlled in **Settings → Preferences**, persist in encrypted member profiles and affect presentation/date filters only. Requested daily overviews use the workspace timezone chosen during setup. Legacy schedule settings remain readable through the compatibility API, with automatic refresh disabled. Timezone data is included in the image.
+Personal display timezones are controlled in **Settings → Preferences**, persist in encrypted member profiles and affect presentation/date filters only. Daily summaries use the workspace timezone chosen during setup. The schedule API reports the next run; administrators can update its timezone and daily time through `PUT /api/v1/admin/schedule`. Timezone data is included in the image.
+
+Daily summaries send the complete day to the configured background model. Choose a LiteLLM model with enough input capacity for your largest day (up to roughly one million tokens, plus prompt and output overhead). The app does not silently drop memories to fit a smaller model. Calls allow ten minutes; failures retry after five minutes. Private and company summaries use separate input sets and may require separate calls.
 
 ## External Ente
 

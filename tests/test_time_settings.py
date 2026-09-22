@@ -162,18 +162,19 @@ async def test_scheduled_jobs_coalesce_missed_days_and_resume_without_duplicate_
 
     await views.schedule(datetime(2026, 3, 8, 9, 59, tzinfo=UTC))
     await drain()
-    assert len(gateway.inputs) == 1  # Current work; the latest due daily period is March 6.
+    assert len(gateway.inputs) == 0  # March 7 is not yet due; no empty days are generated.
     await views.schedule(datetime(2026, 3, 8, 10, tzinfo=UTC))
     await drain()
-    assert len(gateway.inputs) == 2  # March 7 catch-up, when the skipped 02:00 reaches 03:00.
+    assert len(gateway.inputs) == 1  # March 7 catch-up, when the skipped 02:00 reaches 03:00.
     await views.open()  # Startup reconciliation with durable queue state retained.
     await views.schedule(datetime(2026, 3, 8, 10, 5, tzinfo=UTC))
-    assert await views.next() is None and len(gateway.inputs) == 2
+    assert await views.next() is None and len(gateway.inputs) == 1
+    await ready(archive, 'missed-day', 'Work during downtime', '2026-03-09T20:00:00Z')
     await views.schedule(datetime(2026, 3, 20, 12, tzinfo=UTC))
     rows = await (await archive.db.execute("SELECT request FROM work_views WHERE owner='T1:A'")).fetchall()
     requests = [archive.vault.open_operational(row['request']) for row in rows]
     assert {request['day'] for request in requests if request['kind'] == 'daily'} == {
-        '2026-03-06', '2026-03-07', '2026-03-19'}
+        '2026-03-07', '2026-03-09'}
 
 
 def test_date_filters_and_chronology_compare_instants_across_offsets(tmp_path):

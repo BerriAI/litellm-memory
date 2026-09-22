@@ -12,7 +12,7 @@ Keep the title aligned with the content below it. Right-side actions align with 
 
 ## Navigation and tabs
 
-The main destinations are Activity, Ask, People, Connections, and Settings. In the narrow top shell, center the wordmark, labelled Search button and account control on one row; place the five destinations in an evenly spaced row below. Do not leave utility links stranded at the far edge. The selected item is clear through weight and shape or underline. Icons complement labels. The account menu contains sign-out; do not repeat it after unrelated Settings forms.
+The main destinations are Activity, Daily summaries, Ask, People, Connections, and Settings. In the narrow top shell, center the wordmark, labelled Search button and account control on one row; place the six destinations in two evenly spaced rows below. Do not leave utility links stranded at the far edge. The selected item is clear through weight and shape or underline. Icons complement labels. The account menu contains sign-out; do not repeat it after unrelated Settings forms.
 
 Use tabs only for sibling panels in one context. Settings uses Sharing, Preferences, Your data, then Workspace for admins. Recording controls belong in Connections. Do not add a category to accommodate one minor field that already belongs in a section.
 
