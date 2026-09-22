@@ -38,6 +38,14 @@ class ViewContent(BaseModel):
     items: list[ViewItem] = Field(default_factory=list, max_length=12)
 
 
+class DailyViewItem(ViewItem):
+    text: str = Field(min_length=1, max_length=4000)
+
+
+class DailyViewContent(ViewContent):
+    items: list[DailyViewItem] = Field(default_factory=list, max_length=12)
+
+
 class WorkViews:
     def __init__(self, archive, gateway, deployment):
         self.archive, self.gateway, self.deployment = archive, gateway, deployment
@@ -272,7 +280,8 @@ class WorkViews:
                         'Create a concise, useful account of recorded work. Return JSON {"items": '
                         '[{"text":"a clear work update", '
                         '"sources":["actual source ID"]}]}. At most 12 items. Every item must cite evidence. '
-                        'Each item must have at most 1000 characters of text and 1–12 source IDs. '
+                        'Each item must have 1–12 source IDs. Text must be at most 1000 characters per item '
+                        'for current views, or 4000 characters per paragraph for daily views. '
                         'Keep plans distinct from outcomes, preserve attribution and unresolved disagreements. '
                         'An assistant assertion is not a verified result. For current views, connect related work '
                         'over time and prioritize the latest supported status, decisions, and open questions. '
@@ -289,7 +298,8 @@ class WorkViews:
                     {'role': 'user', 'content': encode(context).decode()},
                 ], json_output=True, **({'timeout': 600} if request.kind == 'daily' else {}))
             try:
-                parsed = ViewContent.model_validate_json(content)
+                schema = DailyViewContent if request.kind == 'daily' else ViewContent
+                parsed = schema.model_validate_json(content)
             except ValidationError as error:
                 # Pydantic's messages, inputs and context can contain private model
                 # output. Only built-in schema error codes and a size are safe here.

@@ -57,6 +57,25 @@ async def test_daily_input_contains_every_full_memory_in_event_order(archive):
 
 
 @pytest.mark.asyncio
+async def test_daily_paragraphs_can_exceed_the_compact_current_view_limit(archive):
+    from pydantic import ValidationError
+
+    paragraph = 'Recorded work and verified results. ' * 40  # 240 words, within a one-page summary.
+    await ready(archive, 'long-paragraph', paragraph, '2026-09-18T12:00:00Z')
+    views = WorkViews(archive, ViewGateway(), SimpleNamespace(values={}))
+    await views.open()
+    request = ViewRequest(kind='daily', day='2026-09-18')
+    await views.get(Reader('T1:A'), 'T1:A', request)
+    await views.build(await views.next())
+    result = await views.get(Reader('T1:A'), 'T1:A', request)
+    assert result['status'] == 'ready'
+    assert result['view']['items'][0]['text'] == paragraph
+    await views.get(Reader('T1:A'), 'T1:A', ViewRequest())
+    with pytest.raises(ValidationError):
+        await views.build(await views.next())
+
+
+@pytest.mark.asyncio
 async def test_date_browser_only_enumerates_accessible_days_and_respects_filters(archive):
     await ready(archive, 'private', 'PRIVATE_DAY_CANARY', '2026-09-17T12:00:00Z')
     shared = await ready(archive, 'public', 'Shared work', '2026-09-18T12:00:00Z', public=True)
@@ -200,7 +219,7 @@ async def test_failed_daily_job_retries_durably_and_keeps_full_source_input(arch
 @pytest.mark.asyncio
 @pytest.mark.parametrize('output,code', [
     ('{"items": [{"text": "PRIVATE_MODEL_OUTPUT', 'json_invalid'),
-    (json.dumps({'items': [{'text': 'PRIVATE_MODEL_OUTPUT' * 100, 'sources': ['private-id']}]}),
+    (json.dumps({'items': [{'text': 'PRIVATE_MODEL_OUTPUT' * 300, 'sources': ['private-id']}]}),
      'string_too_long'),
 ])
 async def test_invalid_summary_diagnostics_do_not_log_model_output(archive, caplog, output, code):
