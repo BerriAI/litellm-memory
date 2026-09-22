@@ -20,7 +20,6 @@ A synthetic integration run on deployed `7b17fa7` inside Render passed capture, 
 - [ ] Verify content logging suppression for chat, embeddings and TypeSafe calls on that gateway.
 - [ ] Update and verify required Slack identity scopes, then complete personal Slack OAuth and hosted capture. The installed token authenticates, but its live `users.info` check reports `missing_scope`; `users:read` and `users:read.email` must be approved through the installation flow.
 - [ ] Verify a personal DM and shared-channel audience checks using explicitly authorized test participants.
-- [ ] Import approved owner history, reconcile original hashes/counts, and verify interrupted replay.
 - [ ] Complete the reviewed [real-history answer-quality evaluation](answer-quality.md).
 - [x] Deploy `litellm_memory.application:app` through the portable launcher, initially owner-only and sharing-off. The live service reports Ente storage; an encrypted write/read/delete round trip from the Render instance passed on September 21.
 - [ ] Verify authenticated hosted capture → Ente → processing → explicit Ask → valid citation after restart.
@@ -32,13 +31,13 @@ A synthetic integration run on deployed `7b17fa7` inside Render passed capture, 
 - [ ] Size the instance/cache using representative history and concurrency.
 - [ ] Review operator key custody and provider retention with the team; do not describe hosted processing as zero knowledge.
 - [ ] Verify updated screenshots, setup, recovery and member documentation against the released build.
-- [ ] Remove the isolated legacy assistant/runtime only after its replacement and historical import are proven. It is not the new app's memory backend.
+- [ ] Remove the isolated legacy assistant/runtime only after its replacement is verified and cutover is explicitly requested. It is not the new app's memory backend.
 
 The legacy product-team repository/MCP remains in place until cutover. No real teammate has been enrolled or real memory published by the synthetic checks.
 
 ## Known limits
 
-Live recording depends on the coding agent selecting useful work and successfully calling MCP. A hook reminder is not proof that a memory was saved; skipped turns are valid. Agent-authored memories are accounts, not raw evidence of tool execution. Explicit historical imports preserve individual visible transcript messages. Neither path guarantees complete work coverage.
+Live recording depends on the coding agent selecting useful work and successfully calling MCP. A hook reminder is not proof that a memory was saved; skipped turns are valid. Agent-authored memories are accounts, not raw evidence of tool execution. Recording does not guarantee complete work coverage. Importing old conversations is outside the MVP scope and is not a release requirement.
 
 The user-defined Jev UI currently supports private-topic rules. Metadata browsing is separate; arbitrary saved semantic browsing criteria are not implemented.
 

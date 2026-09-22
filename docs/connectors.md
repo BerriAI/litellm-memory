@@ -1,4 +1,4 @@
-# Codex, Claude Code, and historical capture
+# Connect Codex or Claude Code
 
 The remote MCP exposes record/search/read/ask/status/pause tools. The connector adds reminder hooks so your coding agent saves useful work memories as you work. It does not automatically upload your conversations.
 
@@ -36,27 +36,26 @@ SessionStart and UserPromptSubmit provide lightweight guidance to the coding age
 
 Acknowledgments, repetitions and turns with no useful new context can be skipped. There is no mandatory empty checkpoint or forced extra turn. Hooks never read a transcript, upload text, search memories or run a separate model. Retrieval happens only when requested. Actual saving depends on the host agent following the guidance and completing an authorized MCP call; the connector cannot guarantee complete coverage or model judgment.
 
-The dashboard’s **Connections** page provides setup commands and checks persisted intake. Ask the agent to remember what you are working on to verify the first save. A connected credential is not proof of a trusted hook or successful MCP save, and an imported history is not proof of new recording. **Work received** means a nonhistorical memory was saved.
+The dashboard’s **Connections** page provides setup commands and checks persisted intake. Ask the agent to remember what you are working on to verify the first save. A connected credential is not proof of a trusted hook or successful MCP save. **Work received** confirms a saved memory from new work.
 
-## Offline and paused behavior
+## Status, pause and disconnect
 
-Live memories are saved through MCP; if a save fails, the agent should report it rather than claim success. There is no automatic full-transcript fallback. Explicit history imports use an encrypted local outbox: records and cursors commit in one transaction, stable source IDs make retries safe, and `flush` retries failed uploads. Malformed records remain in a visible needs-attention queue.
+Live memories are saved through MCP; if a save fails, the agent should report it rather than claim success. There is no automatic full-transcript fallback.
 
 ```sh
 litellm-memory-connector status
-litellm-memory-connector flush
 litellm-memory-connector pause
 litellm-memory-connector resume
 litellm-memory-connector disconnect
 ```
 
-A 100 MB queue limit stops new buffering without deleting old queued records. `status` shows queued/needs-attention counts, timestamps and connection state. Local buffering is encrypted, but the same OS account has access to its local wrapping key; this is not protection against a compromised computer. The directory is bound to one installation and Slack identity so reconnecting as another person cannot upload the old person's buffered work.
+Local `pause` changes hook guidance to tell the agent not to save automatically. It is advisory for an already-running agent; pause in the dashboard or MCP to block incoming saves at the API as well. Resume starts reminders again without recording the paused period. Saved memories remain available.
 
-Local `pause` changes hook guidance to tell the agent not to save automatically and stops import uploads. It is advisory for an already-running agent; pause in the dashboard or MCP to enforce the hosted intake boundary as well. Resume does not scan or automatically import skipped conversations. Disconnect removes LiteLLM Memory's managed hooks, MCP entry and optional global instructions, revokes the connector credential when online and pauses the local queue. If offline, revoke the connection in the dashboard too. Queued encrypted imports are retained locally, not uploaded to a replacement identity.
+Disconnect removes LiteLLM Memory's managed hooks, MCP entry and optional global instructions and revokes the connector credential when online. If offline, revoke the connection in the dashboard too.
 
-The dashboard/MCP pause is enforced by the API. It does not delete saved memories. Import buffering is local; use the local pause command to stop it too.
+## Existing import utilities (outside the MVP)
 
-## Historical backfill
+Historical conversation imports are not part of onboarding or the core product loop. The existing explicit CLI utilities are retained for operators; setup never runs them. Existing records remain searchable. This section documents those utilities, not a setup or release requirement.
 
 Choose the folders or files you actually intend to import:
 
@@ -67,12 +66,14 @@ litellm-memory-connector backfill ~/.claude/projects --host claude
 
 An explicit backfill imports visible transcript messages, rather than asking an agent to select useful memories. Work is attributed to its transcript role and original session/date. Imports remain private and replay is idempotent. Resume the connector before starting a backfill. Unknown dates remain unknown. System/developer text, tool results and hidden reasoning are excluded; images and attachments are not extracted. An assistant's statement is not proof of verified completion. Transcript formats can change, so unsupported formats are a coverage gap.
 
+Imports use an encrypted local outbox. Records and cursors commit in one transaction; stable source IDs make retries safe. Run `litellm-memory-connector flush` to retry failed uploads, and `status` to see queued work and items needing attention. A 100 MB limit stops new buffering without deleting queued records. Local `pause` also stops import uploads. Disconnect retains encrypted queued imports locally; they cannot be uploaded under a replacement Slack identity. The local wrapping key is accessible to the same OS account, so queue encryption does not protect a compromised computer.
+
 For the older product-team knowledge repository, the read-only preview/import adapter is:
 
 ```sh
 uv run python -m litellm_memory.imports /path/to/private/snapshot --actor YOUR_GITHUB_ACTOR --manifest /private/path/manifest.json
 ```
 
-Read its `--help` before upload. Preview output describes included/skipped records; exact original files and provenance are retained in encrypted evidence. An uploader is not necessarily the speaker. Do not include mixed/unknown-provenance shared notes without checking their source boundary. Keep the legacy MCP until explicit cutover, after the replacement's live capture, historical search and citations are verified.
+Read its `--help` before upload. Preview output describes included/skipped records; exact original files and provenance are retained in encrypted evidence. An uploader is not necessarily the speaker. Do not include mixed/unknown-provenance shared notes without checking their source boundary. The legacy MCP remains separate; removing it requires an explicit cutover request.
 
 References: [Codex hooks](https://developers.openai.com/codex/hooks/), [Claude Code hooks](https://code.claude.com/docs/en/hooks).

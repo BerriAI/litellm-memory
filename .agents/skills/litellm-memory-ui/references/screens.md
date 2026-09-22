@@ -46,11 +46,11 @@ The empty directory explains that people appear after joining with Slack. Search
 
 The page starts with actual recording status, Refresh status, and View my work when there is saved history. A connected credential is not proof of running hooks; imported history is not new intake. Report saved receipts precisely.
 
-Connected tools follow the status. Label valid credentials Connected; do not confuse MCP last-used timestamps with recording receipts. Inline setup offers a tool selector, copyable install/connect commands, restart and hook-trust instructions, and a first-record check. Collapse setup for returning members with a connection and received work. Recording controls and history import are separate disclosures, so importing is not buried inside setup. Import has its own explicit tool selector. Troubleshooting and manual MCP remain in the linked connection guide. Keep command text selectable on narrow screens.
+Connected tools follow the status. Label valid credentials Connected; do not confuse MCP last-used timestamps with recording receipts. Inline setup offers a tool selector, copyable install/connect commands, restart and hook-trust instructions, and a first-record check. Collapse setup for returning members with a connection and received work. Keep recording controls in a separate disclosure. Old-conversation imports are outside the MVP scope; do not add them to setup or Connections. Troubleshooting and manual MCP remain in the linked connection guide. Keep command text selectable on narrow screens.
 
-The connector guide groups the real steps: install/connect; restart and complete MCP/hook setup; optional history import/status commands. Code is copyable/selectable, monospaced, and horizontally scrollable rather than wrapping commands into invalid lines. Keep requirements near the relevant setup, not in the home feed.
+The connector guide groups the real steps: install/connect; restart and complete MCP/hook setup; confirm the first saved memory. Optional instructions and connection controls follow those steps. Code is copyable/selectable, monospaced, and horizontally scrollable rather than wrapping commands into invalid lines. Keep requirements near the relevant setup, not in the home feed.
 
-Explain that recording and search are different: visible work is saved continuously; memory retrieval is explicit. Do not imply manual MCP calls alone provide the same continuous capture as host hooks. Do not claim tool output or hidden reasoning is captured when it is excluded.
+Explain that hooks remind the agent to save useful new work through MCP; they do not upload transcripts. The agent can skip turns without useful changes. Memory retrieval is explicit. Do not imply that a hook or a connected credential guarantees a successful save.
 
 ## Settings
 

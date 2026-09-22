@@ -629,13 +629,13 @@ litellm-memory-connector connect {url}</pre>
         In Codex, open <code>/hooks</code> and review/trust the LiteLLM Memory reminder hooks.</p>
         <p>Your agent saves useful work memories privately: what it is doing, progress, findings and decisions.
         It can skip turns with nothing useful to add. Hooks never upload transcripts. Memories are searched only when you ask.</p>
-        <details class="advanced"><summary>Choose a tool or import history</summary>
+        <h2>3. Confirm your first memory</h2>
+        <p>Ask your agent to remember what you are working on. In <a href="/#connections">Connections</a>,
+        wait for the saved-work confirmation, then open My work to see the memory.</p>
+        <details class="advanced"><summary>Choose a tool</summary>
         <pre class="code-block">litellm-memory-connector connect {url} --host codex
-litellm-memory-connector connect {url} --host claude
-litellm-memory-connector backfill ~/.codex/sessions --host codex
-litellm-memory-connector backfill ~/.claude/projects --host claude</pre>
-        <p>History import is opt-in. Review which projects you want to import first; a specific folder or
-        transcript file works too. Originals and their dates are preserved.</p></details>
+litellm-memory-connector connect {url} --host claude</pre>
+        <p>Omit <code>--host</code> to connect both tools.</p></details>
         <details class="advanced"><summary>Optional global agent instructions</summary>
         <p>Hooks already provide memory guidance. Add it to Codex's AGENTS.md and Claude Code's CLAUDE.md too:</p>
         <pre class="code-block">litellm-memory-connector instructions enable
@@ -644,15 +644,14 @@ litellm-memory-connector instructions disable</pre>
         Disabling this block does not turn off reminder hooks or the MCP connection.</p></details>
         <details class="advanced"><summary>Status, pause, and disconnect</summary>
         <pre class="code-block">litellm-memory-connector status
-litellm-memory-connector flush
 litellm-memory-connector pause
 litellm-memory-connector resume
 litellm-memory-connector disconnect</pre>
-        <p>Explicit history imports use an encrypted local queue. Run flush to retry a failed import upload.
-        A 100 MB limit pauses buffering instead of silently dropping old work. The status command reports
-        queued work and items needing attention. Revoke access at any time from Connections.</p></details>
+        <p>Pause stops local recording reminders; resume turns them back on. To block incoming saves,
+        pause recording in Connections too. Disconnect removes this connector's setup.
+        Revoke access at any time from Connections.</p></details>
         <p class="fine-print">Requires Python 3.12+, uv, and a current Codex or Claude Code on macOS/Linux.
-        Check that a memory actually arrives after a host update. Transcript formats affect explicit imports.
+        Check that a memory actually arrives after a host update.
         While this repository is private, installation also requires GitHub access.</p></main></html>''')
 
     @api.post("/connections")

@@ -2,18 +2,18 @@
 
 LiteLLM Memory is a queryable record of what people do with AI. It captures work continuously, lets people browse it, and answers questions when asked. It is not an automatic context-injection system for coding agents.
 
-This document describes the implementation on the feature branch. It replaces the earlier development plan. Deployment and live validation are tracked separately in the [release checklist](release-checklist.md).
+This document describes the current implementation. It replaces the earlier development plan. Deployment and live validation are tracked separately in the [release checklist](release-checklist.md).
 
 ## The product
 
 The MVP centers on one loop: **set up, start recording, browse shared work, and ask about it.** The Company feed and browsing a teammate's shared activity are primary experiences alongside Ask. Company opens by default, with My work second for personal history. People can see only work shared with them; recording alone never publishes private originals.
 
-Prioritize making that loop reliable and easy to understand: successful setup, a visible first capture, readable entries, clear sharing, useful browsing, and cited answers. The dashboard has no separate catch-up page, daily-summary settings, or manual-note composer. Auxiliary workflows stay outside the main loop. The implementation below includes existing supporting features; their presence does not make each one essential to the core experience.
+Prioritize making that loop reliable and easy to understand: successful setup, a visible first capture, readable entries, clear sharing, useful browsing, and cited answers. The dashboard has no separate catch-up page, daily-summary settings, or manual-note composer. Importing old conversations is outside the MVP scope and is not part of onboarding. Auxiliary workflows stay outside the main loop. The implementation below includes existing supporting features; their presence does not make each one essential to the core experience.
 
 - **Activity:** chronological Company feed by default, My work second, direct Ask input, search and metadata filters. Private records show a lock and text.
 - **Ask:** one conversation, a visible audience selector, and models discovered through the configured LiteLLM key. Answers cite accessible evidence. People can cancel a running answer.
 - **People:** enrolled Slack profiles, shared activity, and an action to ask about that person's work.
-- **Connections:** in-app tool setup, real intake receipts, recording controls, optional history imports and connected-client revocation. Authorized clients and received work are separate states.
+- **Connections:** in-app tool setup, real intake receipts, recording controls and connected-client revocation. Authorized clients and received work are separate states.
 - **Settings:** Sharing, Preferences (dates and viewing exclusions), Your data, and administrator-only Workspace. Rare operations stay behind disclosures or explicit actions.
 
 One sidebar provides navigation. No recommendation algorithm, fixed memory-category checklist, social engagement mechanics, or automatic retrieval on every coding turn.
@@ -32,9 +32,9 @@ After joining, members land on Company. A compact setup prompt leads to inline C
 
 SessionStart and UserPromptSubmit hooks remind the coding agent to save useful new work with a low threshold: what it is doing, progress, attempts and results, findings, decisions, blockers and next steps. The agent writes concise memories through MCP or skips a turn with no useful change. Hooks do not read/upload transcripts, run another model, search history, or force a continuation. Optional global instructions provide the same guidance.
 
-Agent-authored memories are identified as such and preserve available source/session context and uncertainty. An explicit historical backfill retains original visible message text, role and time, excludes hidden reasoning/system text/tool dumps, and uses an encrypted local outbox with stable source identities for retries. Recording is opt-in through connector setup; pausing does not delete history or silently backfill the paused period.
+Agent-authored memories are identified as such and preserve available source/session context and uncertainty. Recording is opt-in through connector setup; pausing preserves saved memories; resuming does not record the paused period.
 
-The API stores immutable encrypted source objects and separate encrypted derived records in Ente. SQLite holds encrypted operational state. Git holds code and documentation, never live personal memories. Historical imports preserve originals, dates and attribution, deduplicate replays, and never publish automatically. Deletion markers stop old backfills from restoring deleted records.
+The API stores immutable encrypted source objects and separate encrypted derived records in Ente. SQLite holds encrypted operational state. Git holds code and documentation, never live personal memories. Existing imported records remain searchable with their originals, dates, attribution and metadata preserved; removing import from onboarding does not remove data. Deletion markers stop old backfills from restoring deleted records.
 
 Background processing creates a short readable description and search embeddings. It does not force new work into “progress / decision / finding / blocker / plan.” Existing metadata and previous classifications remain available for search. Current/daily summaries are built on explicit request, with citations and coverage. There is no automatic daily or five-minute overview sweep. Existing summaries and original evidence are preserved.
 
