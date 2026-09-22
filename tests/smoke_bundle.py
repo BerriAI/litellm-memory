@@ -68,7 +68,10 @@ async def main():
             assert (await archive.display_preferences('CI:OWNER')).timezone == 'Asia/Tokyo'
             # Zone data must be available inside the shipped image, including DST.
             schedule = ScheduleSettings(timezone=config.values['timezone'])
-            assert schedule.next_run(datetime.fromisoformat('2026-03-08T09:59:00Z')) == '2026-03-08T10:00:00+00:00'
+            assert schedule.daily_time == '00:00'
+            assert schedule.next_run(datetime.fromisoformat('2026-03-08T09:59:00Z')) == '2026-03-09T07:00:00+00:00'
+            skipped_hour = ScheduleSettings(timezone=config.values['timezone'], daily_time='02:00')
+            assert skipped_hour.next_run(datetime.fromisoformat('2026-03-08T09:59:00Z')) == '2026-03-08T10:00:00+00:00'
             saved = await archive.capture('CI:OWNER', WorkInput(source_id='persistent-proof',
                 content='DISPOSABLE_PERSISTENCE_CANARY', occurred_at='2026-01-01T00:00:00Z'))
             original = (await archive.read(Reader('CI:OWNER'), saved['id']))['original']
