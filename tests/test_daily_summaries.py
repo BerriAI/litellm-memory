@@ -37,6 +37,7 @@ async def test_daily_input_contains_every_full_memory_in_event_order(archive):
         context = json.loads(messages[-1]['content'])
         gateway.inputs.append(context)
         assert kwargs['timeout'] == 600
+        assert kwargs.get('max_tokens') is None  # Reasoning must not truncate the final JSON.
         return json.dumps({'items': [{'text': 'A day of recorded work.', 'sources': [context['evidence'][0]['id']]}]})
     gateway.generate = generate
     views = WorkViews(archive, gateway, SimpleNamespace(values={}))
