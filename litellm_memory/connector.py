@@ -146,7 +146,7 @@ class LocalCapture:
                     offset = transcript.tell()
                     line = transcript.readline(MAX_LINE_BYTES + 1)
                     if not line or not line.endswith(b"\n"):
-                        # A partial trailing JSON row is retried on the next hook.
+                        # A partial trailing JSON row is retried on the next import.
                         if len(line) > MAX_LINE_BYTES:
                             self.set("status", "unsupported_large_transcript_row")
                         break
@@ -522,7 +522,7 @@ def main():
             local.db.commit()
             print("Connected. Restart your coding tool to load its hooks and sign in to the LiteLLM Memory MCP when prompted.")
             if "codex" in hosts:
-                print("In Codex, open /hooks and review/trust the LiteLLM Memory capture hooks before recording starts.")
+                print("In Codex, open /hooks and review/trust the LiteLLM Memory reminder hooks before recording starts.")
             print("Your agent will save useful work memories privately and can skip turns with nothing new. "
                   "Transcripts are not uploaded automatically. Use backfill to explicitly import earlier sessions.")
         elif args.command == 'instructions':
