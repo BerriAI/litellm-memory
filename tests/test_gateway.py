@@ -174,3 +174,49 @@ async def test_background_probe_requires_the_actual_work_record_schema(content):
             await gateway.probe_model('candidate', 'generation')
         assert error.value.status == 422
         assert error.value.operation == 'structured background model check'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('wrapper', ['{}', '```json\n{}\n```', '```\n{}\n```', ' \n```JSON\r\n{}\r\n```\n '])
+async def test_background_probe_accepts_plain_or_wholly_fenced_json(wrapper):
+    content = '{"title":"Check","summary":"Reviewed workspace onboarding.","projects":[]}'
+    def handler(request):
+        if request.url.path == '/v1/models':
+            return httpx.Response(200, json={'data': [{'id': 'candidate'}]})
+        if request.url.path == '/model/info':
+            return httpx.Response(200, json={'data': []})
+        return httpx.Response(200, json={'choices': [{'message': {'content': wrapper.format(content)}}]})
+    async with Gateway(Settings(_env_file=None), httpx.MockTransport(handler)) as gateway:
+        assert await gateway.probe_model('candidate', 'generation') == {'status': 'ready'}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('content', [
+    '```json\n{"ok":true}\n```',
+    '```json\n{"title":"Check","summary":"PRIVATE_CANARY","projects":"wrong-type"}\n```',
+    'Explanation first.\n```json\n{"title":"Check","summary":"PRIVATE_CANARY"}\n```',
+    '```json\n{"title":"Check","summary":"PRIVATE_CANARY"}\n```\nUnrequested commentary.',
+    '```json\n{"title":"truncated',
+])
+async def test_background_probe_still_rejects_invalid_or_embedded_json_without_echoing_it(content):
+    def handler(request):
+        if request.url.path == '/v1/models':
+            return httpx.Response(200, json={'data': [{'id': 'candidate'}]})
+        if request.url.path == '/model/info':
+            return httpx.Response(200, json={'data': []})
+        return httpx.Response(200, json={'choices': [{'message': {'content': content}}]})
+    async with Gateway(Settings(_env_file=None), httpx.MockTransport(handler)) as gateway:
+        with pytest.raises(GatewayError) as error:
+            await gateway.probe_model('candidate', 'generation')
+        assert 'output did not match the required format' in str(error.value)
+        assert 'HTTP' not in str(error.value)
+        assert 'PRIVATE_CANARY' not in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_json_wrapper_normalization_does_not_change_plain_text_generation():
+    content = '```json\n{"summary":"Keep the author’s text."}\n```'
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={
+        'choices': [{'message': {'content': content}}]}))
+    async with Gateway(Settings(_env_file=None), transport) as gateway:
+        assert await gateway.generate([{'role': 'user', 'content': 'Give an example'}]) == content
