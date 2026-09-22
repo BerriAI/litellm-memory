@@ -2,13 +2,15 @@ import json
 
 import httpx2
 import pytest
+from fastapi.testclient import TestClient
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from test_model_settings import application
 
 
 @pytest.mark.asyncio
-async def test_real_mcp_sdk_initializes_captures_searches_and_cannot_cross_accounts(tmp_path):
+@pytest.mark.parametrize('endpoint', ['/mcp', '/mcp/'])
+async def test_real_mcp_sdk_initializes_captures_searches_and_cannot_cross_accounts(tmp_path, endpoint):
     calls = []
     app = application(tmp_path, calls)
     async with app.router.lifespan_context(app):
@@ -17,8 +19,8 @@ async def test_real_mcp_sdk_initializes_captures_searches_and_cannot_cross_accou
         await archive.enroll('T:OTHER', {'name': 'Other'})
         token = await archive.create_token('T:OWNER', 'SDK test')
         async with httpx2.AsyncClient(transport=httpx2.ASGITransport(app),
-                headers={'Authorization': 'Bearer ' + token['token']}) as http:
-            async with streamable_http_client('http://localhost:8000/mcp/', http_client=http) as streams:
+                headers={'Authorization': 'Bearer ' + token['token']}, follow_redirects=True) as http:
+            async with streamable_http_client('http://localhost:8000' + endpoint, http_client=http) as streams:
                 async with ClientSession(*streams) as session:
                     initialized = await session.initialize()
                     assert initialized.server_info.name == 'litellm-memory'
@@ -58,3 +60,17 @@ async def test_real_mcp_sdk_initializes_captures_searches_and_cannot_cross_accou
                 'Authorization': 'Bearer ' + token['token'], 'Accept': 'application/json, text/event-stream'},
                 json={'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {}})
             assert response.status_code == 401
+
+
+@pytest.mark.parametrize('method', ['GET', 'POST', 'DELETE', 'OPTIONS'])
+def test_mcp_discovery_preserves_external_https_behind_http_proxy(tmp_path, method):
+    app = application(tmp_path, [])
+    app.state.settings.public_base_url = 'https://memory.example'
+    # The upstream server sees HTTP after TLS terminates at Render.
+    with TestClient(app, base_url='http://memory.example') as client:
+        response = client.request(method, '/mcp', follow_redirects=False)
+        assert response.status_code == 307
+        assert response.headers['location'] == '/mcp/'
+        protected = client.get(response.headers['location'])
+        assert protected.status_code == 401
+        assert protected.headers['www-authenticate'].startswith('Bearer ')

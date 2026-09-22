@@ -664,18 +664,21 @@
           </section>
           <details class="connection-instructions" id="connector-guide" open>
             <summary id="connector-guide-title">Connect a tool</summary>
-            <p class="muted">
-              Set this up once on the computer where you work.
-            </p>
-            <label class="field-label" for="capture-host"
-              >Choose your tool</label
-            >
-            <select id="capture-host">
-              <option value="codex">Codex</option>
-              <option value="claude">Claude Code</option>
-            </select>
+            <div id="capture-tool-picker">
+              <p class="muted">
+                Set this up once on the computer where you work.
+              </p>
+              <label class="field-label" for="capture-host"
+                >Choose your tool</label
+              >
+              <select id="capture-host">
+                <option value="both">Codex and Claude Code</option>
+                <option value="codex">Codex</option>
+                <option value="claude">Claude Code</option>
+              </select>
+            </div>
             <ol class="connection-steps">
-              <li>
+              <li id="capture-install-step">
                 <h3>Run these commands in Terminal</h3>
                 <pre id="capture-command" class="code-block"></pre>
                 <button
@@ -687,20 +690,47 @@
                 </button>
                 <p class="fine-print">
                   Requires uv and Python 3.12+ on macOS or Linux. Installation
-                  also requires access to the BerriAI GitHub repository.
+                  also requires access to the BerriAI GitHub repository. Sign in
+                  once in your browser and review the reminder hooks before
+                  connecting.
                 </p>
               </li>
               <li>
                 <h3 id="capture-restart-title">Finish setup in Codex</h3>
                 <p id="capture-restart"></p>
+                <p id="capture-trust" class="fine-print"></p>
               </li>
               <li>
                 <h3>Save your first memory</h3>
-                <p>
-                  Ask your agent to remember what you’re working on. It will
-                  keep saving useful updates and can skip turns with nothing
-                  new. This page confirms when a memory arrives.
+                <p id="capture-first-instruction">
+                  Send this in a new task in your coding tool:
                 </p>
+                <p id="capture-first-prompt" class="first-memory-prompt">
+                  Use LiteLLM Memory’s record_work tool to save a private
+                  memory: I’m setting up LiteLLM Memory to keep track of my
+                  work. Show me the saved memory ID. If the tool is unavailable,
+                  tell me; don’t save this in AGENTS.md or CLAUDE.md.
+                </p>
+                <button
+                  class="button primary small"
+                  data-copy="capture-first-prompt"
+                  type="button"
+                >
+                  Copy first message
+                </button>
+                <p class="fine-print">
+                  Come back here after sending. This page checks automatically
+                  and confirms when your memory is saved.
+                </p>
+                <details class="first-memory-help">
+                  <summary>No memory appearing?</summary>
+                  <p>
+                    Check that setup finished in Terminal, then restart your
+                    coding tool and start a new task. A change to AGENTS.md or
+                    CLAUDE.md is a local instruction, not a saved memory. The
+                    agent should call record_work and return a memory ID.
+                  </p>
+                </details>
               </li>
             </ol>
           </details>

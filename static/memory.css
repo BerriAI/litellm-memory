@@ -1582,6 +1582,22 @@ body[data-view="ask"] .footer {
   font-size: var(--text-meta);
   color: var(--muted);
 }
+.connection-steps .first-memory-prompt {
+  padding: 16px;
+  margin: 12px 0;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  line-height: 1.6;
+}
+.first-memory-help {
+  margin-top: 16px;
+  font-size: var(--text-control);
+}
+.first-memory-help summary {
+  cursor: pointer;
+  color: var(--muted);
+}
 
 .copy-row {
   display: flex;

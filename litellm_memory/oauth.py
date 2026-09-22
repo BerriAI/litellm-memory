@@ -10,6 +10,7 @@ import json
 import secrets
 import time
 from html import escape
+from typing import Literal
 from urllib.parse import urlencode, urlsplit
 
 from fastapi import HTTPException, Request
@@ -17,10 +18,16 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 
+class ReminderHook(BaseModel):
+    host: Literal['codex', 'claude']
+    command: str = Field(min_length=1, max_length=4000)
+
+
 class ClientRegistration(BaseModel):
     client_name: str = Field(default="Memory client", max_length=100)
     redirect_uris: list[str] = Field(min_length=1, max_length=8)
     token_endpoint_auth_method: str = "none"
+    reminder_hooks: list[ReminderHook] = Field(default_factory=list, max_length=2)
 
 
 def valid_redirect(url):
@@ -88,11 +95,22 @@ def install_oauth(app, settings, store, archive, account, same_origin):
         await store.create_oauth_request(hashlib.sha256(nonce.encode()).hexdigest(),
                                          {**p, "owner": owner}, time.time() + 600)
         client_name = escape(client["client_name"])
+        reminders = ''
+        if client.get('reminder_hooks'):
+            commands = ''.join('<p>' + ('Codex' if hook['host'] == 'codex' else 'Claude Code')
+                               + '</p><pre class="code-block">' + escape(hook['command']) + '</pre>'
+                               for hook in client['reminder_hooks'])
+            reminders = ('<p>Connecting also allows this installer to set up your coding tools and approve '
+                         'reminders to save useful work. These hooks run when a session starts and when you send '
+                         'a message. They do not read or upload transcripts.</p>'
+                         '<details class="advanced"><summary>Review reminder commands</summary>' + commands
+                         + '</details>')
         return HTMLResponse(f'''<!doctype html><html lang="en"><meta name="viewport" content="width=device-width">
         <title>Connect to LiteLLM Memory</title><link rel="stylesheet" href="/static/memory.css">
         <main class="auth-card"><p class="eyebrow">LiteLLM Memory</p><h1>Connect {client_name}</h1>
         <p>This client can record your work and search your private and shared memories.</p>
         <p>You can revoke access from Connections at any time. It cannot change sharing settings.</p>
+        {reminders}
         <form method="post" action="/oauth/authorize"><input type="hidden" name="nonce" value="{nonce}">
         <button class="button primary" type="submit">Connect</button> <a href="/">Cancel</a></form></main></html>''',
                             headers={"Cache-Control": "no-store"})

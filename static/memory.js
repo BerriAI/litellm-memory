@@ -40,6 +40,7 @@ const state = {
   listedClientCount: null,
   firstReceipt: false,
   guideInitialized: false,
+  connectorSetup: null,
 };
 // Lucide paths: one 24px grid and one stroke system, no nested icon wrappers.
 const icons = {
@@ -1110,9 +1111,9 @@ function recordingMessage(status) {
     };
   if (!status.received)
     return {
-      title: "Connected. Waiting for work.",
-      copy: "Finish tool setup, then ask your agent to remember what you’re working on. This updates when a memory arrives.",
-      action: "Finish setup",
+      title: "Save your first memory",
+      copy: "Send the first message from your coding tool. Connections confirms when your memory arrives.",
+      action: "Save a first memory",
       destination: "connections",
     };
   if (!status.agent_enabled || status.stats.failed)
@@ -1125,7 +1126,7 @@ function recordingMessage(status) {
       destination: "recording",
     };
   return {
-    title: state.firstReceipt ? "Your first work is here" : "Work received",
+    title: state.firstReceipt ? "Your first memory is saved" : "Work received",
     copy: "Open My work to read it, ask about it, or preview a summary to share.",
     action: "View my work",
     destination: "mine",
@@ -1136,16 +1137,26 @@ function renderRecording() {
   if (!status) return;
   const message = recordingMessage(status);
   if (!state.guideInitialized) {
-    $("connector-guide").open = !status.connected_clients || !status.received;
+    $("connector-guide").open =
+      Boolean(state.connectorSetup) ||
+      !status.connected_clients ||
+      !status.received;
     $("recording-controls").open =
       !status.capture_enabled || !status.agent_enabled;
     state.guideInitialized = true;
   }
-  $("connector-guide-title").textContent = !status.connected_clients
-    ? "Connect a tool"
-    : status.received
-      ? "Connect another tool"
-      : "Finish tool setup";
+  const returningFromSetup = Boolean(
+    state.connectorSetup && status.connected_clients,
+  );
+  show("capture-install-step", !returningFromSetup);
+  show("capture-tool-picker", !returningFromSetup);
+  $("connector-guide-title").textContent = returningFromSetup
+    ? "Try your connection"
+    : !status.connected_clients
+      ? "Connect a tool"
+      : status.received
+        ? "Connect another tool"
+        : "Finish tool setup";
   $("recording-title").textContent =
     status.capture_enabled && !status.connected_clients
       ? "No tool connected"
@@ -1155,7 +1166,7 @@ function renderRecording() {
     : !status.connected_clients
       ? "Follow the setup below to start saving useful work memories."
       : !status.received
-        ? "Finish setup, then ask your agent to remember what you’re working on. Turns with nothing useful to add may be skipped."
+        ? "Your connection is approved. Restart your coding tool, start a new task and send the message below. No memory has arrived yet."
         : !status.agent_enabled
           ? "Your work is saved. Enable your agent below to organize and ask about it."
           : status.stats.failed
@@ -1205,7 +1216,12 @@ async function refreshRecording({ loadClients = true } = {}) {
     $("recording-preferences").inert = false;
     renderCoverage(status.stats);
     renderRecording();
-    if (first) $("connector-guide").open = false;
+    if (first) {
+      state.connectorSetup = null;
+      $("connector-guide").open = false;
+      $("announce").textContent =
+        "Your first memory is saved. Open My work to read it.";
+    }
     if (
       loadClients &&
       state.listedClientCount !== status.connected_clients &&
@@ -1235,12 +1251,19 @@ function renderConnectorGuide() {
   const quoted = "'" + url.replaceAll("'", "'\"'\"'") + "'";
   $("capture-command").textContent =
     `uv tool install --force 'git+https://github.com/BerriAI/litellm-memory.git@main'\nlitellm-memory-connector connect ${quoted} --host ${host}`;
-  $("capture-restart-title").textContent =
-    host === "codex" ? "Finish setup in Codex" : "Finish setup in Claude Code";
+  const tools =
+    host === "both"
+      ? "Codex and Claude Code"
+      : host === "codex"
+        ? "Codex"
+        : "Claude Code";
+  $("capture-restart-title").textContent = `Restart ${tools}`;
   $("capture-restart").textContent =
-    host === "codex"
-      ? "Restart Codex and sign in to its LiteLLM Memory MCP when prompted. Open /hooks and review and trust the LiteLLM Memory reminder hooks."
-      : "Restart Claude Code and sign in to its LiteLLM Memory MCP when prompted. The connector has added memory reminder hooks.";
+    "Quit and reopen your coding tool, then start a new task. The MCP and reminder hooks use the sign-in you just completed.";
+  $("capture-trust").textContent =
+    "Setup approves only the reminder hooks you reviewed. No second MCP sign-in is needed.";
+  $("capture-first-instruction").textContent =
+    `Send this in a new ${tools} task:`;
 }
 function reviewRecording() {
   $("connector-guide").open = false;
@@ -1633,6 +1656,14 @@ async function initialize() {
     if (connectionRequest) {
       location.replace("/oauth/authorize?" + connectionRequest);
       return;
+    }
+    const setupHost = new URLSearchParams(location.search).get("setup");
+    if (["codex", "claude", "both"].includes(setupHost)) {
+      state.connectorSetup = setupHost;
+      $("capture-host").value = setupHost;
+      const clean = new URL(location.href);
+      clean.searchParams.delete("setup");
+      history.replaceState(null, "", clean);
     }
     document.body.classList.add("workspace-ready");
     show("global-search-button");

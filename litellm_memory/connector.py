@@ -36,19 +36,25 @@ def capture_directory():
     return Path.home() / ".local/share/litellm-memory"
 
 
-def configure_mcp(servers, url, host, *, remove):
+def reminder_command(directory, host):
+    return shlex.join([sys.executable, "-m", "litellm_memory.connector", "--directory", str(directory),
+                       "hook", "--host", host, "--marker", "litellm-memory-managed-capture"])
+
+
+def configure_mcp(servers, url, host, directory, *, remove):
     name = "litellm-memory"
-    endpoint = url + "/mcp"
+    args = ["-m", "litellm_memory.connector", "--directory", str(directory), "mcp", "--url", url]
+    existing = servers.get(name)
+    ours = existing and (existing.get("url") == url + "/mcp" or existing.get("args") == args)
     if remove:
-        if servers.get(name, {}).get("url") == endpoint:
+        if ours:
             del servers[name]
         return
-    if name in servers and servers[name].get("url") != endpoint:
+    if existing and not ours:
         raise ValueError("A different LiteLLM Memory MCP is already configured; rename it before connecting.")
-    if name not in servers:
-        servers[name] = {"url": endpoint}
+    servers[name] = {"command": sys.executable, "args": args}
     if host == "claude":
-        servers[name]["type"] = "http"
+        servers[name]["type"] = "stdio"
 
 
 def atomic_private(path, value):
@@ -197,13 +203,13 @@ class LocalCapture:
             self.db.rollback()
             raise
 
-    def flush(self, *, transport=None, limit=200):
+    def flush(self, *, transport=None, limit=200, blocking=False):
         # Separate lock prevents parallel hook processes rotating the same refresh
         # token. It never holds up another hook's durable enqueue transaction.
         import fcntl
         with (self.directory / "flush.lock").open("a") as lock:
             try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(lock, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
             except BlockingIOError:
                 return 0
             config = self.get("connection")
@@ -312,7 +318,7 @@ def visible_message(item, host):
     return role, content, timestamp, str(item.get("uuid") or message.get("id") or "")
 
 
-def login(local, url, *, opener=webbrowser.open):
+def login(local, url, *, opener=webbrowser.open, on_connected=None, reminder_hooks=None):
     url = url.rstrip("/")
     parsed = urlsplit(url)
     if (parsed.scheme != "https" and not (parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"})) \
@@ -321,26 +327,65 @@ def login(local, url, *, opener=webbrowser.open):
     result = {}
     state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
 
+    def finish_connection(code):
+        response = client.post("/oauth/token", data={"grant_type": "authorization_code", "code": code,
+            "client_id": client_id, "code_verifier": verifier, "redirect_uri": callback, "resource": url + "/mcp"})
+        response.raise_for_status()
+        token = response.json()
+        binding = local.get("account_binding")
+        if binding and binding["url"] != url:
+            raise ValueError("Use --directory for a different installation; queued work belongs to the original account.")
+        status = client.get("/api/capture-identity", headers={"Authorization": "Bearer " + token["access_token"]})
+        status.raise_for_status()
+        owner = status.json()["owner"]
+        if binding and binding.get("owner") != owner:
+            raise ValueError("This capture directory belongs to another account. Use --directory to keep accounts separate.")
+        # Do not return to the dashboard until credentials and host setup are saved.
+        with local.db:
+            local.set("account_binding", {"url": url, "owner": owner})
+            local.set("connection", {"url": url, "owner": owner, "client_id": client_id, **token,
+                                     "expires_at": time.time() + token["expires_in"]})
+            local.set("status", "connected")
+            local.set_paused(False)
+            if on_connected:
+                on_connected()
+
     class Callback(BaseHTTPRequestHandler):
         def do_GET(self):
             params = parse_qs(urlsplit(self.path).query)
-            valid = urlsplit(self.path).path == "/callback" and secrets.compare_digest(params.get("state", [""])[0], state)
-            if valid and params.get("code"):
-                result["code"] = params["code"][0]
-            self.send_response(200 if result else 400)
+            valid = (urlsplit(self.path).path == "/callback" and len(params.get("state", [])) == 1
+                     and secrets.compare_digest(params["state"][0], state) and len(params.get("code", [])) == 1)
+            status, body = 400, b"Invalid connection response. Start connecting again from your client."
+            if valid:
+                try:
+                    finish_connection(params["code"][0])
+                    result["connected"] = True
+                    status, body = 303, b"Setup saved. Opening LiteLLM Memory to finish connecting your tool."
+                except Exception as error:
+                    result["error"] = error
+                    status, body = 500, b"Connection could not finish. Check your terminal and run connect again."
+            self.send_response(status)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
+            if status == 303:
+                hosts = [hook['host'] for hook in reminder_hooks or []]
+                setup = ('?setup=' + (hosts[0] if len(hosts) == 1 else 'both')) if hosts else ''
+                self.send_header("Location", url + "/" + setup + "#connections")
             self.end_headers()
-            self.wfile.write(b"Connected. Return to your terminal." if result else b"Invalid connection response.")
+            self.wfile.write(body)
 
         def log_message(self, *_):
             pass
 
     with HTTPServer(("127.0.0.1", 0), Callback) as server, httpx.Client(base_url=url, timeout=20) as client:
         callback = f"http://127.0.0.1:{server.server_port}/callback"
-        response = client.post("/oauth/register", json={"client_name": "LiteLLM Memory continuous capture",
-                               "redirect_uris": [callback], "token_endpoint_auth_method": "none"})
+        response = client.post("/oauth/register", json={"client_name": "LiteLLM Memory connector",
+                               "redirect_uris": [callback], "token_endpoint_auth_method": "none",
+                               "reminder_hooks": reminder_hooks or []})
         response.raise_for_status()
+        if reminder_hooks and response.json().get('reminder_hooks') != reminder_hooks:
+            raise ValueError('Update the website before approving reminder hooks through setup.')
         client_id = response.json()["client_id"]
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
         auth_url = url + "/oauth/authorize?" + urlencode({"client_id": client_id, "redirect_uri": callback,
@@ -355,26 +400,8 @@ def login(local, url, *, opener=webbrowser.open):
             server.handle_request()
         if not result:
             raise ValueError("Sign-in timed out. Run connect again.")
-        response = client.post("/oauth/token", data={"grant_type": "authorization_code", "code": result["code"],
-            "client_id": client_id, "code_verifier": verifier, "redirect_uri": callback, "resource": url + "/mcp"})
-        response.raise_for_status()
-        token = response.json()
-        binding = local.get("account_binding")
-        if binding and binding["url"] != url:
-            raise ValueError("Use --directory for a different installation; queued work belongs to the original account.")
-        # Refuse an account switch while any record is buffered: never upload one
-        # person's local history under another person's new authorization.
-        status = client.get("/api/capture-identity", headers={"Authorization": "Bearer " + token["access_token"]})
-        status.raise_for_status()
-        owner = status.json()["owner"]
-        if binding and binding.get("owner") != owner:
-            raise ValueError("This capture directory belongs to another account. Use --directory to keep accounts separate.")
-        local.set("account_binding", {"url": url, "owner": owner})
-        local.set("connection", {"url": url, "owner": owner, "client_id": client_id, **token,
-                                 "expires_at": time.time() + token["expires_in"]})
-        local.set("status", "connected")
-        local.set_paused(False)
-        local.db.commit()
+        if "error" in result:
+            raise result["error"]
 
 
 INSTRUCTIONS_BEGIN = '<!-- BEGIN litellm-memory-agent-instructions -->'
@@ -383,6 +410,7 @@ AGENT_INSTRUCTIONS = """Use the litellm-memory MCP to keep a private memory of t
 Save useful new work context with record_work as it emerges and before finishing a substantive turn. Keep a low bar:
 what you are working on, progress, attempts and results, findings, decisions and reasons, blockers,
 next steps, corrections, or anything the user asks you to remember. A major insight is not required.
+For a request to save to LiteLLM Memory, call record_work; editing AGENTS.md or CLAUDE.md is not a memory save.
 Write a concise, self-contained account with enough context to answer what this person was doing.
 Preserve attribution and uncertainty; distinguish plans, attempted actions and verified results.
 Use an accurate source/session when available and a stable source_id for retries.
@@ -457,8 +485,7 @@ def configure_hosts(home, directory, url, hosts, *, remove=False, agent_instruct
                 if kept:
                     groups.append({**group, "hooks": kept})
             if not remove and event in HOOK_EVENTS:
-                command = shlex.join([sys.executable, "-m", "litellm_memory.connector", "--directory", str(directory),
-                                      "hook", "--host", host, "--marker", marker])
+                command = reminder_command(directory, host)
                 groups.append({"hooks": [{"type": "command", "command": command, "timeout": 10}]})
             if groups:
                 hooks[event] = groups
@@ -469,13 +496,13 @@ def configure_hosts(home, directory, url, hosts, *, remove=False, agent_instruct
             config_path = home / ".codex/config.toml"
             document = tomlkit.parse(config_path.read_text()) if config_path.exists() else tomlkit.document()
             servers = document.setdefault("mcp_servers", {})
-            configure_mcp(servers, url, host, remove=remove)
+            configure_mcp(servers, url, host, directory, remove=remove)
             write(config_path, tomlkit.dumps(document))
         else:
             config_path = home / ".claude.json"
             document = json.loads(config_path.read_text()) if config_path.exists() else {}
             servers = document.setdefault("mcpServers", {})
-            configure_mcp(servers, url, host, remove=remove)
+            configure_mcp(servers, url, host, directory, remove=remove)
             write(config_path, json.dumps(document, indent=2) + "\n")
     # Validate every document before touching any file. Detect concurrent host
     # changes and retain private backups for an explicit rollback.
@@ -502,6 +529,8 @@ def main():
     instructions = commands.add_parser('instructions', help='Enable or disable optional global memory guidance.')
     instructions.add_argument('action', choices=['enable', 'disable'])
     instructions.add_argument('--host', choices=['codex', 'claude', 'both'], default='both')
+    mcp = commands.add_parser("mcp", help="Run the authenticated MCP bridge for a coding tool.")
+    mcp.add_argument("--url", required=True)
     hook = commands.add_parser("hook")
     hook.add_argument("--host", choices=["codex", "claude"], required=True)
     hook.add_argument("--marker", default="")
@@ -511,20 +540,39 @@ def main():
     for name in ("flush", "status", "pause", "resume", "disconnect"):
         commands.add_parser(name)
     args = parser.parse_args()
+    if args.command == "mcp":
+        import asyncio
+
+        from .connector_mcp import serve
+        try:
+            asyncio.run(serve(args.directory, args.url.rstrip("/")))
+        except Exception:
+            print("LiteLLM Memory connection unavailable. Run the connector setup again.", file=sys.stderr)
+            raise SystemExit(1) from None
+        return
     local = LocalCapture(args.directory)
     try:
         if args.command == "connect":
-            login(local, args.url)
             hosts = ["codex", "claude"] if args.host == "both" else [args.host]
-            configure_hosts(Path.home(), args.directory.resolve(), args.url.rstrip("/"), hosts,
-                            agent_instructions=args.agent_instructions)
-            local.set("hosts", hosts)
-            local.db.commit()
-            print("Connected. Restart your coding tool to load its hooks and sign in to the LiteLLM Memory MCP when prompted.")
-            if "codex" in hosts:
-                print("In Codex, open /hooks and review/trust the LiteLLM Memory reminder hooks before recording starts.")
-            print("Your agent will save useful work memories privately and can skip turns with nothing new. "
-                  "Transcripts are not uploaded automatically. Use backfill to explicitly import earlier sessions.")
+
+            print("This setup connects " + " and ".join("Codex" if h == "codex" else "Claude Code" for h in hosts) + ".")
+            print("The following hooks remind your agent to save useful work. They do not read or upload transcripts.")
+            for host in hosts:
+                print(f"{host}: SessionStart and UserPromptSubmit: {reminder_command(args.directory.resolve(), host)}")
+            reminders = [{'host': host, 'command': reminder_command(args.directory.resolve(), host)} for host in hosts]
+
+            def install_hosts():
+                configure_hosts(Path.home(), args.directory.resolve(), args.url.rstrip("/"), hosts,
+                                agent_instructions=args.agent_instructions)
+                local.set("hosts", hosts)
+                if "codex" in hosts:
+                    from .connector_hooks import trust_reviewed_codex_hooks
+                    trust_reviewed_codex_hooks(Path.home(), args.directory.resolve())
+
+            login(local, args.url, on_connected=install_hosts, reminder_hooks=reminders)
+            print("Connected. Restart your coding tools and start a new task. Both use this sign-in.")
+            print("In a new task, ask: Use LiteLLM Memory record_work to save what I'm working on. "
+                  "Show me the saved memory ID. Connections confirms when it arrives.")
         elif args.command == 'instructions':
             hosts = ['codex', 'claude'] if args.host == 'both' else [args.host]
             configure_hosts(Path.home(), args.directory.resolve(), '', hosts,
@@ -565,7 +613,7 @@ def main():
             local.set("status", "disconnected")
             local.db.commit()
             print("Disconnected. Local encrypted queued work is retained; revoke in Connections if offline.")
-    except (httpx.HTTPError, ValueError, OSError):
+    except (httpx.HTTPError, ValueError, OSError, EOFError):
         print("Could not complete this action. Check the URL, sign-in, and local configuration, then retry.", file=sys.stderr)
         raise SystemExit(1) from None
     finally:
