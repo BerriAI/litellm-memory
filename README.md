@@ -52,14 +52,14 @@ Read [self-hosting](docs/self-hosting.md) for HTTPS, backups, updates, external 
 
 ## Connect your tools
 
-Open **Connections → Set up continuous capture** in LiteLLM Memory. On the computer running your coding tools:
+Open **Connections → Connect a tool** in LiteLLM Memory. On the computer running your coding tools:
 
 ```sh
 uv tool install --force 'git+https://github.com/BerriAI/litellm-memory.git@main'
 litellm-memory-connector connect https://your-litellm-memory.example
 ```
 
-Sign in with Slack in the browser. The connector preserves existing host settings and memory connections. Restart your coding tool, then authenticate its LiteLLM Memory MCP when prompted. Use `--host codex` or `--host claude` to configure only one.
+Sign in with Slack and approve the connection and reminder hooks in your browser. One setup connects Codex and Claude Code using the same encrypted sign-in, while preserving unrelated settings. The browser returns to a first-save guide. Reopen your coding tools, send the provided test message in a new task, and confirm the memory appears in My work. Use `--host codex` or `--host claude` to configure only one.
 
 The connector reminds your coding agent to save useful work memories through MCP: current work, progress, findings, decisions, blockers and next steps. It does not automatically upload conversations. The agent can skip a turn when nothing useful changed. Optional global agent instructions are available in the [connector guide](docs/connectors.md). The website and Slack work without installing the connector.
 

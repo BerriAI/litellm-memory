@@ -228,3 +228,23 @@ def test_domain_signup_still_rejects_ineligible_slack_identity(tmp_path, changes
         client.cookies.set('litellm_memory_session', cookie)
         assert client.post('/api/signup').status_code == 403
         assert client.portal.call(app.state.archive.member, 'T:TIN') is None
+
+
+def test_connector_consent_discloses_reviewed_hooks_without_executing_markup(tmp_path):
+    app = application(tmp_path, [])
+    with TestClient(app) as client:
+        enroll(client, app)
+        hooks = [{'host': 'codex', 'command': 'python hook <script>alert(1)</script>'},
+                 {'host': 'claude', 'command': 'python hook --host claude'}]
+        registration = client.post('/oauth/register', json={'client_name': 'Connector',
+                                   'redirect_uris': ['http://127.0.0.1:9999/callback'], 'reminder_hooks': hooks})
+        assert registration.status_code == 201
+        assert registration.json()['reminder_hooks'] == hooks
+        response = client.get('/oauth/authorize', params={'client_id': registration.json()['client_id'],
+            'redirect_uri': 'http://127.0.0.1:9999/callback', 'response_type': 'code',
+            'code_challenge_method': 'S256', 'code_challenge': 'A' * 43, 'state': 'state'})
+        assert response.status_code == 200
+        assert 'Review reminder commands' in response.text and 'approve reminders' in response.text
+        assert '&lt;script&gt;' in response.text and '<script>alert' not in response.text
+        assert client.post('/oauth/register', json={'redirect_uris': ['http://127.0.0.1:9999/callback'],
+            'reminder_hooks': [{'host': 'unknown', 'command': 'run'}]}).status_code == 422

@@ -8,13 +8,17 @@ Install from the release branch while this project is in verification:
 
 ```sh
 uv tool install --force 'git+https://github.com/BerriAI/litellm-memory.git@main'
-litellm-memory-connector connect https://your-litellm-memory.example --host codex
-# Or --host claude; omit --host to configure both.
+litellm-memory-connector connect https://your-litellm-memory.example
+# Optional: --host codex or --host claude to configure only one.
 ```
 
-The browser opens Slack sign-in and a LiteLLM Memory consent screen. New members finish account setup first and return to the connection request. After **Connect**, the browser returns to your client automatically; **Return to client** is available if automatic navigation does not run. Keep the terminal or coding tool waiting until it confirms the connection. If an in-app browser cannot return to the client, start again and open the sign-in link in your regular browser.
+The command configures **Codex and Claude Code together** by default. The browser opens Slack sign-in and one consent screen. Review the MCP access and reminder commands, then choose **Connect**. Setup registers trust for only those exact Codex hooks; it does not disable hook verification or approve unrelated hooks. The Codex CLI must be installed to verify its hook definitions.
 
-OAuth credentials are stored encrypted in a private local directory. The setup adds the remote MCP URL and reminder hooks without removing other MCPs or hooks. Private backups are made before host configuration changes. Restart the host and complete its own MCP authentication prompt. In Codex, open `/hooks` and review/trust the LiteLLM Memory hooks; Codex skips untrusted hooks. Review them again after an update changes their commands.
+After credentials and local setup are saved, the browser returns to **Connections → Try your connection**. Quit and reopen your coding tools once, then start a new task. Copy the first message from Connections and send it to your coding agent. It explicitly uses `record_work`; editing `AGENTS.md` or `CLAUDE.md` does not count. Connections checks for a persisted memory and offers **View my work** when it arrives. It does not infer a successful save from approval alone.
+
+Both coding tools use the same encrypted local OAuth connection through a stdio MCP bridge. No separate MCP sign-in or copied API key is required. Refresh is serialized across processes; revoking the connector stops access from both tools. The remote `/mcp` endpoint remains available for other OAuth-capable clients. Setup verifies and caches the server’s tool catalog so starting a coding task does not wait on a network call. Rerun setup after updating the connector to refresh that catalog. Calls go to the same remote server; it does not read transcripts or implement another memory store.
+
+Private backups are made before host configuration changes. Existing unrelated MCPs, hooks and instructions are preserved. An update that changes reminder definitions needs fresh approval. If setup cannot verify trust, it reports failure; use `/hooks` to review Codex's current state. Keep the terminal running until connection completes. An expired or stopped callback requires a fresh `connect` command; do not reuse an old callback URL.
 
 Supported installation locations are `~/.codex/config.toml`, `~/.codex/hooks.json`, `~/.claude/settings.json` and `~/.claude.json`. Symlink-managed host configurations need manual integration. The initial connector supports macOS/Linux and Python 3.12+. Windows support has not been verified.
 

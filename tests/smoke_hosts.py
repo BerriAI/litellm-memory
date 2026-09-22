@@ -1,11 +1,12 @@
 """Exercise real host hook dispatch in a fresh, disposable CI account.
 
 Model responses and the upload endpoint are deterministic loopback fixtures.
-This proves advisory hook dispatch and no automatic transcript uploads, not
-personal OAuth, model judgment, MCP saves or Jev.
+This proves hook trust, advisory dispatch and authenticated MCP tool discovery
+in both real hosts. Model judgment and Jev are outside this fixture.
 Never run against a developer's configured home directory.
 """
 
+import asyncio
 import json
 import os
 import subprocess
@@ -19,11 +20,14 @@ from pathlib import Path
 import tomlkit
 
 from litellm_memory.connector import LocalCapture, configure_hosts
+from litellm_memory.connector_hooks import trust_reviewed_codex_hooks
+from litellm_memory.connector_mcp import describe
 
 PROMPT = "LITELLM_MEMORY_HOST_USER_CANARY: Reply briefly. Do not use tools."
 ANSWER = "LITELLM_MEMORY_HOST_ASSISTANT_CANARY: Capture verified."
 records = []
 model_inputs = []
+mcp_requests = []
 
 
 class Fixture(BaseHTTPRequestHandler):
@@ -49,6 +53,24 @@ class Fixture(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))) or b"{}")
+        if self.path == "/mcp/":
+            assert self.headers.get("Authorization") == "Bearer disposable-fixture"
+            method = body.get("method")
+            mcp_requests.append(method)
+            if "id" not in body:
+                self.send_response(202)
+                self.end_headers()
+                return
+            if method == "initialize":
+                result = {"protocolVersion": body["params"]["protocolVersion"], "capabilities": {"tools": {}},
+                          "serverInfo": {"name": "litellm-memory", "version": "1.0.0"}}
+            elif method == "tools/list":
+                result = {"tools": [{"name": name, "description": "Memory fixture tool.",
+                          "inputSchema": {"type": "object", "properties": {}}}
+                          for name in ['record_work', 'read_memory', 'capture_status']]}
+            else:
+                result = {}
+            return self.respond({"jsonrpc": "2.0", "id": body["id"], "result": result})
         if self.path == "/api/memories":
             assert self.headers.get("Authorization") == "Bearer disposable-fixture"
             records.append(body)
@@ -116,7 +138,10 @@ def main():
         url = f"http://127.0.0.1:{server.server_port}"
         configure_hosts(base, state, url, [host])
         local = LocalCapture(state)
-        local.set("connection", {"url": url, "access_token": "disposable-fixture", "expires_at": time.time() + 3600})
+        local.set("account_binding", {"url": url, "owner": "T:OWNER"})
+        local.set("connection", {"url": url, "owner": "T:OWNER", "access_token": "disposable-fixture", "expires_at": time.time() + 3600})
+        local.set('mcp_catalog', asyncio.run(describe(url, 'disposable-fixture')))
+        mcp_requests.clear()
         local.set_paused(False)
         local.db.commit()
         local.close()
@@ -128,22 +153,26 @@ def main():
             config["model_providers"] = {"fixture": {"name": "Disposable fixture", "base_url": url + "/v1",
                                                   "wire_api": "responses", "requires_openai_auth": False}}
             config["features"] = {"hooks": True}
-            config["mcp_servers"]["litellm-memory"]["enabled"] = False
+            # This immediate fake model can finish before optional MCP startup
+            # on a loaded CI runner; wait for discovery to test the host contract.
+            config["mcp_optional_startup_grace_ms"] = 0
             path.write_text(tomlkit.dumps(config))
-            # All sources are the reviewed installer output in this empty CI
-            # account. This flag is never part of installation instructions.
-            command = ["codex", "exec", "--skip-git-repo-check", "--dangerously-bypass-hook-trust",
+            # Only the two exact installer commands in this disposable account are reviewed.
+            trust_reviewed_codex_hooks(base, state)
+            command = ["codex", "exec", "--skip-git-repo-check",
                        "--sandbox", "read-only", "--json", PROMPT]
         else:
             env.update(ANTHROPIC_API_KEY="disposable-fixture", ANTHROPIC_BASE_URL=url,
                        CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1")
-            command = ["claude", "-p", "--model", "claude-sonnet-4-6", "--tools", "", "--strict-mcp-config",
-                       "--mcp-config", '{"mcpServers":{}}', "--output-format", "json", PROMPT]
+            command = ["claude", "-p", "--model", "claude-sonnet-4-6", "--tools", "",
+                       "--output-format", "json", PROMPT]
         result = subprocess.run(command, cwd=root, env=env, capture_output=True, text=True, timeout=90)
         if result.returncode or ANSWER not in result.stdout:
             print(result.stdout[-4000:])
             print(result.stderr[-4000:])
             raise AssertionError(f"{host} fixture response failed (exit {result.returncode})")
+        assert any('record_work' in json.dumps(body.get('tools', [])) for body in model_inputs), 'Memory MCP tools did not reach the host model'
+        assert not mcp_requests, 'Catalog discovery must not wait on the remote server'
         assert not records, 'A reminder hook uploaded conversation text'
         assert any('Keep a low bar' in json.dumps(body) and 'Skip saving' in json.dumps(body)
                    for body in model_inputs), 'Memory guidance did not reach the host model'
@@ -151,7 +180,7 @@ def main():
         assert local.status()['queued'] == 0, 'A reminder hook buffered conversation text'
         local.close()
         version = subprocess.check_output([host, "--version"], text=True).strip()
-        print(json.dumps({"host": version, "transcripts_uploaded": len(records), "guidance_received": True}))
+        print(json.dumps({"host": version, "transcripts_uploaded": len(records), "guidance_received": True, "mcp_tools_available": True}))
         server.shutdown()
 
 

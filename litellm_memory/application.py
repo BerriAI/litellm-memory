@@ -625,12 +625,13 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
 litellm-memory-connector connect {url}</pre>
         <h2>2. Restart your coding tool</h2>
         <p>The installer adds memory reminder hooks and the LiteLLM Memory MCP, preserving your existing connections.
-        Restart Codex or Claude Code, then sign in to its LiteLLM Memory MCP when prompted.
-        In Codex, open <code>/hooks</code> and review/trust the LiteLLM Memory reminder hooks.</p>
+        Review the reminder commands on the browser consent page, then connect. Both tools share that sign-in.
+        Setup approves only the reviewed Codex hooks. Quit and reopen your coding tools, then start a new task.</p>
         <p>Your agent saves useful work memories privately: what it is doing, progress, findings and decisions.
         It can skip turns with nothing useful to add. Hooks never upload transcripts. Memories are searched only when you ask.</p>
         <h2>3. Confirm your first memory</h2>
-        <p>Ask your agent to remember what you are working on. In <a href="/#connections">Connections</a>,
+        <p>Send the first message from <a href="/#connections">Connections</a> in a new coding task. It calls
+        <code>record_work</code> and returns a saved memory ID; editing local instruction files is not a save. Then
         wait for the saved-work confirmation, then open My work to see the memory.</p>
         <details class="advanced"><summary>Choose a tool</summary>
         <pre class="code-block">litellm-memory-connector connect {url} --host codex
@@ -937,6 +938,13 @@ litellm-memory-connector disconnect</pre>
     # One router keeps versioned and compatibility requests on identical handlers.
     app.include_router(api, prefix="/api/v1")
     app.include_router(api, prefix="/api", include_in_schema=False)
+    @app.api_route("/mcp", methods=["GET", "POST", "DELETE", "OPTIONS"], include_in_schema=False)
+    async def mcp_redirect(request: Request):
+        # Keep the browser/client's origin when TLS terminates at a reverse proxy.
+        # Starlette's automatic slash redirect otherwise uses the upstream HTTP scheme.
+        suffix = "?" + request.url.query if request.url.query else ""
+        return RedirectResponse("/mcp/" + suffix, status_code=307)
+
     app.mount("/mcp", mcp_http)
     app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
     app.add_middleware(RequestGuard)
