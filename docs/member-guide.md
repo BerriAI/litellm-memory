@@ -6,7 +6,7 @@ LiteLLM Memory keeps a private, searchable record of your work with AI. You deci
 
 Choose **Sign in with Slack** using your company account. Your installation accepts only its configured Slack workspace and verified email domain. There is no separate LiteLLM Memory password or key to save.
 
-After joining, Company opens immediately so you can browse shared work. Choose **Connect a tool** on Activity, or open **Connections**. Select Codex or Claude Code, copy the installation commands and run them on your computer. Restart the tool and finish its MCP sign-in; Codex also requires reviewing and trusting the installed hooks. The connector preserves existing configuration. [Full connector instructions](connectors.md).
+After joining, Company opens immediately so you can browse shared work. Choose **Connect a tool** on Activity, or open **Connections**. Copy the setup command and run it on your computer; it connects Codex and Claude Code together by default. Sign in and approve the displayed access and reminder commands on the website. Setup saves both configurations and trusts only the exact Codex hooks you reviewed, then returns you to the first-memory guide. Restart your coding tools and start a new task. No second MCP sign-in is needed. The connector preserves existing configuration. [Full connector instructions](connectors.md).
 
 Ask your agent to remember what you’re working on, then let it finish saving. Connections first shows **Connected. Waiting for work.**, then confirms when a record arrives and offers **View my work**. It checks while that page is visible; **Refresh status** refreshes immediately. Authorization alone does not confirm a saved memory. A receipt confirms saved work, not that your tool is currently running.
 

@@ -12,7 +12,7 @@ flowchart LR
   M[Remote MCP] -->|personal OAuth| A
   A --> E[Encrypted intake and source objects]
   E --> N[Ente Museum + PostgreSQL]
-  E --> P[Parallel classification and work extraction]
+  E --> P[Privacy classification and search indexing]
   P --> L[LiteLLM gateway: Jev, chat, embeddings]
   P --> D[Encrypted work entries and public excerpts]
   D --> V[Current/daily views with source manifests]
@@ -32,7 +32,7 @@ Historical ingestion uses the same path with separate worker capacity and histor
 
 Each worker claims a lease tied to current policy. Jev classifies overlapping source chunks through the configured LiteLLM TypeSafe pass-through. Cache identity includes the content/chunk, criterion and classification version. Successful chunks survive a sibling failure; adding a criterion asks only the missing questions. Model changes deliberately create new classification/index generations.
 
-The background model describes the work briefly with projects and attribution. New accounts have no required category taxonomy; Jev checks user-written privacy topics. Older restrictive type policies keep their cached classifiers. Original content remains searchable even before processing finishes. Embeddings include their model identity and dimensions; incompatible query vectors fall back to keyword search.
+Agent-authored MCP memories are kept as written, without another summary-generation call. Older transcript imports use the background model to describe the work briefly with projects and attribution. New accounts have no required category taxonomy; Jev checks user-written privacy topics. Older restrictive type policies keep their cached classifiers. Original content remains searchable even before processing finishes. Embeddings include their model identity and dimensions; incompatible query vectors fall back to keyword search.
 
 Daily/current views are requested explicitly through Ask or the API; the worker does not periodically sweep member histories. They are rebuilt from selected source entries, not recursively from prior summaries. They include validated source IDs, timestamps and coverage. Private/public views have separate input sets. No-change generations are reused; policy changes invalidate old derived output before it is returned. Historical daily views can be requested for a particular date.
 

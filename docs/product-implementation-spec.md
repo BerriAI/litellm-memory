@@ -36,11 +36,11 @@ Agent-authored memories are identified as such and preserve available source/ses
 
 The API stores immutable encrypted source objects and separate encrypted derived records in Ente. SQLite holds encrypted operational state. Git holds code and documentation, never live personal memories. Existing imported records remain searchable with their originals, dates, attribution and metadata preserved; removing import from onboarding does not remove data. Deletion markers stop old backfills from restoring deleted records.
 
-Background processing creates a short readable description and search embeddings. It does not force new work into “progress / decision / finding / blocker / plan.” Existing metadata and previous classifications remain available for search. Current/daily summaries are built on explicit request, with citations and coverage. There is no automatic daily or five-minute overview sweep. Existing summaries and original evidence are preserved.
+For agent-authored MCP memories, background processing preserves the submitted text and adds search embeddings and required Jev checks. It does not summarize the memory again. Older transcript imports still generate a readable description. It does not force new work into “progress / decision / finding / blocker / plan.” Existing metadata and previous classifications remain available for search. Current/daily summaries are built on explicit request, with citations and coverage. There is no automatic daily or five-minute overview sweep. Existing summaries and original evidence are preserved.
 
 ## Filters and sharing
 
-Everything starts private. Sharing publishes a separate summary to eligible company members; the original conversation remains private. Members can preview and share a summary, withdraw it, or opt in to automatic sharing of future summaries. Existing history stays private unless explicitly shared.
+Everything starts private. Sharing publishes a separate copy of the memory text to eligible company members; source details and metadata remain private. Members can preview and share a memory, withdraw it, or opt in to automatic sharing of future memories. Older imported conversations publish their derived description while the original conversation remains private. Existing history stays private unless explicitly shared.
 
 Members describe **topics that must stay private** in plain language. Jev evaluates complete source chunks for those rules. Results are cached by source, criterion and version; adding a rule computes only its missing results and applies it to future records. New privacy rules withdraw existing publications while checks run. Uncertain matches remain private. Older restrictive type policies are preserved for compatibility and are not silently widened.
 
@@ -64,7 +64,7 @@ LiteLLM calls request content logging suppression. Operators must verify their a
 
 The earlier implementation imposed a predefined taxonomy and repeated it in sharing, filters and the feed. That was an unnecessary product decision. New processing no longer requires it, and the UI exposes simple sharing choices and user-written privacy topics.
 
-The capture format is a transport envelope around evidence, not a demand that a coding model author a structured “learning.” Message-level capture protects originals and makes retries simple, but message-level processing can create fragmented summaries and unnecessary model calls. Current/daily views improve readability; they do not yet make session episodes the canonical feed unit. Evaluate that on real history before adding another processing layer.
+The coding agent writes a concise work memory through MCP. The service preserves it as written; a second model rewriting it was redundant and could block indexing and sharing on an unrelated generation failure. The stored envelope carries provenance and stable IDs for retries, without imposing a “learning” format. Historical transcript imports remain a separate operator workflow. Evaluate real retrieval failures before adding another processing layer.
 
 Visible conversation captures what was said, not proof that a tool ran or a claim is true. The answer contract preserves that distinction. Future changes should follow observed retrieval failures and user needs, not add more categories, settings or synthetic success metrics.
 
