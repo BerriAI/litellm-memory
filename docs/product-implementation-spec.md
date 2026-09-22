@@ -40,9 +40,9 @@ For agent-authored MCP memories, background processing preserves the submitted t
 
 ## Filters and sharing
 
-Everything starts private. Sharing publishes a separate copy of the memory text to eligible company members; source details and metadata remain private. Members can preview and share a memory, withdraw it, or opt in to automatic sharing of future memories. Older imported conversations publish their derived description while the original conversation remains private. Existing history stays private unless explicitly shared.
+Everything starts private. Sharing publishes a separate copy of the memory text to eligible company members; source details and metadata remain private. Members can preview and share a memory, withdraw it, or opt in to automatic sharing of future memories. Older imported conversations publish their derived description while the original conversation remains private. Existing history stays private unless explicitly shared. Settings → Sharing → Share existing memories previews eligible earlier records and queues only that reviewed set. Filtered, unfinished, failed and otherwise ineligible memories stay private; this does not change automatic sharing.
 
-Members describe **topics that must stay private** in plain language. Jev evaluates complete source chunks for those rules. Results are cached by source, criterion and version; adding a rule computes only its missing results and applies it to future records. New privacy rules withdraw existing publications while checks run. Uncertain matches remain private. Older restrictive type policies are preserved for compatibility and are not silently widened.
+Members describe **topics that must stay private** in plain language. Jev evaluates complete source chunks for those rules. Results are cached by source, criterion and version; adding a rule computes only its missing results and applies it to future records. New privacy rules withdraw existing publications while checks run. A topic blocks sharing when its Jev probability is at least `JEV_PRIVATE_THRESHOLD` (default `0.7`). Failed or incomplete checks remain private. Changing the cutoff reevaluates cached scores at startup and preserves prior sharing intent; it does not rerun Jev for unchanged rules. Owners see a Filtered control beside Private that reveals the current matching topics. Older restrictive type policies are preserved for compatibility and are not silently widened.
 
 Browsing uses text, person, source, project, saved type metadata and dates. Personal viewing exclusions narrow feed, Ask and derived views without changing sharing permissions. The MVP's user-defined Jev controls are privacy-topic rules; arbitrary saved semantic browsing categories are not implemented and must not be advertised as available.
 
@@ -51,6 +51,8 @@ Browsing uses text, person, source, project, saved type metadata and dates. Pers
 Web, Slack, MCP and API use the same read-only query agent. It can search, inspect originals it is permitted to read, list people and consult current/daily views. It has no tool that publishes work or changes permissions.
 
 Permissions apply before retrieval/decryption and again before delivering an answer. Shared Slack conversations use company-public evidence only and fail closed for unknown or ineligible participants. Private questions require a verified personal audience. Changing audience/person invalidates previous conversation context; access changes can also invalidate in-flight answers.
+
+Slack posts one acknowledgment, then replaces it with the completed, verified answer. It never streams partial answers or changing queue statuses. Native Slack source links and Markdown citations share validation; one internal repair attempt may fix invalid citations before delivery.
 
 Source text is untrusted data. Answers preserve attribution, uncertainty and dates, distinguish plans from outcomes, and admit missing evidence. Citation IDs must correspond to sources actually read. Synthetic tests cannot establish real answer quality; the release gate requires a reviewed real-history evaluation.
 

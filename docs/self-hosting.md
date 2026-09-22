@@ -142,3 +142,7 @@ litellm-memory-transfer restore my-memory-export.litellm-memory
 ```
 
 Passwords are entered interactively, never command-line arguments. Restore verifies the complete authenticated file before uploading, resumes safely by original source identity, keeps imports private and respects destination deletion tombstones. A different Slack identity requires an explicit `--allow-owner-remap`; review attribution before using it. If capture is paused, restore also remains paused until the member resumes it.
+
+### Privacy-match sensitivity
+
+`JEV_PRIVATE_THRESHOLD=0.7` is the default cutoff: a topic blocks sharing at or above that probability. The deployment administrator can set a value greater than 0 and at most 1 (Render → Environment), then redeploy. Higher cutoffs require a stronger match. On startup, affected records are hidden and reevaluated using cached Jev scores; original text and sharing consent are unchanged. A record only becomes company-visible if its owner had already chosen to share it and all current checks pass.

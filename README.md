@@ -12,7 +12,7 @@ This is a work archive you query deliberately. It does not search old memories o
 
 ![The implemented LiteLLM Memory Activity view with Ask, a chronological feed and private lock labels](docs/assets/dashboard.jpg)
 
-The actual application, shown with synthetic local records. See [Ask](docs/assets/ask.jpg), [privacy settings](docs/assets/settings.jpg), and the [interface guide](docs/ui-review.md) for more screenshots and verification details.
+The actual application, shown with synthetic local records. See [Ask](docs/assets/ask.png), [privacy settings](docs/assets/settings.png), and the [interface guide](docs/ui-review.md) for more screenshots and verification details.
 
 ## What it does
 

@@ -564,11 +564,12 @@
                   <option value="all">My work + Company</option>
                 </select></label
               >
+              <label class="sr-only" for="model">LiteLLM model</label>
+              <select aria-label="LiteLLM model" id="model">
+                <option value="">Loading models…</option>
+              </select>
               <div class="model-and-send">
-                <label class="sr-only" for="model">LiteLLM model</label
-                ><select aria-label="LiteLLM model" id="model">
-                  <option value="">Loading models…</option></select
-                ><button
+                <button
                   class="button quiet small"
                   hidden=""
                   id="stop-answer"
@@ -879,7 +880,7 @@
               <div class="section-copy">
                 <h2>Keep topics private</h2>
                 <p>
-                  Keep specific topics out of shared summaries. You can still
+                  Keep specific topics out of shared memories. You can still
                   ask about them privately.
                 </p>
               </div>
@@ -903,6 +904,18 @@
                   <p class="inline-error" id="rule-error" role="alert"></p>
                 </form>
                 <div id="rule-list"></div>
+              </div>
+            </section>
+            <section class="settings-section" id="share-existing-section" hidden>
+              <div class="section-copy">
+                <h2>Share existing memories</h2>
+                <p>Share earlier work with your company. Memories that match your private topics stay private.</p>
+              </div>
+              <div class="section-controls">
+                <div class="form-footer">
+                  <button type="button" class="button secondary" id="share-existing">Review existing memories</button>
+                  <span class="inline-status" id="share-existing-status" role="status"></span>
+                </div>
               </div>
             </section>
           </div>

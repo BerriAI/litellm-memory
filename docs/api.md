@@ -20,6 +20,9 @@ The web app, Slack adapter and remote MCP share one API/backend. The public API 
 | `PUT /api/v1/memories/{id}/visibility` | Browser-only sharing intent; processing checks still apply. |
 | `DELETE /api/v1/memories/{id}` | Browser-only denial/tombstone followed by retryable purge. |
 | `POST /api/v1/memories/{id}/corrections` | Browser-only, private dated correction; preserves original evidence and withdraws the old publication. |
+| `GET /api/v1/memories/{id}/privacy-matches` | Owner browser only; current matching private topics from cached Jev results. |
+| `GET /api/v1/sharing/preview-existing` | Owner browser only; counts of eligible and skipped private records, plus a confirmation revision. |
+| `POST /api/v1/sharing/existing` | Owner browser only; `{"revision":"…"}` queues only eligible records from the unchanged preview. Stale previews return 400 and require review again. |
 | `GET /api/v1/people` | Enrolled Slack profiles, without others' private activity counts. |
 | `POST /api/v1/people/{owner}/overview` | Current/daily/project overview and coverage. |
 | `POST /api/v1/chat` | Queue an explicit memory query; returns a job ID. |

@@ -209,6 +209,65 @@ function privacy(value) {
   );
   return p;
 }
+function memoryPrivacy(memory, interactive = true) {
+  const group = el("span", "", "memory-privacy");
+  group.append(privacy(memory.visibility));
+  if (memory.owner === state.me.id && memory.visibility !== "public" &&
+      memory.status === "ready" && memory.privacy_blocked === true) {
+    const filtered = el(interactive ? "button" : "span", "Filtered", "privacy-filtered");
+    if (interactive) {
+      filtered.type = "button";
+      filtered.setAttribute("aria-label", "Filtered: view matching private topics");
+      filtered.setAttribute("aria-haspopup", "dialog");
+      filtered.onclick = () => showPrivacyMatches(memory);
+    }
+    group.append(filtered);
+  }
+  return group;
+}
+function showPrivacyMatches(memory) {
+  const dialog = el("dialog", "", "privacy-dialog");
+  const top = el("div", "", "dialog-top");
+  const heading = el("h2", "Why this memory is private");
+  heading.id = "privacy-reason-title";
+  dialog.setAttribute("aria-labelledby", heading.id);
+  const close = el("button", "", "icon-button");
+  close.append(icon("close"));
+  close.setAttribute("aria-label", "Close private topics");
+  close.autofocus = true;
+  close.onclick = () => dialog.close();
+  top.append(heading, close);
+  const content = el("div");
+  const status = el("p", "Loading matching topics…", "muted");
+  status.setAttribute("role", "status");
+  content.append(status);
+  dialog.append(top, content);
+  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+  async function load() {
+    content.replaceChildren(status);
+    status.textContent = "Loading matching topics…";
+    try {
+      const data = await api(`/api/v1/memories/${encodeURIComponent(memory.id)}/privacy-matches`);
+      if (!dialog.open) return;
+      if (!data.rules.length) {
+        status.textContent = data.notice;
+        return;
+      }
+      const list = el("ul", "", "privacy-match-list");
+      for (const rule of data.rules) list.append(el("li", rule.instruction));
+      content.replaceChildren(el("p", "Jev matched these topics you chose to keep private.", "muted"), list);
+    } catch (error) {
+      if (!dialog.open) return;
+      status.textContent = explain(error);
+      const retry = el("button", "Try again", "button secondary");
+      retry.onclick = load;
+      content.append(retry);
+    }
+  }
+  load();
+}
 function profile(id) {
   return (
     state.people.find((p) => p.id === id) || {
@@ -563,16 +622,52 @@ function feedCard(memory) {
   );
   who.onclick = () => openPerson(memory.owner);
   const when = memory.created_at || memory.captured_at;
-  const timestamp = el("time", date(when));
+  const timestamp = el("time", date(when, true));
   if (when) timestamp.dateTime = when;
   timestamp.title = date(when, true);
-  line.append(who, privacy(memory.visibility), timestamp);
+  line.append(who, memoryPrivacy(memory), timestamp);
   body.append(line);
   const heading = el("h2");
   const title = el("button", memory.title || "Recorded work", "memory-title");
   title.onclick = () => openMemory(memory.id).catch((e) => toast(explain(e)));
   heading.append(title);
-  body.append(heading, el("p", memory.excerpt));
+  const excerpt = el("p", "", "feed-excerpt");
+  const short = memory.excerpt || "";
+  const truncated = short.length > 300 || memory.excerpt_truncated;
+  const preview = truncated ? short.slice(0, 300).trimEnd() + "…" : short;
+  const text = el("span", preview);
+  text.id = `feed-text-${memory.id}`;
+  excerpt.append(text);
+  if (truncated) {
+    const expand = el("button", "Read more", "feed-expand");
+    expand.type = "button";
+    expand.setAttribute("aria-expanded", "false");
+    expand.setAttribute("aria-controls", text.id);
+    const error = el("span", "", "inline-error");
+    error.setAttribute("role", "status");
+    expand.onclick = () => busy(expand, async () => {
+      error.textContent = "";
+      if (expand.getAttribute("aria-expanded") === "true") {
+        text.textContent = preview;
+        expand.textContent = "Read more";
+        expand.setAttribute("aria-expanded", "false");
+        return;
+      }
+      expand.textContent = "Loading…";
+      try {
+        const full = await api(`/api/v1/memories/${encodeURIComponent(memory.id)}`);
+        if (!card.isConnected) return;
+        text.textContent = full.summary || full.content;
+        expand.textContent = "Show less";
+        expand.setAttribute("aria-expanded", "true");
+      } catch (e) {
+        expand.textContent = "Read more";
+        error.textContent = explain(e);
+      }
+    });
+    excerpt.append(document.createTextNode(" "), expand, error);
+  }
+  body.append(heading, excerpt);
   const meta = el("div", "", "memory-meta");
   if (memory.source) meta.append(el("span", sourceName(memory.source)));
   if (memory.status !== "ready")
@@ -601,7 +696,7 @@ async function openMemory(id) {
   try {
     const m = await api("/api/v1/memories/" + encodeURIComponent(id));
     if (version !== state.memoryVersion || !$("source-dialog").open) return;
-    $("source-visibility").replaceChildren(privacy(m.visibility));
+    $("source-visibility").replaceChildren(memoryPrivacy(m));
     const body = $("source-body");
     const title = el("h1", m.title);
     title.id = "source-title";
@@ -1598,6 +1693,7 @@ async function loadSettings() {
     $("agent-enabled").checked = state.me.agent_enabled;
     show("sharing-note", !state.me.sharing_enabled);
     show("sharing-form", state.me.sharing_enabled);
+    show("share-existing-section", state.me.sharing_enabled);
     show("workspace-sharing-control", state.me.is_admin);
     $("workspace-sharing-enabled").checked = state.me.sharing_enabled;
     const sharing = await api("/api/v1/sharing-preferences");
@@ -1829,7 +1925,7 @@ function searchResult(memory) {
       "span",
       memory.owner === state.me.id ? "You" : profile(memory.owner).name,
     ),
-    privacy(memory.visibility),
+    memoryPrivacy(memory, false),
     el("span", date(memory.created_at || memory.captured_at)),
   );
   result.append(
@@ -2070,6 +2166,39 @@ $("rule-form").onsubmit = async (e) => {
     }
   });
 };
+$("share-existing").onclick = () => busy($("share-existing"), async () => {
+  const status = $("share-existing-status");
+  status.textContent = "Checking existing memories…";
+  try {
+    const preview = await api("/api/v1/sharing/preview-existing");
+    const counts = preview.counts;
+    const skipped = [
+      [counts.filtered, "filtered by private topics"],
+      [counts.processing, "still processing"],
+      [counts.failed, "needing attention"],
+      [counts.excluded, "excluded by other sharing requirements"],
+    ].filter(([count]) => count).map(([count, reason]) => `${count} ${reason}`).join(", ");
+    if (!counts.eligible) {
+      status.textContent = `No existing memories are ready to share.${skipped ? ` Kept private: ${skipped}.` : ""}`;
+      return;
+    }
+    status.textContent = "";
+    const noun = counts.eligible === 1 ? "memory" : "memories";
+    if (!(await confirmAction({
+      title: "Share existing memories?",
+      description: `Share ${counts.eligible} eligible private ${noun} with your company. Source details stay private. Your automatic-sharing preference will not change.`,
+      confirm: `Share ${counts.eligible} ${noun}`,
+      preview: skipped ? { title: "Staying private", summary: skipped + "." } : undefined,
+    }))) return;
+    status.textContent = "Requesting sharing…";
+    const result = await api("/api/v1/sharing/existing", { revision: preview.revision });
+    status.textContent = `${result.queued} ${result.queued === 1 ? "memory" : "memories"} queued for sharing. Privacy checks run before publication.`;
+    await loadFeed();
+  } catch (error) {
+    status.textContent = explain(error);
+  }
+});
+
 $("sharing-form").onsubmit = async (event) => {
   event.preventDefault();
   await busy(event.submitter, async () => {
