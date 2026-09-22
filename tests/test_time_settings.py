@@ -1,4 +1,3 @@
-import json
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
@@ -36,7 +35,7 @@ def test_schedule_and_display_settings_are_authorized_private_and_persistent(tmp
         assert client.get('/api/v1/schedule').status_code == 401
         enroll(client, app)
         initial = client.get('/api/v1/schedule').json()
-        assert initial['timezone'] == 'UTC' and initial['daily_time'] == '02:00'
+        assert initial['timezone'] == 'UTC' and initial['daily_time'] == '00:00'
         body = {'timezone': 'America/Los_Angeles', 'daily_time': '07:15', 'revision': 0}
         assert client.put('/api/v1/admin/schedule', json=body,
                           headers={'Origin': 'https://elsewhere.example'}).status_code == 403
@@ -101,21 +100,20 @@ def test_failed_config_write_preserves_the_active_settings(tmp_path, monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_daily_timezone_is_frozen_in_pending_work_and_changes_the_view_identity(archive):
+async def test_generated_archive_keeps_its_original_timezone_after_settings_change(archive):
     saved = await ready(archive, 'late-evening', 'A late decision', '2026-09-19T01:00:00Z')
     deployment = SimpleNamespace(values={'timezone': 'America/Los_Angeles'})
     gateway = ViewGateway()
     views = WorkViews(archive, gateway, deployment)
     await views.open()
     request = ViewRequest(kind='daily', day='2026-09-18')
-    old = await views.get(Reader('T1:A'), 'T1:A', request)
+    old = await views.get(Reader('T1:A'), 'T1:A', request, enqueue=True)
     row = await views.next()
     deployment.values['timezone'] = 'UTC'
     await views.build(row)
     current = await views.get(Reader('T1:A'), 'T1:A', request)
-    assert current['id'] != old['id'] and current['timezone'] == 'UTC'
-    await views.build(await views.next())
-    assert (await views.get(Reader('T1:A'), 'T1:A', request))['view']['source_ids'] == []
+    assert current['id'] == old['id'] and current['timezone'] == 'America/Los_Angeles'
+    assert await views.next() is None
     deployment.values['timezone'] = 'America/Los_Angeles'
     previous = await views.get(Reader('T1:A'), 'T1:A', request)
     assert previous['id'] == old['id'] and previous['view']['source_ids'] == [saved]
@@ -123,29 +121,28 @@ async def test_daily_timezone_is_frozen_in_pending_work_and_changes_the_view_ide
 
 
 @pytest.mark.asyncio
-async def test_daily_freshness_ignores_other_days_and_private_sources_but_accepts_late_work(archive):
-    first = await ready(archive, 'first', 'Approved decision', '2026-09-18T20:00:00Z', public=True)
+async def test_late_work_waits_for_the_next_midnight_and_reads_never_regenerate(archive):
+    archive.sharing_enabled = False
+    first = await ready(archive, 'first', 'A decision', '2026-09-18T20:00:00Z')
     gateway = ViewGateway()
     views = WorkViews(archive, gateway, SimpleNamespace(values={'timezone': 'UTC'}))
     await views.open()
     request = ViewRequest(kind='daily', day='2026-09-18')
-    await views.get(Reader('T1:B'), 'T1:A', request)
+    await views.schedule(datetime(2026, 9, 19, tzinfo=UTC))
     await views.build(await views.next())
-    await ready(archive, 'other-day', 'Different day', '2026-09-19T01:00:00Z', public=True)
-    await ready(archive, 'private', 'PRIVATE_DAILY_CANARY', '2026-09-18T21:00:00Z')
-    view = await views.get(Reader('T1:B'), 'T1:A', request)
-    # A publication policy change still requires access revalidation, but does
-    # not require another model call when this day's permitted inputs are equal.
-    if view['stale']:
-        await views.build(await views.next())
-        view = await views.get(Reader('T1:B'), 'T1:A', request)
+    late = await ready(archive, 'late', 'Late decision', '2026-09-18T22:00:00Z')
+    view = await views.get(Reader('T1:A'), 'T1:A', request)
     assert not view['stale'] and view['view']['source_ids'] == [first]
     assert await views.next() is None and len(gateway.inputs) == 1
-    late = await ready(archive, 'late', 'Late approved decision', '2026-09-18T22:00:00Z', public=True)
-    assert (await views.get(Reader('T1:B'), 'T1:A', request))['stale']
+    await views.open()  # A restart must not run the daily schedule twice.
+    await views.schedule(datetime(2026, 9, 19, 18, tzinfo=UTC))
+    assert await views.next() is None
+    await views.schedule(datetime(2026, 9, 20, tzinfo=UTC))
+    # The previous generated summary stays readable while the nightly update runs.
+    assert (await views.get(Reader('T1:A'), 'T1:A', request))['view']['source_ids'] == [first]
     await views.build(await views.next())
-    assert set((await views.get(Reader('T1:B'), 'T1:A', request))['view']['source_ids']) == {first, late}
-    assert 'PRIVATE_DAILY_CANARY' not in json.dumps(gateway.inputs)
+    assert set((await views.get(Reader('T1:A'), 'T1:A', request))['view']['source_ids']) == {first, late}
+    assert len(gateway.inputs) == 2
 
 
 @pytest.mark.asyncio
@@ -160,12 +157,12 @@ async def test_scheduled_jobs_coalesce_missed_days_and_resume_without_duplicate_
         while row := await views.next():
             await views.build(row)
 
-    await views.schedule(datetime(2026, 3, 8, 9, 59, tzinfo=UTC))
+    await views.schedule(datetime(2026, 3, 8, 7, 59, tzinfo=UTC))
     await drain()
     assert len(gateway.inputs) == 0  # March 7 is not yet due; no empty days are generated.
-    await views.schedule(datetime(2026, 3, 8, 10, tzinfo=UTC))
+    await views.schedule(datetime(2026, 3, 8, 8, tzinfo=UTC))
     await drain()
-    assert len(gateway.inputs) == 1  # March 7 catch-up, when the skipped 02:00 reaches 03:00.
+    assert len(gateway.inputs) == 1  # March 7 is ready to summarize at local midnight.
     await views.open()  # Startup reconciliation with durable queue state retained.
     await views.schedule(datetime(2026, 3, 8, 10, 5, tzinfo=UTC))
     assert await views.next() is None and len(gateway.inputs) == 1

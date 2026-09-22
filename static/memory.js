@@ -734,12 +734,6 @@ function summaryCard(summary) {
     meta.append(document.createTextNode(` · ${count} ${count === 1 ? "memory" : "memories"}`));
   }
   card.append(meta);
-  if (summary.status !== "ready" || summary.stale) {
-    const status = summary.status === "paused" ? "Summary generation is paused in Settings."
-      : summary.status === "failed" ? "Couldn’t finish this summary. It will retry automatically."
-      : summary.stale && summary.view ? "Updating with the latest memories…" : "Preparing this day’s summary…";
-    card.append(el("p", status, "field-help"));
-  }
   for (const item of summary.view?.items || []) {
     const paragraph = el("div", "", "daily-paragraph");
     paragraph.append(el("p", item.text));
@@ -756,7 +750,6 @@ function summaryCard(summary) {
     paragraph.append(links);
     card.append(paragraph);
   }
-  if (summary.view && !summary.view.items.length) card.append(el("p", "No summary is available for these memories."));
   return card;
 }
 async function loadDaily({ background = false } = {}) {
@@ -805,14 +798,13 @@ async function loadDaily({ background = false } = {}) {
       $(id).onclick = () => openDaily({ person: state.dailyPerson, scope: state.dailyScope, day });
     }
     const list = $("daily-list");
-    list.replaceChildren(...result.summaries.map(summaryCard));
-    if (!result.summaries.length) showEmpty(list, "No recorded work for this day",
-      state.dailyScope === "shared" ? "Shared memories will appear here as daily summaries." : "Choose another day to see your recorded work.");
-    if (result.summaries.some((s) => ["pending", "processing", "failed"].includes(s.status) || (s.stale && s.status !== "paused"))) {
-      state.dailyTimer = setTimeout(() => {
-        if (!document.hidden && !list.contains(document.activeElement)) loadDaily({ background: true });
-      }, 5000);
-    }
+    const summaries = result.summaries.filter((summary) => summary.view?.items?.length);
+    list.replaceChildren(...summaries.map(summaryCard));
+    if (!summaries.length) showEmpty(list, "None available yet",
+      "Daily summaries are created at midnight and appear here when ready.");
+    state.dailyTimer = setTimeout(() => {
+      if (!document.hidden && !list.contains(document.activeElement)) loadDaily({ background: true });
+    }, 60000);
   } catch (error) {
     if (version !== state.dailyVersion || !state.me) return;
     $("daily-status").textContent = "";
@@ -820,7 +812,7 @@ async function loadDaily({ background = false } = {}) {
     show("daily-error");
   }
 }
-$("person-daily").onclick = () => openDaily({ person: state.person || state.me.id, scope: state.feed });
+$("person-daily").onclick = () => openDaily({ person: state.person, scope: state.feed });
 $("daily-company").onclick = () => openDaily({ day: state.dailyDay });
 $("daily-activity").onclick = () => state.dailyPerson ? openPerson(state.dailyPerson) : openFeed(state.dailyScope);
 $("refresh-daily").onclick = () => busy($("refresh-daily"), () => loadDaily());

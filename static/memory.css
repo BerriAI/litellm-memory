@@ -2778,7 +2778,6 @@ dialog::backdrop {
 }
 
 /* Daily summaries share one reading surface across company and person routes. */
-#daily-view { max-width: 880px; }
 .person-views { display: flex; gap: 24px; border-bottom: 1px solid var(--line); margin: 0 0 24px; }
 .person-views button { padding: 10px 0; font-size: var(--text-control); border-bottom: 2px solid transparent; }
 .person-views button[aria-current] { border-color: var(--ink); font-weight: 600; }

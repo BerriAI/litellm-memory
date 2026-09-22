@@ -114,9 +114,9 @@ Retry network errors, `429` after its indicated delay, and temporary `5xx` using
 
 ## Scheduling and display
 
-Daily summaries generate automatically for completed days. The existing worker reconciles source metadata once a minute, catches up missed days, and refreshes affected days after late captures. The date browser or agents can also queue missing summaries. Current overviews remain on demand. Generated views are checked against current evidence and permissions before delivery.
+Daily summaries generate automatically for completed days in one nightly run. The worker checks whether a run is due once a minute, catches up missed days, and incorporates late captures at the next nightly run. Daily reads only return generated summaries and their available dates; they never queue missing summaries or expose pending/failed jobs. Current overviews remain on demand. Generated views are checked against current permissions and viewing exclusions before delivery.
 
-Schedule endpoints return `timezone`, `daily_time`, `revision`, `automatic_refresh: true` and `next_run_at`. The workspace timezone defines daily boundaries, and a queued view retains its original timezone. The default daily time is 02:00. Today and future dates are rejected by daily-summary reads; agents use source records to answer questions about today.
+Schedule endpoints return `timezone`, `daily_time`, `revision`, `automatic_refresh: true` and `next_run_at`. The workspace timezone defines daily boundaries, and a queued view retains its original timezone. The default daily time is midnight (00:00). Today and future dates are rejected by daily-summary reads; agents use source records to answer questions about today.
 
 `GET /api/v1/recording-status` returns only the authenticated member’s `capture_enabled`, `agent_enabled`, `connected_clients`, `received`, `last_received_at` (Unix seconds or null), and processing `stats`. Receipts exclude historical imports, deleted records and intake awaiting storage. They are not hook heartbeats. A client counts as connected only while not revoked and its access credential or unconsumed refresh credential remains valid. The endpoint does not run inference or retrieval.
 

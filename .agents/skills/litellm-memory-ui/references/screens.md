@@ -22,9 +22,9 @@ For someone else's feed, show a compact identity header and Back to Company acti
 
 **Task:** understand what a person or the company worked on during a particular day.
 
-**Order:** page/person identity → Company/My work and date → author/audience → readable summary → sources. Use one reading column with quiet separators between people. Previous/Next skip to dates with accessible memories; a native date input opens any date. Show the workspace timezone. Summaries cover completed days only; today’s work is available in Activity. Do not infer inactivity from an empty day.
+**Order:** page/person identity → Company/My work and date → author/audience → readable summary → sources. Reuse Activity's page width and primary reading-column width so switching views does not shift their edges. Use quiet separators between people. Previous/Next skip to dates with generated summaries; a native date input opens any date. Show the workspace timezone. Summaries cover completed days only; today’s work is available in Activity. Do not infer inactivity from an empty day.
 
-Person pages provide Activity and Daily summaries navigation using the same summary renderer. Person, scope and date routes survive reload and Back. Keep loading, updating, paused and failed states distinct. Owner summaries show a lock and Private; company summaries contain only approved publications. Reuse the source dialog for citations. The same summaries are available to Ask and Slack; the UI does not generate a separate account of the day.
+Person pages provide Activity and Daily summaries navigation using the same summary renderer. Person, scope and date routes survive reload and Back. This is an archive of generated summaries: show “None available yet” before one is ready, and never show generation failures or pending placeholders. Network-read errors retain their recovery action. Generation runs nightly at midnight by default; browsing never triggers it. Owner summaries show a lock and Private; company summaries contain only approved publications. Reuse the source dialog for citations. The same summaries are available to Ask and Slack.
 
 ## Ask: empty, active, answered
 

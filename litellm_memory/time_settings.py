@@ -21,7 +21,7 @@ Timezone = Annotated[str, Field(min_length=1, max_length=100), AfterValidator(va
 class ScheduleSettings(BaseModel):
     model_config = ConfigDict(extra='forbid')
     timezone: Timezone = 'UTC'
-    daily_time: str = Field(default='02:00', pattern=r'^(?:[01][0-9]|2[0-3]):[0-5][0-9]$')
+    daily_time: str = Field(default='00:00', pattern=r'^(?:[01][0-9]|2[0-3]):[0-5][0-9]$')
 
     def instant(self, day):
         local = datetime.combine(day, time.fromisoformat(self.daily_time), ZoneInfo(self.timezone))

@@ -617,31 +617,35 @@
             <h1>Daily summaries</h1>
             <button class="button quiet small" id="refresh-daily"><span data-icon="refresh"></span>Refresh</button>
           </div>
-          <section class="person-context" id="daily-person-context" hidden aria-label="Selected person">
-            <div class="person-context-identity" id="daily-person-identity"></div>
-            <button class="text-button" id="daily-company">Back to Company</button>
-          </section>
-          <nav class="person-views" id="daily-person-views" aria-label="Person views" hidden>
-            <button id="daily-activity" type="button">Activity</button>
-            <button aria-current="page" type="button">Daily summaries</button>
-          </nav>
-          <div class="daily-toolbar">
-            <div class="segmented" id="daily-scopes" role="group" aria-label="Summary visibility">
-              <button data-daily-scope="shared" aria-pressed="true" class="selected">Company</button>
-              <button data-daily-scope="mine" aria-pressed="false">My work</button>
-            </div>
-            <div class="daily-date-controls">
-              <button class="button quiet small" id="daily-previous" aria-label="Previous day with memories">Previous</button>
-              <label class="sr-only" for="daily-date">Summary date</label>
-              <input type="date" id="daily-date" />
-              <button class="button quiet small" id="daily-next" aria-label="Next day with memories">Next</button>
+          <div class="activity-layout">
+            <div class="activity-main">
+              <section class="person-context" id="daily-person-context" hidden aria-label="Selected person">
+                <div class="person-context-identity" id="daily-person-identity"></div>
+                <button class="text-button" id="daily-company">Back to Company</button>
+              </section>
+              <nav class="person-views" id="daily-person-views" aria-label="Person views" hidden>
+                <button id="daily-activity" type="button">Activity</button>
+                <button aria-current="page" type="button">Daily summaries</button>
+              </nav>
+              <div class="daily-toolbar">
+                <div class="segmented" id="daily-scopes" role="group" aria-label="Summary visibility">
+                  <button data-daily-scope="shared" aria-pressed="true" class="selected">Company</button>
+                  <button data-daily-scope="mine" aria-pressed="false">My work</button>
+                </div>
+                <div class="daily-date-controls">
+                  <button class="button quiet small" id="daily-previous" aria-label="Previous day with summaries">Previous</button>
+                  <label class="sr-only" for="daily-date">Summary date</label>
+                  <input type="date" id="daily-date" />
+                  <button class="button quiet small" id="daily-next" aria-label="Next day with summaries">Next</button>
+                </div>
+              </div>
+              <p class="field-help" id="daily-timezone"></p>
+              <button class="text-button" id="daily-filters" hidden>Personal viewing filters are active</button>
+              <p class="inline-error" id="daily-error" role="alert" hidden></p>
+              <p class="field-help" id="daily-status" role="status"></p>
+              <div id="daily-list"></div>
             </div>
           </div>
-          <p class="field-help" id="daily-timezone"></p>
-          <button class="text-button" id="daily-filters" hidden>Personal viewing filters are active</button>
-          <p class="inline-error" id="daily-error" role="alert" hidden></p>
-          <p class="field-help" id="daily-status" role="status"></p>
-          <div id="daily-list"></div>
         </section>
         <section class="page" hidden="" id="people-view">
           <div class="page-heading">

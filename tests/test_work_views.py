@@ -104,7 +104,7 @@ async def test_daily_views_use_work_date_timezone_and_report_pending_or_undated(
     views = WorkViews(archive, gateway, SimpleNamespace(values={'timezone': 'America/Los_Angeles'}))
     await views.open()
     request = ViewRequest(kind='daily', day='2026-09-18')
-    await views.get(Reader('T1:A'), 'T1:A', request)
+    await views.get(Reader('T1:A'), 'T1:A', request, enqueue=True)
     await views.build(await views.next())
     view = (await views.get(Reader('T1:A'), 'T1:A', request))['view']
     assert set(view['source_ids']) == {before, pending['id']}

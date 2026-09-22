@@ -28,11 +28,11 @@ In **Settings → Preferences → Browsing → Exclude from my feed and Ask**, h
 
 Project and source names match without regard to capitalization. Enter one per line. Existing type metadata remains searchable; older saved type exclusions are retained. Changing viewing choices does not call Jev again.
 
-**Daily summaries** lets you choose Company or My work and browse by date. Previous and Next move between days with accessible memories; the date picker opens any day. On a person’s page, switch between Activity and Daily summaries. Summaries cover completed days and generate automatically. Use Activity for today’s work. Refresh checks for new memories. Summaries use the workspace timezone shown beside the date controls, so everyone means the same day.
+**Daily summaries** lets you choose Company or My work and browse by date. Previous and Next move between days with generated summaries; the date picker opens any day. On a person’s page, switch between Activity and Daily summaries. Summaries cover completed days and generate at midnight in the workspace timezone by default. Use Activity for today’s work. Refresh checks for newly generated summaries; it does not create them. Until a summary is ready, the page says “None available yet.”
 
 Each summary reads all of that day’s permitted memories in chronological order and links back to its sources. Your private summary can include private work; a teammate’s summary contains only company-shared work. Undated live memories use their recorded time; undated historical imports are not assigned a guessed day. Missing records are not evidence that someone did no work.
 
-Ask “What did Tin work on yesterday?” in Ask or Slack. Both agents can read the same daily summaries and inspect sources for more detail. Summary generation and retries run in the background; the page distinguishes preparing, updating, failed and paused states. **Connections** shows individual-memory processing failures and their retry action.
+Ask “What did Tin work on yesterday?” in Ask or Slack. Both agents can read the same generated summaries and inspect sources for more detail. Summary generation and retries run in the background. The archive shows saved summaries without generation status or failure messages. **Connections** shows individual-memory processing failures and their retry action.
 
 **Settings → Preferences** lets you choose your display time zone or follow your device. Dates and feed date filters use that choice; original timestamps stay unchanged. A date without an original timezone is marked as incomplete and excluded from exact date ranges.
 

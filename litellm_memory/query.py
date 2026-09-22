@@ -146,7 +146,7 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
     @function_tool
     @telemetry.tool("work_overview")
     async def work_overview(person: str, day: str | None = None, project: str = '') -> str:
-        """Read a cited current-work overview or a daily catch-up. Search recent sources if stale/pending."""
+        """Read a current-work overview or a saved daily summary. Search sources if none is available."""
         await check_access()
         if scope and person != scope:
             return json.dumps({'error': 'Outside the selected person’s scope'})
@@ -197,11 +197,12 @@ with citations. Default to at most 200 words unless the question asks for more d
 short burst of updates into a long chronological narrative or add praise about the quality of the work.
 For a work question, search, then read the relevant records. Resolve a person's ID with list_people.
 For a daily recap or what someone did on a particular day, start with daily_summaries. It returns
-the same stored summaries shown in the app, their dates, timezone, freshness, and source IDs.
+the same generated summaries shown in the app, their dates, timezone, and source IDs.
 Use its timezone and today to resolve relative dates. Cite its source IDs; read_work is available
 for details or verification. Summaries cover completed days only; search source records for today.
-If a summary is pending, stale, failed, or paused, say so and search
-the day's source records when needed. Do not present a partial summary as the complete day.
+Summaries generate nightly; reading them never starts generation. If none is available yet,
+search the day's source records when needed. Do not invent generation failures or present
+a partial account as the complete day.
 Use exact names/IDs and dates as well as meaning. Follow leads with further searches when helpful.
 Cite each supported claim with [source title]({settings.public_base_url}/memory/ACTUAL_RECORD_ID).
 Use only actual returned IDs. Explain when evidence is incomplete or processing is pending.

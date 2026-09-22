@@ -19,6 +19,29 @@ archive = archive_fixture
 
 
 @pytest.mark.asyncio
+async def test_archive_reads_keep_saved_summaries_without_creating_or_retrying_jobs(archive):
+    await ready(archive, 'saved', 'A saved update', '2026-09-18T12:00:00Z')
+    gateway = ViewGateway()
+    views = WorkViews(archive, gateway, SimpleNamespace(values={}))
+    await views.open()
+    request = ViewRequest(kind='daily', day='2026-09-18')
+    assert (await views.get(Reader('T1:A'), 'T1:A', request))['status'] == 'unavailable'
+    assert await views.next() is None
+    queued = await views.get(Reader('T1:A'), 'T1:A', request, enqueue=True)
+    assert (await views.daily(Reader('T1:A')))['days'] == []
+    await views.build(await views.next())
+    saved = await views.daily(Reader('T1:A'))
+    await archive.db.execute("UPDATE work_views SET status='failed',next_attempt=9999999999 WHERE id=?",
+                             (queued['id'],))
+    await archive.db.commit()
+    gateway.settings = SimpleNamespace(background_model='changed-model')
+    assert await views.daily(Reader('T1:A')) == saved
+    assert await views.next() is None and len(gateway.inputs) == 1
+    await archive.save_view_preferences('T1:A', ViewPreferences(hidden_projects=['Project A']))
+    assert (await views.daily(Reader('T1:A')))['summaries'] == []
+
+
+@pytest.mark.asyncio
 async def test_daily_input_contains_every_full_memory_in_event_order(archive):
     ids = []
     # Exceeds the old 120-source ceiling; source text differs from derived excerpts.
@@ -43,7 +66,7 @@ async def test_daily_input_contains_every_full_memory_in_event_order(archive):
     views = WorkViews(archive, gateway, SimpleNamespace(values={}))
     await views.open()
     request = ViewRequest(kind='daily', day='2026-09-18')
-    await views.get(Reader('T1:A'), 'T1:A', request)
+    await views.get(Reader('T1:A'), 'T1:A', request, enqueue=True)
     await views.build(await views.next())
     evidence = gateway.inputs[0]['evidence']
     assert [r['id'] for r in evidence] == list(reversed(ids))
@@ -57,19 +80,24 @@ async def test_daily_input_contains_every_full_memory_in_event_order(archive):
 
 
 @pytest.mark.asyncio
-async def test_daily_paragraphs_can_exceed_the_compact_current_view_limit(archive):
+async def test_daily_output_has_no_text_paragraph_or_citation_count_caps(archive):
     from pydantic import ValidationError
 
-    paragraph = 'Recorded work and verified results. ' * 40  # 240 words, within a one-page summary.
-    await ready(archive, 'long-paragraph', paragraph, '2026-09-18T12:00:00Z')
-    views = WorkViews(archive, ViewGateway(), SimpleNamespace(values={}))
+    paragraph = 'Recorded work and verified results. ' * 300
+    sources = [await ready(archive, f'work-{index}', 'Supported update', '2026-09-18T12:00:00Z')
+               for index in range(13)]
+    items = [{'text': paragraph, 'sources': sources},
+             *[{'text': 'Supported update', 'sources': [source]} for source in sources[1:]]]
+    gateway = ViewGateway()
+    gateway.generate = AsyncMock(return_value=json.dumps({'items': items}))
+    views = WorkViews(archive, gateway, SimpleNamespace(values={}))
     await views.open()
     request = ViewRequest(kind='daily', day='2026-09-18')
-    await views.get(Reader('T1:A'), 'T1:A', request)
+    await views.get(Reader('T1:A'), 'T1:A', request, enqueue=True)
     await views.build(await views.next())
     result = await views.get(Reader('T1:A'), 'T1:A', request)
     assert result['status'] == 'ready'
-    assert result['view']['items'][0]['text'] == paragraph
+    assert result['view']['items'] == [{**item, 'kind': 'work'} for item in items]
     await views.get(Reader('T1:A'), 'T1:A', ViewRequest())
     with pytest.raises(ValidationError):
         await views.build(await views.next())
@@ -82,10 +110,14 @@ async def test_date_browser_only_enumerates_accessible_days_and_respects_filters
     views = WorkViews(archive, ViewGateway(), SimpleNamespace(values={}))
     await views.open()
     public = await views.daily(Reader('T1:B'), owner='T1:A')
+    assert public['days'] == [] and public['summaries'] == []
+    assert await views.next() is None
+    await views.schedule()
+    while row := await views.next():
+        await views.build(row)
+    public = await views.daily(Reader('T1:B'), owner='T1:A')
     assert public['days'] == ['2026-09-18'] and public['day'] == '2026-09-18'
     assert len(public['summaries']) == 1
-    await views.build(await views.next())
-    public = await views.daily(Reader('T1:B'), owner='T1:A')
     assert public['summaries'][0]['view']['source_ids'] == [shared]
     assert 'PRIVATE_DAY_CANARY' not in json.dumps(public)
     assert (await views.daily(Reader('T1:A'), owner='T1:A'))['days'] == ['2026-09-18', '2026-09-17']
@@ -116,7 +148,8 @@ async def test_live_undated_memory_uses_recorded_time_but_historical_original_do
     tomorrow = datetime.now(UTC) + timedelta(days=1)
     monkeypatch.setattr('litellm_memory.work_views.datetime', SimpleNamespace(now=lambda *_: tomorrow))
     result = await views.daily(Reader('T1:A'), owner='T1:A')
-    assert result['days'] == [today.isoformat()]
+    assert result['days'] == []
+    await views.schedule()
     await views.build(await views.next())
     result = await views.daily(Reader('T1:A'), owner='T1:A')
     assert result['summaries'][0]['view']['source_ids'] == [live['id']]
@@ -130,6 +163,12 @@ def test_daily_api_requires_identity_and_never_returns_another_persons_private_d
         enroll(client, app)
         client.post('/api/v1/memories', json={'source_id': 'private', 'content': 'PRIVATE_API_CANARY',
                                            'occurred_at': '2026-09-18T12:00:00Z'})
+        own = client.get('/api/v1/daily-summaries?audience=owner&owner=T:OWNER').json()
+        assert own['days'] == []
+        views = app.state.archive.views
+        views.gateway = ViewGateway()
+        client.portal.call(views.schedule)
+        client.portal.call(views.build, client.portal.call(views.next))
         own = client.get('/api/v1/daily-summaries?audience=owner&owner=T:OWNER').json()
         assert own['days'] == ['2026-09-18'] and own['summaries'][0]['audience'] == 'owner'
         assert client.get('/api/v1/daily-summaries?day=invalid').status_code == 422
@@ -150,7 +189,7 @@ async def test_shared_web_and_slack_agent_reads_the_same_summary_and_checks_scop
     views = archive.views = WorkViews(archive, ViewGateway(), SimpleNamespace(values={}))
     await views.open()
     reader = Reader('T1:A', audience)
-    await views.daily(reader, day=date(2026, 9, 18), owner='T1:A')
+    await views.get(reader, 'T1:A', ViewRequest(kind='daily', day='2026-09-18'), enqueue=True)
     await views.build(await views.next())
     expected = await views.daily(reader, day=date(2026, 9, 18), owner='T1:A')
 
@@ -203,8 +242,9 @@ async def test_failed_daily_job_retries_durably_and_keeps_full_source_input(arch
     with pytest.raises(asyncio.CancelledError):
         await views.worker()
     result = await views.daily(Reader('T1:A'), day=date(2026, 9, 18), owner='T1:A')
-    assert result['summaries'][0]['status'] == 'failed'
-    assert result['summaries'][0]['view'] is None
+    assert result['summaries'] == [] and result['days'] == []
+    row = await (await archive.db.execute('SELECT status FROM work_views')).fetchone()
+    assert row['status'] == 'failed'
     assert await views.next() is None  # Backoff prevents an immediate hot retry loop.
     await archive.db.execute('UPDATE work_views SET next_attempt=0')
     await archive.db.commit()
@@ -219,8 +259,8 @@ async def test_failed_daily_job_retries_durably_and_keeps_full_source_input(arch
 @pytest.mark.asyncio
 @pytest.mark.parametrize('output,code', [
     ('{"items": [{"text": "PRIVATE_MODEL_OUTPUT', 'json_invalid'),
-    (json.dumps({'items': [{'text': 'PRIVATE_MODEL_OUTPUT' * 300, 'sources': ['private-id']}]}),
-     'string_too_long'),
+    (json.dumps({'items': [{'text': {'private': 'PRIVATE_MODEL_OUTPUT'}, 'sources': ['private-id']}]}),
+     'string_type'),
 ])
 async def test_invalid_summary_diagnostics_do_not_log_model_output(archive, caplog, output, code):
     from pydantic import ValidationError
@@ -230,7 +270,7 @@ async def test_invalid_summary_diagnostics_do_not_log_model_output(archive, capl
     gateway.generate = AsyncMock(return_value=output)
     views = WorkViews(archive, gateway, SimpleNamespace(values={}))
     await views.open()
-    await views.daily(Reader('T1:A'), day=date(2026, 9, 18), owner='T1:A')
+    await views.get(Reader('T1:A'), 'T1:A', ViewRequest(kind='daily', day='2026-09-18'), enqueue=True)
     with pytest.raises(ValidationError):
         await views.build(await views.next())
     assert code in caplog.text

@@ -30,9 +30,9 @@ Company is the first tab and opens by default; My work is second. Ask about the 
 
 ## Daily summaries
 
-The sidebar date browser has Company/My work scopes, Previous/Next navigation across available days and a date picker. Person views reuse the same summaries with Activity/Daily summaries navigation. Each author has one readable text section, an audience label and source links. Summaries cover completed days only; today stays in Activity. All dates use the displayed workspace timezone.
+The sidebar date browser has Company/My work scopes, Previous/Next navigation across days with generated summaries and a date picker. Person views reuse the same summaries with Activity/Daily summaries navigation. Activity and Summaries share page and reading-column widths. Each author has one readable text section, an audience label and source links. The empty state says “None available yet”; generation failures and pending jobs never appear as entries. Summaries cover completed days only and generate nightly at midnight by default; today stays in Activity.
 
-The September 22 review uses synthetic records and simulated inference. The new view was checked at desktop, 687px, 390px and 320px, including loading, populated, empty-day and read-failure/retry states; person navigation, reload/Back, date changes, private labels and source dialogs. The workspace footer has been removed. Existing screenshots below predate the additional navigation destination. This review does not certify million-token inference or live Slack delivery.
+The September 22 review uses synthetic records and simulated inference. At 1280px, both views measured a 1072px page and 728px reading column. At 687px, 390px and 320px, their column widths also matched exactly, with no horizontal overflow. Checks covered generated and empty states, tab navigation, date changes, private labels, source dialogs, Escape focus restoration and an empty browser error log. Earlier checks covered loading, network-read failure/retry and route reload/Back. The workspace footer has been removed. Existing screenshots below predate the additional navigation destination. This review does not certify million-token inference or live Slack delivery.
 
 ## People and recording
 

@@ -80,7 +80,7 @@ Domain-mode workspaces can transfer administration to another enrolled, currentl
 
 ## Dates and daily summaries
 
-New records are processed continuously. The existing view worker generates daily summaries for completed days at the workspace daily time (02:00 by default), catches up after downtime, and updates affected days after late captures. Metadata reconciliation runs once a minute; unchanged inputs do not generate another model call. No external cron or additional service is required. Current overviews remain on demand.
+New records are processed continuously. The existing view worker generates daily summaries for completed days at midnight by default, catches up after downtime, and incorporates late captures at the next nightly run. It checks whether the run is due once a minute and records completion durably to prevent another run that day. Unchanged inputs do not generate another model call. Browsing reads the generated archive without triggering work. No external cron or additional service is required. Current overviews remain on demand.
 
 Personal display timezones are controlled in **Settings → Preferences**, persist in encrypted member profiles and affect presentation/date filters only. Daily summaries use the workspace timezone chosen during setup. The schedule API reports the next run; administrators can update its timezone and daily time through `PUT /api/v1/admin/schedule`. Timezone data is included in the image.
 
