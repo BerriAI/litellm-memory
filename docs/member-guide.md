@@ -8,11 +8,11 @@ Choose **Sign in with Slack** using your company account. Your installation acce
 
 After joining, Company opens immediately so you can browse shared work. Choose **Connect a tool** on Activity, or open **Connections**. Select Codex or Claude Code, copy the installation commands and run them on your computer. Restart the tool and finish its MCP sign-in; Codex also requires reviewing and trusting the installed hooks. The connector preserves existing configuration. [Full connector instructions](connectors.md).
 
-Ask your agent to remember what you’re working on, then let it finish saving. Connections first shows **Connected. Waiting for work.**, then confirms when a record arrives and offers **View my work**. It checks while that page is visible; **Refresh status** refreshes immediately. Authorization alone, imported history and an upload still awaiting storage are not proof of new work arriving. A receipt confirms saved work, not that your tool is currently running. **Import earlier work** is optional.
+Ask your agent to remember what you’re working on, then let it finish saving. Connections first shows **Connected. Waiting for work.**, then confirms when a record arrives and offers **View my work**. It checks while that page is visible; **Refresh status** refreshes immediately. Authorization alone does not confirm a saved memory. A receipt confirms saved work, not that your tool is currently running.
 
-Your agent saves useful work memories with a low bar: current work, progress, attempts, findings, decisions, blockers and next steps. It can skip acknowledgments or repetitions. Reminder hooks do not upload whole conversations, and nothing searches your history on every coding turn. Historical transcript imports are a separate, explicit action. Optional global instructions are described in the [connector guide](connectors.md).
+Your agent saves useful work memories with a low bar: current work, progress, attempts, findings, decisions, blockers and next steps. It can skip acknowledgments or repetitions. Reminder hooks do not upload whole conversations, and nothing searches your history on every coding turn. Optional global instructions are described in the [connector guide](connectors.md).
 
-Live saves require a working MCP connection; the agent should tell you if a save fails. Explicit historical imports have an encrypted local outbox for retrying uploads. **Connections → Recording controls → Record new work** pauses hosted intake. Run `litellm-memory-connector pause` to pause local reminders and import buffering too. Resuming does not automatically sweep up the paused period; you can choose an explicit historical import later.
+Live saves require a working MCP connection; the agent should tell you if a save fails. **Connections → Recording controls → Record new work** pauses hosted intake. Run `litellm-memory-connector pause` to pause local reminders too. Resuming starts reminders again without recording the paused period.
 
 ## Browse and ask
 
@@ -38,7 +38,7 @@ In Slack, talk to **@Memory**. A verified personal DM can use your private histo
 
 Everything starts private. **Company-public** means eligible members of your installation, never the open internet. Sharing may be disabled for the whole workspace during a pilot.
 
-Open a memory to preview the separate summary that would be shared. The original evidence stays private. In **Settings → Sharing**, optionally enable **Automatically share new summaries**. Historical imports do not publish automatically.
+Open a memory to preview the separate summary that would be shared. The original evidence stays private. In **Settings → Sharing**, optionally enable **Automatically share new summaries**. Previously saved work is not shared automatically.
 
 Under **Never share work about**, describe a topic to exclude. Jev checks existing and future source chunks, caching each result for the criterion and classifier version. Adding a rule checks that new rule; it does not rerun previously completed rules. Uncertain matches remain private, and the rule withdraws existing publications while checks run.
 

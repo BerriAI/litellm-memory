@@ -912,7 +912,7 @@ function updateScope() {
     "chat-filter-notice",
     Boolean(
       state.viewPreferences &&
-        Object.values(state.viewPreferences).some((values) => values.length),
+      Object.values(state.viewPreferences).some((values) => values.length),
     ),
   );
   const person = scope.startsWith("person:")
@@ -1241,13 +1241,6 @@ function renderConnectorGuide() {
     host === "codex"
       ? "Restart Codex and sign in to its LiteLLM Memory MCP when prompted. Open /hooks and review and trust the LiteLLM Memory reminder hooks."
       : "Restart Claude Code and sign in to its LiteLLM Memory MCP when prompted. The connector has added memory reminder hooks.";
-  renderBackfillGuide();
-}
-function renderBackfillGuide() {
-  $("backfill-command").textContent =
-    $("backfill-host").value === "codex"
-      ? "litellm-memory-connector backfill ~/.codex/sessions --host codex"
-      : "litellm-memory-connector backfill ~/.claude/projects --host claude";
 }
 function reviewRecording() {
   $("connector-guide").open = false;
@@ -1299,7 +1292,6 @@ async function loadConnectionList() {
   show("connected-tools", list.children.length > 0);
 }
 $("capture-host").onchange = renderConnectorGuide;
-$("backfill-host").onchange = renderBackfillGuide;
 $("manage-recording").onclick = reviewRecording;
 $("check-recording").onclick = () =>
   busy($("check-recording"), async () => {
