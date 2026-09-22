@@ -14,6 +14,7 @@ node --check static/memory.js
 node --check static/setup.js
 node --check static/migration.js
 node --check static/ui.js
+node --check static/oauth-callback.js
 ```
 
 The unit/API suite uses temporary synthetic data and mocked external services. It does not need Slack, Ente or model credentials. Docker deployment tests use disposable PostgreSQL/Ente containers; see `.github/workflows/verify.yml`. Use the documented Compose deployment for a complete local installation, with a separate test Slack workspace and gateway when exercising external integrations.

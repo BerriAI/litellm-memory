@@ -3,6 +3,7 @@ import hashlib
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
+from html.parser import HTMLParser
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -10,24 +11,39 @@ from fastapi.testclient import TestClient
 from test_model_settings import application, enroll, session
 
 
-def begin_connect(client):
+def begin_connect(client, redirect_uri='http://127.0.0.1:9999/callback'):
     registration = client.post('/oauth/register', json={'client_name': 'Codex',
-                                 'redirect_uris': ['http://127.0.0.1:9999/callback']}).json()
+                                 'redirect_uris': [redirect_uri]}).json()
     client_id = registration['client_id']
     verifier = 'A' * 50
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip('=')
     response = client.get('/oauth/authorize', params={'client_id': client_id,
-                          'redirect_uri': 'http://127.0.0.1:9999/callback', 'response_type': 'code',
+                          'redirect_uri': redirect_uri, 'response_type': 'code',
                           'code_challenge_method': 'S256', 'code_challenge': challenge, 'state': 'state'})
     assert response.status_code == 200
     nonce = re.search(r'name="nonce" value="([^"]+)"', response.text)[1]
     return client_id, verifier, nonce
 
 
+def callback_from_page(response):
+    class CallbackLink(HTMLParser):
+        callback = None
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if tag == 'a' and attrs.get('id') == 'client-callback':
+                self.callback = attrs['href']
+
+    page = CallbackLink()
+    page.feed(response.text)
+    assert page.callback
+    return page.callback
+
+
 def approve_connect(client, client_id, verifier, nonce):
     response = client.post('/oauth/authorize', data={'nonce': nonce}, follow_redirects=False)
-    assert response.status_code == 303
-    params = parse_qs(urlsplit(response.headers['location']).query)
+    assert response.status_code == 200
+    params = parse_qs(urlsplit(callback_from_page(response)).query)
     assert params['state'] == ['state']
     form = {'client_id': client_id, 'grant_type': 'authorization_code', 'code': params['code'][0],
             'code_verifier': verifier, 'redirect_uri': 'http://127.0.0.1:9999/callback'}
@@ -139,7 +155,37 @@ def test_consent_survives_restart_and_is_consumed_only_once_concurrently(tmp_pat
         def approve(_):
             return client.post('/oauth/authorize', data={'nonce': pending[2]}, follow_redirects=False).status_code
         with ThreadPoolExecutor(max_workers=2) as pool:
-            assert sorted(pool.map(approve, range(2))) == [303, 400]
+            assert sorted(pool.map(approve, range(2))) == [200, 400]
+
+
+@pytest.mark.parametrize('redirect_uri', [
+    'http://127.0.0.1:9999/callback', 'http://localhost:12345/callback',
+    'http://[::1]:9999/callback', 'https://client.example/callback?context=one&label=%22%3E%3Cscript%3E',
+])
+def test_approval_hands_off_without_cross_origin_form_redirect_or_widening_csp(tmp_path, redirect_uri):
+    app = application(tmp_path, [])
+    with TestClient(app) as client:
+        enroll(client, app)
+        client_id, verifier, nonce = begin_connect(client, redirect_uri)
+        response = client.post('/oauth/authorize', data={'nonce': nonce}, follow_redirects=False)
+        assert response.status_code == 200
+        assert 'location' not in response.headers
+        assert 'text/html' in response.headers['content-type']
+        assert response.headers['cache-control'] == 'no-store'
+        assert response.headers['content-security-policy'] == client.get('/').headers['content-security-policy']
+        target = urlsplit(callback_from_page(response))
+        registered = urlsplit(redirect_uri)
+        assert (target.scheme, target.netloc, target.path) == (registered.scheme, registered.netloc, registered.path)
+        params = parse_qs(target.query)
+        for key, value in parse_qs(registered.query).items():
+            assert params[key] == value
+        assert params['state'] == ['state']
+        token = client.post('/oauth/token', data={
+            'client_id': client_id, 'grant_type': 'authorization_code', 'code': params['code'][0],
+            'code_verifier': verifier, 'redirect_uri': redirect_uri})
+        assert token.status_code == 200
+        identity = client.get('/api/capture-identity', headers={'Authorization': 'Bearer ' + token.json()['access_token']})
+        assert identity.json()['owner'] == 'T:OWNER'
 
 
 def test_new_domain_member_finishes_setup_before_consent_instead_of_repeating_slack_login(tmp_path):

@@ -12,7 +12,9 @@ litellm-memory-connector connect https://your-litellm-memory.example --host code
 # Or --host claude; omit --host to configure both.
 ```
 
-The browser opens Slack sign-in and a LiteLLM Memory consent screen. New members finish account setup first and return to the connection request. OAuth credentials are stored encrypted in a private local directory. The setup adds the remote MCP URL and reminder hooks without removing other MCPs or hooks. Private backups are made before host configuration changes. Restart the host and complete its own MCP authentication prompt. In Codex, open `/hooks` and review/trust the LiteLLM Memory hooks; Codex skips untrusted hooks. Review them again after an update changes their commands.
+The browser opens Slack sign-in and a LiteLLM Memory consent screen. New members finish account setup first and return to the connection request. After **Connect**, the browser returns to your client automatically; **Return to client** is available if automatic navigation does not run. Keep the terminal or coding tool waiting until it confirms the connection. If an in-app browser cannot return to the client, start again and open the sign-in link in your regular browser.
+
+OAuth credentials are stored encrypted in a private local directory. The setup adds the remote MCP URL and reminder hooks without removing other MCPs or hooks. Private backups are made before host configuration changes. Restart the host and complete its own MCP authentication prompt. In Codex, open `/hooks` and review/trust the LiteLLM Memory hooks; Codex skips untrusted hooks. Review them again after an update changes their commands.
 
 Supported installation locations are `~/.codex/config.toml`, `~/.codex/hooks.json`, `~/.claude/settings.json` and `~/.claude.json`. Symlink-managed host configurations need manual integration. The initial connector supports macOS/Linux and Python 3.12+. Windows support has not been verified.
 
