@@ -20,7 +20,7 @@ The page keeps the gateway connection, model choices and Slack progress together
 
 The Slack app needs its normal Slack application credentials; LiteLLM Memory supplies a manifest/create link, validates the installation and returns to the same page. Complete sign-in using an eligible Slack account. Activation requires model, Jev, Slack identity and encrypted-storage checks to pass.
 
-Render auto-deploy is disabled in the reusable Blueprint so an upstream commit cannot update other people's installations without their decision. The current private pilot is separate from this reusable deployment and remains owner-only with sharing disabled.
+Render auto-deploy is disabled in the reusable Blueprint so an upstream commit cannot update other people's installations without their decision. The current private deployment is separate from this reusable Blueprint. It permits verified `berri.ai` members of the configured Slack workspace to join; workspace sharing remains disabled.
 
 ## Docker / other hosts
 

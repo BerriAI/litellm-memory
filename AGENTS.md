@@ -4,4 +4,4 @@ For user-facing design, UI implementation, or interface review, read [.agents/sk
 
 Use [CONTRIBUTING.md](CONTRIBUTING.md) for the repository structure and validation commands. Current user instructions and verified product behavior take precedence over examples and screenshots. Local development artifacts and credentials must stay out of Git.
 
-This is an unreleased product with one current user, Moe. Do not add compatibility aliases, old-brand fallbacks, or upgrade paths for hypothetical installations. If a change affects his actual data or setup, migrate that setup directly. Preserve original imported history and provenance.
+This is an unreleased product. Keep joining restricted to the configured Slack workspace and verified email domain. Do not add compatibility aliases, old-brand fallbacks, or upgrade paths for hypothetical installations. If a change affects existing data or setup, migrate the actual installation directly. Preserve original imported history and provenance.

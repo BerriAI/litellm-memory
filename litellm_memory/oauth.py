@@ -71,14 +71,22 @@ def install_oauth(app, settings, store, archive, account, same_origin):
                 or p.get("resource", resource) != resource or p.get("scope", "memory") != "memory"):
             raise HTTPException(400, "Invalid authorization request")
         try:
-            await account(request)
+            owner = await account(request)
         except HTTPException as exc:
             if exc.status_code == 401:
+                if request.session.get("identity"):
+                    # A new Slack member must finish account setup once, then
+                    # return to this request instead of repeating Slack login.
+                    return RedirectResponse("/?" + urlencode({"connect": request.url.query}), status_code=303)
                 return RedirectResponse("/auth/slack?" + urlencode({"next": request.url.path + "?" + request.url.query}),
                                         status_code=303)
             raise
         nonce = secrets.token_urlsafe(32)
-        request.session["oauth_pending"] = {**p, "nonce": nonce, "created": time.time()}
+        # Consent lives outside the session cookie: another tab or a delayed
+        # response must not overwrite it. Each request is single-use and bound
+        # to the member who saw this client's permissions.
+        await store.create_oauth_request(hashlib.sha256(nonce.encode()).hexdigest(),
+                                         {**p, "owner": owner}, time.time() + 600)
         client_name = escape(client["client_name"])
         return HTMLResponse(f'''<!doctype html><html lang="en"><meta name="viewport" content="width=device-width">
         <title>Connect to LiteLLM Memory</title><link rel="stylesheet" href="/static/memory.css">
@@ -93,13 +101,20 @@ def install_oauth(app, settings, store, archive, account, same_origin):
     async def approve(request: Request):
         same_origin(request)
         owner = await account(request)
-        p = request.session.pop("oauth_pending", None)
         form = await request.form()
-        if not p or time.time() - p["created"] > 600 or not secrets.compare_digest(p["nonce"], str(form.get("nonce", ""))):
-            raise HTTPException(400, "Connection request expired. Start again from your client.")
+        nonce = str(form.get("nonce", ""))
+        p = await store.consume_oauth_request(hashlib.sha256(nonce.encode()).hexdigest(), owner)
+        if not p:
+            return HTMLResponse('''<!doctype html><html lang="en"><meta name="viewport" content="width=device-width">
+            <title>Start a new connection · LiteLLM Memory</title><link rel="stylesheet" href="/static/memory.css">
+            <main class="auth-card"><p class="eyebrow">LiteLLM Memory</p><h1>Start a new connection</h1>
+            <p>This connection request is no longer available for this account.</p>
+            <p>Return to your coding tool or terminal and start connecting again. Use the new page it opens.</p>
+            <a class="button primary" href="/#connections">Open Connections</a></main></html>''',
+                                status_code=400, headers={"Cache-Control": "no-store"})
         code = secrets.token_urlsafe(40)
         digest = hashlib.sha256(code.encode()).hexdigest()
-        await store.setting("oauth-code:" + digest, json.dumps({**p, "owner": owner}))
+        await store.setting("oauth-code:" + digest, json.dumps({**p, "created": time.time()}))
         params = {"code": code}
         if p.get("state"):
             params["state"] = p["state"]

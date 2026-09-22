@@ -1603,8 +1603,15 @@ async function initialize() {
     if (await initializeSetup({ api, show, el, busy, populateSelect })) return;
     state.me = await api("/api/v1/me");
     renderToday();
+    const connectionRequest = new URLSearchParams(location.search).get(
+      "connect",
+    );
     if (!state.me.signed_in) {
       show("welcome");
+      if (connectionRequest) {
+        $("welcome").querySelector("a").href =
+          "/auth/slack?" + new URLSearchParams({ next: "/" + location.search });
+      }
       if (!state.me.login_available) {
         const welcome = $("welcome");
         welcome.querySelector("a").hidden = true;
@@ -1621,6 +1628,10 @@ async function initialize() {
         $("finish-signup").textContent = "Restore my account";
       }
       show("setup");
+      return;
+    }
+    if (connectionRequest) {
+      location.replace("/oauth/authorize?" + connectionRequest);
       return;
     }
     document.body.classList.add("workspace-ready");
