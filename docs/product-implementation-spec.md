@@ -54,7 +54,7 @@ Permissions apply before retrieval/decryption and again before delivering an ans
 
 Slack posts one acknowledgment, then replaces it with the completed, verified answer. It never streams partial answers or changing queue statuses. Native Slack source links and Markdown citations share validation; one internal repair attempt may fix invalid citations before delivery.
 
-Source text is untrusted data. Answers preserve attribution, uncertainty and dates, distinguish plans from outcomes, and admit missing evidence. Citation IDs must correspond to sources actually read. Synthetic tests cannot establish real answer quality; the release gate requires a reviewed real-history evaluation.
+Source text is untrusted data. Answers preserve attribution, uncertainty and dates, distinguish plans from outcomes, and admit missing evidence. Capture timestamps are not work start dates; duration must be explicitly supported, never inferred from the number or complexity of updates. Recent-work questions default to a short cited answer rather than an invented multi-day narrative. Citation IDs must correspond to sources actually read. Synthetic tests cannot establish real answer quality; the release gate requires a reviewed real-history evaluation.
 
 ## Privacy boundary and visibility
 
