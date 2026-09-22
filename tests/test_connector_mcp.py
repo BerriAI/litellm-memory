@@ -13,6 +13,7 @@ from test_model_settings import application
 
 from litellm_memory.connector import LocalCapture, configure_hosts, reminder_command
 from litellm_memory.connector_hooks import trust_reviewed_codex_hooks
+from litellm_memory.connector_mcp import describe
 
 
 def test_hook_review_trusts_only_exact_commands_and_preserves_other_settings(tmp_path):
@@ -73,6 +74,10 @@ async def test_two_stdio_clients_share_one_encrypted_login_and_save_through_real
         try:
             while not server.started:
                 await asyncio.sleep(.01)
+            local = LocalCapture(tmp_path / 'client')
+            local.set('mcp_catalog', await describe(url, token['token']))
+            local.db.commit()
+            local.close()
 
             async def coding_client(host):
                 params = StdioServerParameters(command=sys.executable, args=[
@@ -98,3 +103,42 @@ async def test_two_stdio_clients_share_one_encrypted_login_and_save_through_real
         finally:
             server.should_exit = True
             await asyncio.wait_for(task, 10)
+
+
+def test_parallel_bridge_requests_refresh_once_without_flushing_history(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    import httpx
+
+    from litellm_memory import connector
+    from litellm_memory.connector_mcp import credentials
+
+    local = LocalCapture(tmp_path)
+    local.set('account_binding', {'url': 'https://memory.example', 'owner': 'T:OWNER'})
+    local.set('connection', {'url': 'https://memory.example', 'owner': 'T:OWNER', 'client_id': 'client',
+                            'access_token': 'old', 'refresh_token': 'refresh', 'expires_at': 0})
+    local.enqueue({'source_id': 'old-history', 'content': 'Do not upload this during a memory call.'})
+    local.db.commit()
+    local.close()
+    requests = []
+    original_client = httpx.Client
+
+    def remote(request):
+        requests.append(request.url.path)
+        assert request.url.path == '/oauth/token'
+        return httpx.Response(200, json={'access_token': 'new', 'refresh_token': 'rotated', 'expires_in': 3600})
+
+    def client(**kwargs):
+        kwargs['transport'] = httpx.MockTransport(remote)
+        return original_client(**kwargs)
+
+    monkeypatch.setattr(connector.httpx, 'Client', client)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert list(pool.map(lambda _: credentials(tmp_path, 'https://memory.example'), range(2))) == ['new', 'new']
+    assert requests == ['/oauth/token']
+    local = LocalCapture(tmp_path)
+    assert local.status()['queued'] == 1
+    local.close()
+    with pytest.raises(ValueError):
+        credentials(tmp_path, 'https://another-installation.example')
+    assert requests == ['/oauth/token']

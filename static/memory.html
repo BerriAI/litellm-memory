@@ -653,15 +653,6 @@
             </div>
             <p class="inline-error" id="recording-error" role="alert"></p>
           </section>
-          <section
-            id="connected-tools"
-            class="connected-tools"
-            hidden
-            aria-labelledby="connected-tools-title"
-          >
-            <h2 id="connected-tools-title">Your tools</h2>
-            <div id="connection-list"></div>
-          </section>
           <details class="connection-instructions" id="connector-guide" open>
             <summary id="connector-guide-title">Connect a tool</summary>
             <div id="capture-tool-picker">
@@ -706,10 +697,9 @@
                   Send this in a new task in your coding tool:
                 </p>
                 <p id="capture-first-prompt" class="first-memory-prompt">
-                  Use LiteLLM Memory’s record_work tool to save a private
-                  memory: I’m setting up LiteLLM Memory to keep track of my
-                  work. Show me the saved memory ID. If the tool is unavailable,
-                  tell me; don’t save this in AGENTS.md or CLAUDE.md.
+                  Save this with LiteLLM Memory’s record_work tool: I’m setting
+                  up LiteLLM Memory to track my work. Return the saved memory
+                  ID. If unavailable, say so; don’t edit AGENTS.md or CLAUDE.md.
                 </p>
                 <button
                   class="button primary small"
@@ -734,6 +724,15 @@
               </li>
             </ol>
           </details>
+          <section
+            id="connected-tools"
+            class="connected-tools"
+            hidden
+            aria-labelledby="connected-tools-title"
+          >
+            <h2 id="connected-tools-title">Your tools</h2>
+            <div id="connection-list"></div>
+          </section>
           <details class="connection-options" id="recording-controls">
             <summary>Recording controls</summary>
             <div id="recording-preferences" inert>

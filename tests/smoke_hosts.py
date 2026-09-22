@@ -6,6 +6,7 @@ in both real hosts. Model judgment and Jev are outside this fixture.
 Never run against a developer's configured home directory.
 """
 
+import asyncio
 import json
 import os
 import subprocess
@@ -20,6 +21,7 @@ import tomlkit
 
 from litellm_memory.connector import LocalCapture, configure_hosts
 from litellm_memory.connector_hooks import trust_reviewed_codex_hooks
+from litellm_memory.connector_mcp import describe
 
 PROMPT = "LITELLM_MEMORY_HOST_USER_CANARY: Reply briefly. Do not use tools."
 ANSWER = "LITELLM_MEMORY_HOST_ASSISTANT_CANARY: Capture verified."
@@ -63,9 +65,9 @@ class Fixture(BaseHTTPRequestHandler):
                 result = {"protocolVersion": body["params"]["protocolVersion"], "capabilities": {"tools": {}},
                           "serverInfo": {"name": "litellm-memory", "version": "1.0.0"}}
             elif method == "tools/list":
-                result = {"tools": [{"name": "record_work", "description": "Save useful work privately.",
-                          "inputSchema": {"type": "object", "properties": {"source_id": {"type": "string"},
-                          "content": {"type": "string"}}, "required": ["source_id", "content"]}}]}
+                result = {"tools": [{"name": name, "description": "Memory fixture tool.",
+                          "inputSchema": {"type": "object", "properties": {}}}
+                          for name in ['record_work', 'read_memory', 'capture_status']]}
             else:
                 result = {}
             return self.respond({"jsonrpc": "2.0", "id": body["id"], "result": result})
@@ -138,6 +140,8 @@ def main():
         local = LocalCapture(state)
         local.set("account_binding", {"url": url, "owner": "T:OWNER"})
         local.set("connection", {"url": url, "owner": "T:OWNER", "access_token": "disposable-fixture", "expires_at": time.time() + 3600})
+        local.set('mcp_catalog', asyncio.run(describe(url, 'disposable-fixture')))
+        mcp_requests.clear()
         local.set_paused(False)
         local.db.commit()
         local.close()
@@ -149,6 +153,9 @@ def main():
             config["model_providers"] = {"fixture": {"name": "Disposable fixture", "base_url": url + "/v1",
                                                   "wire_api": "responses", "requires_openai_auth": False}}
             config["features"] = {"hooks": True}
+            # This immediate fake model can finish before optional MCP startup
+            # on a loaded CI runner; wait for discovery to test the host contract.
+            config["mcp_optional_startup_grace_ms"] = 0
             path.write_text(tomlkit.dumps(config))
             # Only the two exact installer commands in this disposable account are reviewed.
             trust_reviewed_codex_hooks(base, state)
@@ -164,13 +171,8 @@ def main():
             print(result.stdout[-4000:])
             print(result.stderr[-4000:])
             raise AssertionError(f"{host} fixture response failed (exit {result.returncode})")
-        # Codex can defer MCP tool schemas through tool search instead of putting
-        # them directly in the model request. The downstream list request proves
-        # the host discovered the authenticated bridge's actual tool catalog.
-        if 'tools/list' not in mcp_requests:
-            print(result.stdout[-4000:])
-            print(result.stderr[-4000:])
-            raise AssertionError('Host did not discover the authenticated memory MCP tools')
+        assert any('record_work' in json.dumps(body.get('tools', [])) for body in model_inputs), 'Memory MCP tools did not reach the host model'
+        assert not mcp_requests, 'Catalog discovery must not wait on the remote server'
         assert not records, 'A reminder hook uploaded conversation text'
         assert any('Keep a low bar' in json.dumps(body) and 'Skip saving' in json.dumps(body)
                    for body in model_inputs), 'Memory guidance did not reach the host model'

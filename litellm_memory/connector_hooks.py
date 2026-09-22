@@ -54,7 +54,7 @@ def codex_hooks(home):
 
 
 def trust_reviewed_codex_hooks(home, directory, *, list_hooks=codex_hooks):
-    home = Path(home)
+    home = Path(home).resolve()
     expected = reminder_command(directory, 'codex')
     hooks = [hook for hook in list_hooks(home) if hook.get('command') == expected
              and hook['key'].startswith(str(home / '.codex/hooks.json') + ':')

@@ -562,6 +562,11 @@ def main():
             reminders = [{'host': host, 'command': reminder_command(args.directory.resolve(), host)} for host in hosts]
 
             def install_hosts():
+                import asyncio
+
+                from .connector_mcp import describe
+                connection = local.get("connection")
+                local.set("mcp_catalog", asyncio.run(describe(connection["url"], connection["access_token"])))
                 configure_hosts(Path.home(), args.directory.resolve(), args.url.rstrip("/"), hosts,
                                 agent_instructions=args.agent_instructions)
                 local.set("hosts", hosts)

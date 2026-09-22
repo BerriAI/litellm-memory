@@ -1263,7 +1263,9 @@ function renderConnectorGuide() {
   $("capture-trust").textContent =
     "Setup approves only the reminder hooks you reviewed. No second MCP sign-in is needed.";
   $("capture-first-instruction").textContent =
-    `Send this in a new ${tools} task:`;
+    host === "both"
+      ? "Send this in a new task in either tool:"
+      : `Send this in a new ${tools} task:`;
 }
 function reviewRecording() {
   $("connector-guide").open = false;
