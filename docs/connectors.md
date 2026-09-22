@@ -12,13 +12,13 @@ litellm-memory-connector connect https://your-litellm-memory.example
 # Optional: --host codex or --host claude to configure only one.
 ```
 
-The command configures **Codex and Claude Code together** by default. The browser opens Slack sign-in and one consent screen. Review the MCP access and reminder commands, then choose **Connect**. Setup registers trust for only those exact Codex hooks; it does not disable hook verification or approve unrelated hooks. The Codex CLI must be installed to verify its hook definitions.
+The command configures **Codex and Claude Code together** by default. The browser opens Slack sign-in and one consent screen. Review the MCP access and reminder commands, then choose **Connect**. Setup registers trust for only those exact Codex hooks; it does not disable hook verification or approve unrelated hooks. Setup checks Codex before opening the browser. On macOS, it can use the Codex executable bundled with the desktop app even when `codex` is not on your terminal’s PATH. A separate CLI installation is not required in that case. Other platforms need the Codex CLI available on PATH.
 
 After credentials and local setup are saved, the browser returns to **Connections → Try your connection**. Quit and reopen your coding tools once, then start a new task. Copy the first message from Connections and send it to your coding agent. It explicitly uses `record_work`; editing `AGENTS.md` or `CLAUDE.md` does not count. Connections checks for a persisted memory and offers **View my work** when it arrives. It does not infer a successful save from approval alone.
 
 Both coding tools use the same encrypted local OAuth connection through a stdio MCP bridge. No separate MCP sign-in or copied API key is required. Refresh is serialized across processes; revoking the connector stops access from both tools. The remote `/mcp` endpoint remains available for other OAuth-capable clients. Setup verifies and caches the server’s tool catalog so starting a coding task does not wait on a network call. Rerun setup after updating the connector to refresh that catalog. Calls go to the same remote server; it does not read transcripts or implement another memory store.
 
-Private backups are made before host configuration changes. Existing unrelated MCPs, hooks and instructions are preserved. An update that changes reminder definitions needs fresh approval. If setup cannot verify trust, it reports failure; use `/hooks` to review Codex's current state. Keep the terminal running until connection completes. An expired or stopped callback requires a fresh `connect` command; do not reuse an old callback URL.
+Private backups are made before host configuration changes. If hook verification fails, setup restores the configuration it wrote; concurrent user or host edits are preserved. Existing unrelated MCPs, hooks and instructions are preserved. An update that changes reminder definitions needs fresh approval. If setup cannot verify trust, it reports failure; use `/hooks` to review Codex's current state. Keep the terminal running until connection completes. An expired or stopped callback requires a fresh `connect` command; do not reuse an old callback URL.
 
 Supported installation locations are `~/.codex/config.toml`, `~/.codex/hooks.json`, `~/.claude/settings.json` and `~/.claude.json`. Symlink-managed host configurations need manual integration. The initial connector supports macOS/Linux and Python 3.12+. Windows support has not been verified.
 
@@ -61,7 +61,7 @@ litellm-memory-connector disconnect
 
 Local `pause` changes hook guidance to tell the agent not to save automatically. It is advisory for an already-running agent; pause in the dashboard or MCP to block incoming saves at the API as well. Resume starts reminders again without recording the paused period. Saved memories remain available.
 
-Disconnect removes LiteLLM Memory's managed hooks, MCP entry and optional global instructions and revokes the connector credential when online. If offline, revoke the connection in the dashboard too.
+Disconnect checks both Codex and Claude Code, removes LiteLLM Memory's managed hooks, matching MCP entry and optional global instructions, and revokes the connector credential when online. It also removes partial setup left by a failed installation, even if the saved host list is incomplete. If offline, revoke the connection in the dashboard too.
 
 ## Existing import utilities (outside the MVP)
 

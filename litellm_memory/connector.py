@@ -32,6 +32,10 @@ HOOK_EVENTS = ("SessionStart", "UserPromptSubmit")
 MANAGED_HOOK_EVENTS = (*HOOK_EVENTS, "PostToolUse", "Stop")
 
 
+class ConnectionSetupError(ValueError):
+    """A deliberately user-safe setup failure; never include tokens or response bodies."""
+
+
 def capture_directory():
     return Path.home() / ".local/share/litellm-memory"
 
@@ -399,7 +403,7 @@ def login(local, url, *, opener=webbrowser.open, on_connected=None, reminder_hoo
         while not result and time.monotonic() < deadline:
             server.handle_request()
         if not result:
-            raise ValueError("Sign-in timed out. Run connect again.")
+            raise ConnectionSetupError("Sign-in timed out after five minutes. Run connect again and use the new browser page.")
         if "error" in result:
             raise result["error"]
 
@@ -455,7 +459,8 @@ def update_agent_instructions(original, enabled):
     return text
 
 
-def configure_hosts(home, directory, url, hosts, *, remove=False, agent_instructions=None, instructions_only=False):
+def configure_hosts(home, directory, url, hosts, *, remove=False, agent_instructions=None, instructions_only=False,
+                    verify=None):
     """Merge only our named connection/commands. Never replace existing hooks."""
     marker = "litellm-memory-managed-capture"
     changed, prepared = [], []
@@ -506,14 +511,28 @@ def configure_hosts(home, directory, url, hosts, *, remove=False, agent_instruct
             write(config_path, json.dumps(document, indent=2) + "\n")
     # Validate every document before touching any file. Detect concurrent host
     # changes and retain private backups for an explicit rollback.
-    for path, content, original in prepared:
-        if (path.read_text() if path.exists() else None) != original:
-            raise ValueError("Host settings changed during setup. Close the tool and retry.")
-        if original is not None:
-            backup = path.with_name(path.name + ".litellm-memory-backup-" + str(time.time_ns()))
-            atomic_private(backup, original)
-        atomic_private(path, content)
-        changed.append(path)
+    written = []
+    try:
+        for path, content, original in prepared:
+            if (path.read_text() if path.exists() else None) != original:
+                raise ConnectionSetupError("Host settings changed during setup. Close the tool and retry.")
+            if original is not None:
+                backup = path.with_name(path.name + ".litellm-memory-backup-" + str(time.time_ns()))
+                atomic_private(backup, original)
+            atomic_private(path, content)
+            written.append((path, content, original))
+            changed.append(path)
+        if verify:
+            verify()
+    except Exception:
+        for path, content, original in reversed(written):
+            # Preserve concurrent user/host edits, even while rolling back setup.
+            if path.exists() and path.read_text() == content:
+                if original is None:
+                    path.unlink()
+                else:
+                    atomic_private(path, original)
+        raise
     return changed
 
 
@@ -555,6 +574,12 @@ def main():
         if args.command == "connect":
             hosts = ["codex", "claude"] if args.host == "both" else [args.host]
 
+            if "codex" in hosts:
+                from .connector_hooks import codex_hooks, trust_reviewed_codex_hooks
+                # Resolve desktop-only installations and check hook support before
+                # opening a consent page or changing either host's configuration.
+                codex_hooks(Path.home())
+
             print("This setup connects " + " and ".join("Codex" if h == "codex" else "Claude Code" for h in hosts) + ".")
             print("The following hooks remind your agent to save useful work. They do not read or upload transcripts.")
             for host in hosts:
@@ -566,13 +591,17 @@ def main():
 
                 from .connector_mcp import describe
                 connection = local.get("connection")
-                local.set("mcp_catalog", asyncio.run(describe(connection["url"], connection["access_token"])))
+                try:
+                    local.set("mcp_catalog", asyncio.run(describe(connection["url"], connection["access_token"])))
+                except Exception as error:
+                    raise ConnectionSetupError('Sign-in succeeded, but the memory tools could not be verified. '
+                                               'Check that the website is available, then run connect again. '
+                                               'Your coding-tool settings have not changed.') from error
+                verify = (lambda: trust_reviewed_codex_hooks(Path.home(), args.directory.resolve())) \
+                    if "codex" in hosts else None
                 configure_hosts(Path.home(), args.directory.resolve(), args.url.rstrip("/"), hosts,
-                                agent_instructions=args.agent_instructions)
+                                agent_instructions=args.agent_instructions, verify=verify)
                 local.set("hosts", hosts)
-                if "codex" in hosts:
-                    from .connector_hooks import trust_reviewed_codex_hooks
-                    trust_reviewed_codex_hooks(Path.home(), args.directory.resolve())
 
             login(local, args.url, on_connected=install_hosts, reminder_hooks=reminders)
             print("Connected. Restart your coding tools and start a new task. Both use this sign-in.")
@@ -612,12 +641,19 @@ def main():
             if config:
                 with contextlib.suppress(httpx.HTTPError):
                     httpx.post(config["url"] + "/oauth/revoke", data={"token": config["refresh_token"]}, timeout=15)
-                configure_hosts(Path.home(), args.directory.resolve(), config["url"], local.get("hosts", []), remove=True)
+            binding = local.get("account_binding") or {}
+            # A failed setup may have touched both hosts before the stored host
+            # list committed. Remove only our matching entries from both tools.
+            configure_hosts(Path.home(), args.directory.resolve(), (config or binding).get("url", ""),
+                            ["codex", "claude"], remove=True)
             local.set("paused", True)
             local.set("connection", None)
             local.set("status", "disconnected")
             local.db.commit()
             print("Disconnected. Local encrypted queued work is retained; revoke in Connections if offline.")
+    except ConnectionSetupError as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(1) from None
     except (httpx.HTTPError, ValueError, OSError, EOFError):
         print("Could not complete this action. Check the URL, sign-in, and local configuration, then retry.", file=sys.stderr)
         raise SystemExit(1) from None
