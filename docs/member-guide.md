@@ -12,7 +12,7 @@ Ask your agent to remember what you’re working on, then let it finish saving. 
 
 Your agent saves useful work memories with a low bar: current work, progress, attempts, findings, decisions, blockers and next steps. It can skip acknowledgments or repetitions. Reminder hooks do not upload whole conversations, and nothing searches your history on every coding turn. Historical transcript imports are a separate, explicit action. Optional global instructions are described in the [connector guide](connectors.md).
 
-An encrypted local outbox retries uploads when you are offline. **Connections → Recording controls → Record new work** pauses hosted intake. To stop local buffering too, run `litellm-memory-connector pause`. Resuming does not automatically sweep up the paused period; you can choose an explicit historical import later.
+Live saves require a working MCP connection; the agent should tell you if a save fails. Explicit historical imports have an encrypted local outbox for retrying uploads. **Connections → Recording controls → Record new work** pauses hosted intake. Run `litellm-memory-connector pause` to pause local reminders and import buffering too. Resuming does not automatically sweep up the paused period; you can choose an explicit historical import later.
 
 ## Browse and ask
 
