@@ -69,10 +69,12 @@ async def test_daily_input_contains_every_full_memory_in_event_order(archive):
     await views.get(Reader('T1:A'), 'T1:A', request, enqueue=True)
     await views.build(await views.next())
     evidence = gateway.inputs[0]['evidence']
-    assert [r['id'] for r in evidence] == list(reversed(ids))
+    assert [r['id'] for r in evidence] == [f'm{index}' for index in range(1, 126)]
     assert all(r['summary'].startswith(f'Full evidence {i}:') and len(r['summary']) > 3000
                for i, r in enumerate(evidence))
     result = await views.get(Reader('T1:A'), 'T1:A', request)
+    assert result['view']['items'][0]['sources'] == [ids[-1]]
+    assert set(result['view']['source_ids']) == set(ids)
     assert result['view']['coverage']['included'] == 125
     assert result['view']['coverage']['older_not_included'] == 0
     assert result['view']['through'] == '2026-09-18T02:04:00+00:00'
