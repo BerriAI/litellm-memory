@@ -4,7 +4,7 @@ See what your team is working on. Ask about anything shared with you.
 
 A [LiteLLM Labs](https://github.com/BerriAI) product, built with [Ente](https://github.com/ente-io/ente) and [LiteLLM](https://github.com/BerriAI/litellm).
 
-LiteLLM Memory records the work people do with AI and makes it easy to ask about later. Connect Codex or Claude Code, browse your company’s shared work and your own private history, and ask questions in the web app or through **@memory** in Slack.
+LiteLLM Memory records the work people do with AI and makes it easy to ask about later. Connect Codex or Claude Code, browse your company’s shared work and your own private history, and ask questions in the web app or through **@Memory** in Slack.
 
 This is a work archive you query deliberately. It does not search old memories or inject context into every coding turn.
 

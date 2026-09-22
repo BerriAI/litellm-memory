@@ -1,6 +1,6 @@
 # Architecture
 
-LiteLLM Memory stores evidence about people's work. Its retrieval is explicit: a capture hook records new work; a user later opens Ask, searches the archive, or asks @memory. Capturing a normal coding turn never performs background recall into that conversation.
+LiteLLM Memory stores evidence about people's work. Its retrieval is explicit: a capture hook records new work; a user later opens Ask, searches the archive, or asks @Memory. Capturing a normal coding turn never performs background recall into that conversation.
 
 ```mermaid
 flowchart LR

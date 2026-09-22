@@ -133,7 +133,7 @@ def test_web_pages_require_login_and_preserve_source_target(tmp_path):
             assert target == ("/" if path.startswith("/static") else path)
             assert response.headers["cache-control"] == "no-store"
         assert client.get("/health").status_code == 200
-        assert client.get("/static/litellm-memory-icon.jpg").status_code == 200
+        assert client.get("/static/litellm-memory-icon.png").status_code == 200
         assert client.get("/api/jobs/example").status_code == 401
         assert client.post("/api/jobs/example/cancel").status_code == 401
 
