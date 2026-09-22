@@ -1234,7 +1234,7 @@ function renderConnectorGuide() {
   const url = state.me.mcp_url.replace(/\/mcp\/?$/, "");
   const quoted = "'" + url.replaceAll("'", "'\"'\"'") + "'";
   $("capture-command").textContent =
-    `uv tool install --force 'git+https://github.com/moe-berri/litellm-memory.git@main'\nlitellm-memory-connector connect ${quoted} --host ${host}`;
+    `uv tool install --force 'git+https://github.com/BerriAI/litellm-memory.git@main'\nlitellm-memory-connector connect ${quoted} --host ${host}`;
   $("capture-restart-title").textContent =
     host === "codex" ? "Finish setup in Codex" : "Finish setup in Claude Code";
   $("capture-restart").textContent =
