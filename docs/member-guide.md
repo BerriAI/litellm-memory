@@ -4,7 +4,7 @@ LiteLLM Memory keeps a private, searchable record of your work with AI. You deci
 
 ## Join and connect
 
-Choose **Sign in with Slack** using your company account. Your installation accepts only its configured Slack workspace and verified email domain. There is no separate LiteLLM Memory password or key to save. If this is an owner-only pilot, other members cannot join yet.
+Choose **Sign in with Slack** using your company account. Your installation accepts only its configured Slack workspace and verified email domain. There is no separate LiteLLM Memory password or key to save.
 
 After joining, Company opens immediately so you can browse shared work. Choose **Connect a tool** on Activity, or open **Connections**. Select Codex or Claude Code, copy the installation commands and run them on your computer. Restart the tool and finish its MCP sign-in; Codex also requires reviewing and trusting the installed hooks. The connector preserves existing configuration. [Full connector instructions](connectors.md).
 

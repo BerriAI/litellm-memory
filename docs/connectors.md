@@ -12,7 +12,7 @@ litellm-memory-connector connect https://your-litellm-memory.example --host code
 # Or --host claude; omit --host to configure both.
 ```
 
-The browser opens Slack sign-in and a LiteLLM Memory consent screen. OAuth credentials are stored encrypted in a private local directory. The setup adds the remote MCP URL and reminder hooks without removing other MCPs or hooks. Private backups are made before host configuration changes. Restart the host and complete its own MCP authentication prompt. In Codex, open `/hooks` and review/trust the LiteLLM Memory hooks; Codex skips untrusted hooks. Review them again after an update changes their commands.
+The browser opens Slack sign-in and a LiteLLM Memory consent screen. New members finish account setup first and return to the connection request. OAuth credentials are stored encrypted in a private local directory. The setup adds the remote MCP URL and reminder hooks without removing other MCPs or hooks. Private backups are made before host configuration changes. Restart the host and complete its own MCP authentication prompt. In Codex, open `/hooks` and review/trust the LiteLLM Memory hooks; Codex skips untrusted hooks. Review them again after an update changes their commands.
 
 Supported installation locations are `~/.codex/config.toml`, `~/.codex/hooks.json`, `~/.claude/settings.json` and `~/.claude.json`. Symlink-managed host configurations need manual integration. The initial connector supports macOS/Linux and Python 3.12+. Windows support has not been verified.
 
@@ -29,6 +29,10 @@ litellm-memory-connector instructions disable
 Both commands default to Codex and Claude Code; use `--host codex` or `--host claude` to choose one. The installer manages a marked block in `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md`, keeps unrelated instructions, and makes private backups. Start a new session after changing instructions. `disconnect` removes the block together with this connector’s MCP entry and hooks.
 
 Other memory products, including `product-team-knowledge`, remain separate. Their MCP entries, hooks and instruction blocks are not removed by this installer.
+
+## If a connection request expires
+
+Return to the coding tool or terminal and start connecting again, then use the new browser tab. The connector waits five minutes for sign-in; the consent page expires after ten minutes. Each consent is separate, so connecting another tool does not replace a pending request. Approval is bound to the Slack account that opened it and can be used only once.
 
 ## What gets saved
 

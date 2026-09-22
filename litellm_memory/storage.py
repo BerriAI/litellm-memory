@@ -51,6 +51,9 @@ class Storage:
               PRIMARY KEY(team,channel)
             );
             CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE IF NOT EXISTS oauth_requests (
+              digest TEXT PRIMARY KEY, payload TEXT NOT NULL, expires REAL NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS history (
               id INTEGER PRIMARY KEY, session TEXT, role TEXT, content TEXT
             );
@@ -219,6 +222,26 @@ class Storage:
         async with self.lock:
             await self.db.execute("DELETE FROM settings WHERE key=?", (key,))
             await self.db.commit()
+
+    async def create_oauth_request(self, digest, payload, expires):
+        async with self.lock:
+            await self.db.execute("DELETE FROM oauth_requests WHERE expires<=?", (time.time(),))
+            await self.db.execute("INSERT INTO oauth_requests VALUES(?,?,?)",
+                                  (digest, self.seal(json.dumps(payload)), expires))
+            await self.db.commit()
+
+    async def consume_oauth_request(self, digest, owner):
+        """Validate and consume one member's consent without affecting other tabs."""
+        async with self.lock:
+            row = await (await self.db.execute("SELECT * FROM oauth_requests WHERE digest=?", (digest,))).fetchone()
+            if not row or row['expires'] <= time.time():
+                return None
+            payload = json.loads(self.unseal(row['payload']))
+            if payload['owner'] != owner:
+                return None
+            await self.db.execute("DELETE FROM oauth_requests WHERE digest=?", (digest,))
+            await self.db.commit()
+            return payload
 
     async def history(self, session):
         rows = await (await self.db.execute(

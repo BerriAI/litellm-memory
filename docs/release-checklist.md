@@ -1,6 +1,6 @@
 # Release status
 
-The implementation is on `main`, and the private Render service runs the new application through the portable launcher. Admin onboarding is not yet complete. This repository is still private; owner onboarding, team rollout and open-source publication are separate milestones.
+The implementation is on `main`, and the private Render service runs the new application through the portable launcher. The deployed registration mode now permits eligible company members to join; personal Slack and recording checks remain tracked below. This repository is still private; owner onboarding, team rollout and open-source publication are separate milestones.
 
 ## Verification
 
