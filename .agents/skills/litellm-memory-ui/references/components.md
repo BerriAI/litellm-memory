@@ -51,7 +51,13 @@ Respect the current API behavior:
 
 Do not make a control look immediately applied if it only changes a draft. Do not silently convert a save-based form to autosave during a styling task. If the task specifically changes save behavior, handle pending state, failure rollback or retained draft, and simultaneous edits.
 
-Place a form's save action at its lower right, with status in the same footer. On small screens allow status to occupy its own line. Preserve the same form/action relationship when controls wrap.
+Place a page form's save action at the left edge below its controls, followed by status in the same footer. Keep that same order in the HTML so reading and keyboard order match. On small screens allow status to occupy its own line; an empty status must not reserve space. Dialog confirmation actions retain their right alignment.
+
+### Spacing ownership
+
+Use `.form-stack` for sequential fields and actions: the parent owns a 16px gap, and direct children have no outer vertical margin. Use `.form-field` to keep one label/control group and its helper together with a 6px gap. Labels contain their control with a 7px gap. Do not add a second field margin inside a grid or stack.
+
+Setup panels separate task groups by 20px and use 24px padding around section rules. The section title and description stay together with a 6px gap. Action explanations sit 12px above their button. Helper text remains 12px; a broad paragraph selector must not enlarge it. Disclosures use 16px between their summary and expanded content. Review both collapsed and expanded states, populated status, errors, and hidden sections; hidden children must not leave empty layout rows.
 
 ## Fields
 
@@ -106,7 +112,7 @@ Connection rows state the client and relevant connection metadata, with revoke s
 
 One reading column. The answer should be the largest content region, not the model picker, assistant avatar, or tool trace. Use an understated user-message surface; responses can be plain text flow with rendered Markdown and citations.
 
-The composer contains writing area first, scope/model controls second, send/stop action, and a short privacy explanation. Scope and model selections must remain readable and operable when long. On narrow screens wrap controls instead of clipping the send button.
+The composer contains writing area first, scope/model controls second, and the send/stop action. Omit repeated privacy explanations. Scope and model selections must remain readable and operable when long. On narrow screens wrap controls instead of clipping the send button.
 
 Suggested questions are optional examples of useful work, not large feature tiles. They should not outrank the input or the empty-state prompt. Generated icons are decorative and must not become part of the submitted question text.
 

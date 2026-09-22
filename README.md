@@ -17,7 +17,7 @@ The actual application, shown with synthetic local records. See [Ask](docs/asset
 ## What it does
 
 - **Browse:** Company opens first, with a chronological feed and Slack profiles. Open a teammate’s shared activity or switch to My work.
-- **Record:** connect Codex or Claude Code once. An encrypted local outbox retries uploads; optional backfills preserve original text, dates and metadata. Connection status shows when work actually arrives.
+- **Record:** connect Codex or Claude Code once. Your agent saves useful work context and can skip turns with nothing new; optional backfills preserve original text, dates and metadata. Connection status shows when work actually arrives.
 - **Share deliberately:** work starts private. Preview a separate summary, or opt in to sharing future summaries. TypeSafe Jev checks your private topics in parallel and caches completed checks.
 - **Ask:** get cited answers through the web, Slack, API or MCP, limited to the evidence the audience can access. No automatic recall on coding turns or scheduled daily digests.
 - **Use your gateway:** model choices come from LiteLLM. Optional [Pydantic Logfire](docs/observability.md) shows usage and latency without private content.
@@ -61,7 +61,7 @@ litellm-memory-connector connect https://your-litellm-memory.example
 
 Sign in with Slack in the browser. The connector preserves existing host settings and memory connections. Restart your coding tool, then authenticate its LiteLLM Memory MCP when prompted. Use `--host codex` or `--host claude` to configure only one.
 
-The connector records visible user and assistant text. It excludes system messages, tool-result dumps and hidden reasoning. Local capture requires a compatible host with transcript hooks; remote MCP alone cannot observe conversations. The website and Slack work without installing the connector.
+The connector reminds your coding agent to save useful work memories through MCP: current work, progress, findings, decisions, blockers and next steps. It does not automatically upload conversations. The agent can skip a turn when nothing useful changed. Historical transcript imports are explicit, separate actions. Optional global agent instructions are available in the [connector guide](docs/connectors.md). The website and Slack work without installing the connector.
 
 [Member guide](docs/member-guide.md) · [Connector guide](docs/connectors.md) · [API and data formats](docs/api.md)
 

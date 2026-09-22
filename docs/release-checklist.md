@@ -38,7 +38,7 @@ The legacy product-team repository/MCP remains in place until cutover. No real t
 
 ## Known limits
 
-Capture preserves individual visible transcript messages. Current/daily views synthesize them, but the feed is not yet organized into canonical session episodes. Tool execution and hidden reasoning are excluded, so recorded claims are not proof of completed work.
+Live recording depends on the coding agent selecting useful work and successfully calling MCP. A hook reminder is not proof that a memory was saved; skipped turns are valid. Agent-authored memories are accounts, not raw evidence of tool execution. Explicit historical imports preserve individual visible transcript messages. Neither path guarantees complete work coverage.
 
 The user-defined Jev UI currently supports private-topic rules. Metadata browsing is separate; arbitrary saved semantic browsing criteria are not implemented.
 

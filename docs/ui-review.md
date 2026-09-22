@@ -8,6 +8,12 @@ The LiteLLM Memory wordmark uses 17px text so the full name stays readable at de
 
 The maintained [LiteLLM Memory UI skill](../.agents/skills/litellm-memory-ui/SKILL.md) explains the design language and how to extend it.
 
+## Workspace setup
+
+Setup uses one spacing pattern: section title and explanation, related fields, then action and feedback. Helpers stay close to their field; Slack permission guidance has a separate action group. Expanded model and Slack forms follow the same rhythm. Empty status messages do not reserve space.
+
+![Workspace setup](assets/setup.jpg)
+
 ## Search and the compact header
 
 Search opens a panel near the top of the window, keeping scope and results together. It leaves the page underneath in place. Submit explicitly, open sources from results, and use Escape or Close to return. In the compact header the wordmark, Search and account control share a center line; the five destinations are evenly spaced below.
@@ -56,6 +62,6 @@ These are screenshots of the actual local application with synthetic records and
 
 The core-loop review covers joining → Company → tool instructions → authorized/waiting → first received work → My work, person browsing/reload/Back, Ask scope, sharing preview, saved-filter editing, and recording pause. Browser checks include 1280px, 390px and 320px layouts, keyboard Settings navigation, source-dialog dismissal and recording-status failure/retry. Long connection commands scroll inside their own block without widening the page. Connections checks cover initial setup, automatic client-list refresh, a saved first-record receipt, pause/resume and failed-save rollback, independent import-tool selection, and direct recovery from the paused Activity notice. Settings checks include personal/admin tab visibility, keyboard navigation and saving a time zone. The search review also covers Company/My work/person scopes, empty results, a simulated failure and retry, source detail returning to results, Escape with focus restoration, and a 400px-high window with scrolling results. Search and navigation fit at 320px without horizontal overflow.
 
-The backend suite passes **160 tests**, including owner-only intake receipts, expired/refreshed connections, import-versus-live status, private/shared access, on-demand overviews and independent Luna defaults. Ruff and frontend syntax/format checks pass. UI capture was simulated through a disposable fixture; these checks do not prove a real host connection, external model quality or live Slack OAuth. The release checklist tracks those separately.
+The backend suite covers selective hook guidance without transcript uploads, optional agent instructions, owner-only intake receipts, expired/refreshed connections, import-versus-live status, private/shared access, on-demand overviews and independent Luna defaults. The September 21 spacing review also covers connected setup, model-save feedback, expanded models, gateway editing, Slack access recovery, Settings disclosures, Connections instructions, feed, Ask and search at narrow widths. Ruff and frontend syntax/format checks pass. UI capture was simulated through a disposable fixture; these checks do not prove a real host connection, external model quality or live Slack OAuth. The release checklist tracks those separately.
 
 Use the [release checklist](release-checklist.md) for deployment status and `CONTRIBUTING.md` for repeatable checks. Previous development screenshots and chronological review logs were removed; Git history retains them. This is not a claim of a flawless interface or a complete screen-reader/browser certification.

@@ -29,6 +29,8 @@ async def test_real_mcp_sdk_initializes_captures_searches_and_cannot_cross_accou
                     assert not captured.is_error, captured
                     receipt = json.loads(captured.content[0].text)
                     assert not calls  # Capture and initialization do not do model recall.
+                    status = await archive.recording_status('T:OWNER')
+                    assert status['received'] == 1
                     found = await session.call_tool('search_memories', {'query': 'UNIQUE_PRIVATE_EVIDENCE'})
                     assert not found.is_error, found
                     results = json.loads(found.content[0].text)
@@ -36,6 +38,12 @@ async def test_real_mcp_sdk_initializes_captures_searches_and_cannot_cross_accou
                     read = await session.call_tool('read_memory', {'record_id': receipt['id']})
                     assert not read.is_error
                     assert 'UNIQUE_PRIVATE_EVIDENCE' in read.content[0].text
+                    assert json.loads(read.content[0].text)['metadata']['evidence_type'] == 'agent_memory'
+                    await session.call_tool('pause_capture', {'paused': True})
+                    blocked = await session.call_tool('record_work', {
+                        'source_id': 'paused-memory', 'content': 'MUST_NOT_BE_SAVED'})
+                    assert blocked.is_error
+                    assert (await archive.recording_status('T:OWNER'))['received'] == 1
         other = await archive.create_token('T:OTHER', 'Other SDK client')
         async with httpx2.AsyncClient(transport=httpx2.ASGITransport(app),
                 headers={'Authorization': 'Bearer ' + other['token']}) as http:

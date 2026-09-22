@@ -91,11 +91,13 @@
         <h1>Set up your workspace</h1>
         <p class="section-intro">Connect LiteLLM and Slack to get started.</p>
         <form class="setup-panel" id="claim-form">
-          <h2>Claim your installation</h2>
-          <p>
-            Use the setup code in your deployment’s private settings. This keeps
-            the first visitor from becoming your administrator.
-          </p>
+          <div class="section-copy">
+            <h2>Claim your installation</h2>
+            <p>
+              Use the setup code in your deployment’s private settings. This
+              keeps the first visitor from becoming your administrator.
+            </p>
+          </div>
           <label
             >Setup code<input
               autocomplete="off"
@@ -107,18 +109,24 @@
         </form>
         <div hidden="" id="setup-content">
           <section class="setup-panel" id="gateway-panel">
-            <div class="setup-heading">
-              <h2>LiteLLM</h2>
-              <span class="setup-badge" id="gateway-badge">Not connected</span>
+            <div class="section-copy">
+              <div class="setup-heading">
+                <h2>LiteLLM</h2>
+                <span class="setup-badge" id="gateway-badge"
+                  >Not connected</span
+                >
+              </div>
+              <p>
+                One connection for your agent, embeddings, and TypeSafe Jev.
+              </p>
             </div>
-            <p>One connection for your agent, embeddings, and TypeSafe Jev.</p>
             <div class="connection-summary" hidden="" id="gateway-summary">
               <span id="gateway-summary-url"></span
               ><button class="text-button" id="edit-gateway" type="button">
                 Change
               </button>
             </div>
-            <form id="gateway-form">
+            <form class="form-stack" id="gateway-form">
               <label
                 >Gateway URL<input
                   autocomplete="url"
@@ -135,24 +143,26 @@
               ><button class="button primary">Connect LiteLLM</button>
               <p class="inline-error" id="gateway-error" role="alert"></p>
             </form>
-            <div hidden="" id="setup-models">
-              <div class="setup-check" id="jev-status" role="status"></div>
-              <button
-                class="button quiet small"
-                hidden=""
-                id="setup-recheck-jev"
-              >
-                Check Jev again</button
-              ><a
-                class="text-link"
-                hidden=""
-                href="https://docs.litellm.ai/docs/pass_through/typesafe"
-                id="jev-help"
-                rel="noopener noreferrer"
-                target="_blank"
-                >Gateway setup instructions ↗</a
-              >
-              <form id="setup-model-form">
+            <div class="form-stack" hidden="" id="setup-models">
+              <div class="setup-check-group">
+                <div class="setup-check" id="jev-status" role="status"></div>
+                <button
+                  class="button quiet small"
+                  hidden=""
+                  id="setup-recheck-jev"
+                >
+                  Check Jev again</button
+                ><a
+                  class="text-link"
+                  hidden=""
+                  href="https://docs.litellm.ai/docs/pass_through/typesafe"
+                  id="jev-help"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  >Gateway setup instructions ↗</a
+                >
+              </div>
+              <form class="form-stack" id="setup-model-form">
                 <div class="model-grid">
                   <label
                     >Default agent<select
@@ -185,7 +195,7 @@
                         value="jev-latest"
                     /></label>
                   </div>
-                  <p>
+                  <p class="field-help">
                     Slack can use the default agent. Background work has its own
                     suggested model. You can change every model later in
                     Settings.
@@ -200,26 +210,31 @@
             </div>
           </section>
           <section class="setup-panel" hidden="" id="slack-panel">
-            <div class="setup-heading">
-              <h2>Slack</h2>
-              <span class="setup-badge" id="slack-badge">Not connected</span>
+            <div class="section-copy">
+              <div class="setup-heading">
+                <h2>Slack</h2>
+                <span class="setup-badge" id="slack-badge">Not connected</span>
+              </div>
+              <p>
+                Your team signs in with Slack. The same agent answers in the web
+                app and as @Memory.
+              </p>
             </div>
-            <p>
-              Your team signs in with Slack. The same agent answers in the web
-              app and as @Memory.
-            </p>
-            <label
-              >Company email domain<input
-                autocomplete="off"
-                id="setup-domain"
-                placeholder="your-company.com"
-                value="berri.ai"
-            /></label>
-            <p class="fine-print">
-              Only verified accounts from this domain and your Slack workspace
-              can join.
-            </p>
-            <div id="slack-create-options">
+            <div class="form-field">
+              <label
+                >Company email domain<input
+                  autocomplete="off"
+                  id="setup-domain"
+                  aria-describedby="setup-domain-help"
+                  placeholder="your-company.com"
+                  value="berri.ai"
+              /></label>
+              <p class="field-help" id="setup-domain-help">
+                Only verified accounts from this domain and your Slack workspace
+                can join.
+              </p>
+            </div>
+            <div class="form-stack" id="slack-create-options">
               <a
                 class="button secondary"
                 id="create-slack-app"
@@ -229,19 +244,23 @@
               >
               <details class="advanced">
                 <summary>Have an app configuration token?</summary>
-                <form id="auto-slack-form">
-                  <label
-                    >Slack app configuration token<input
-                      autocomplete="off"
-                      id="slack-config-token"
-                      required=""
-                      type="password" /></label
-                  ><button class="button secondary">
+                <form class="form-stack" id="auto-slack-form">
+                  <div class="form-field">
+                    <label
+                      >Slack app configuration token<input
+                        autocomplete="off"
+                        id="slack-config-token"
+                        aria-describedby="slack-config-help"
+                        required=""
+                        type="password"
+                    /></label>
+                    <p class="field-help" id="slack-config-help">
+                      Used once to create the app. It is never saved.
+                    </p>
+                  </div>
+                  <button class="button secondary">
                     Create app automatically
                   </button>
-                  <p class="fine-print">
-                    Used once to create the app. It is never saved.
-                  </p>
                 </form>
               </details>
               <details class="advanced" id="slack-credentials">
@@ -250,7 +269,7 @@
                   Open your app’s <strong>Basic Information</strong> in Slack
                   and copy its App Credentials below.
                 </p>
-                <form id="slack-form">
+                <form class="form-stack" id="slack-form">
                   <div class="model-grid">
                     <label
                       >App ID<input
@@ -280,24 +299,28 @@
                 </form>
               </details>
             </div>
-            <p class="field-help" hidden="" id="slack-access-help"></p>
-            <button class="button primary" hidden="" id="install-slack">
-              Install in Slack ↗</button
-            ><button
-              class="button primary"
-              hidden=""
-              id="verify-slack-identity"
-            >
-              Confirm with Slack ↗
-            </button>
+            <div class="setup-actions">
+              <p class="field-help" hidden="" id="slack-access-help"></p>
+              <button class="button primary" hidden="" id="install-slack">
+                Install in Slack ↗</button
+              ><button
+                class="button primary"
+                hidden=""
+                id="verify-slack-identity"
+              >
+                Confirm with Slack ↗
+              </button>
+            </div>
             <p class="inline-error" id="slack-setup-error" role="alert"></p>
           </section>
           <div class="setup-panel" hidden="" id="setup-finish">
-            <h2>You’re almost in.</h2>
-            <p>
-              Your memories start private. There’s no separate password or
-              encryption key for your team to remember.
-            </p>
+            <div class="section-copy">
+              <h2>You’re almost in.</h2>
+              <p>
+                Your memories start private. There’s no separate password or
+                encryption key for your team to remember.
+              </p>
+            </div>
             <p class="fine-print" id="storage-status"></p>
             <button class="button primary" id="finish-deployment">
               Open LiteLLM Memory
@@ -672,10 +695,11 @@
                 <p id="capture-restart"></p>
               </li>
               <li>
-                <h3>Send a message</h3>
+                <h3>Save your first memory</h3>
                 <p>
-                  Let your tool finish its reply. This page will confirm when
-                  the first conversation arrives.
+                  Ask your agent to remember what you’re working on. It will
+                  keep saving useful updates and can skip turns with nothing
+                  new. This page confirms when a memory arrives.
                 </p>
               </li>
             </ol>
@@ -687,7 +711,7 @@
                 ><span
                   ><strong>Record new work</strong
                   ><small
-                    >Save new conversations. Pausing keeps your existing
+                    >Save useful work memories. Pausing keeps your existing
                     history.</small
                   ></span
                 ><input id="capture-enabled" role="switch" type="checkbox"
@@ -837,12 +861,12 @@
                     An existing type restriction still applies to your sharing.
                   </p>
                   <div class="form-footer">
+                    <button class="button primary">Save sharing</button>
                     <span
                       class="inline-status"
                       id="sharing-status"
                       role="status"
-                    ></span
-                    ><button class="button primary">Save sharing</button>
+                    ></span>
                   </div>
                 </form>
               </div>
@@ -896,10 +920,10 @@
                   >Your time zone</label
                 ><select id="display-timezone" class="full-width"></select>
                 <div class="form-footer">
-                  <span id="display-settings-status" role="status"></span
-                  ><button class="button primary" id="save-display-settings">
+                  <button class="button primary" id="save-display-settings">
                     Save time zone
                   </button>
+                  <span id="display-settings-status" role="status"></span>
                 </div>
               </form>
             </section>
@@ -1055,10 +1079,10 @@
                   </p>
                 </details>
                 <div class="form-footer">
-                  <span id="model-settings-status" role="status"></span
-                  ><button class="button primary" id="save-models">
+                  <button class="button primary" id="save-models">
                     Check &amp; save models
                   </button>
+                  <span id="model-settings-status" role="status"></span>
                 </div>
               </form>
             </section>

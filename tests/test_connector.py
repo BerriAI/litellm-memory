@@ -4,7 +4,7 @@ import httpx
 import pytest
 import tomlkit
 
-from litellm_memory.connector import LocalCapture, configure_hosts, visible_message
+from litellm_memory.connector import LocalCapture, configure_hosts, memory_hook, visible_message
 
 
 def row(content, role='user', **extra):
@@ -140,8 +140,9 @@ def test_installer_preserves_unrelated_configs_and_rejects_conflicts_before_writ
     assert config['model'] == 'custom' and config['mcp_servers']['knowledge']['url'] == 'https://old.example'
     assert '# Preserve my comments' in (tmp_path / '.codex/config.toml').read_text()
     hooks = json.loads((tmp_path / '.codex/hooks.json').read_text())['hooks']
-    assert len(hooks['Stop']) == 2
+    assert len(hooks['Stop']) == 1
     assert hooks['Stop'][0]['hooks'][0]['command'] == 'existing hook'
+    assert len(hooks['UserPromptSubmit']) == 1
     assert json.loads((tmp_path / '.claude.json').read_text())['theme'] == 'dark'
     before = (tmp_path / '.codex/hooks.json').read_text()
     with pytest.raises(ValueError, match='different LiteLLM Memory'):
@@ -288,8 +289,10 @@ def test_reconnect_preserves_host_auth_without_duplicate_hooks(tmp_path):
     assert list(claude) == ['litellm-memory'] and claude['litellm-memory']['headers'] == {'X-Preserved': 'yes'}
     for path in (tmp_path / '.codex/hooks.json', tmp_path / '.claude/settings.json'):
         commands = [h['command'] for g in json.loads(path.read_text())['hooks']['Stop'] for h in g['hooks']]
-        assert len(commands) == 2 and commands[0] == 'unrelated-hook'
-        assert '--marker litellm-memory-managed-capture' in commands[1]
+        assert commands == ['unrelated-hook']
+        prompts = json.loads(path.read_text())['hooks']['UserPromptSubmit']
+        assert len(prompts) == 1
+        assert '--marker litellm-memory-managed-capture' in prompts[0]['hooks'][0]['command']
     configure_hosts(tmp_path, tmp_path / 'state', url, ['codex', 'claude'], remove=True)
     assert not tomlkit.parse((tmp_path / '.codex/config.toml').read_text()).get('mcp_servers')
     assert not json.loads((tmp_path / '.claude.json').read_text())['mcpServers']
@@ -301,3 +304,86 @@ def test_new_host_installations_use_canonical_name(tmp_path):
     configure_hosts(tmp_path, tmp_path / 'state', 'https://memory.example', ['codex', 'claude'])
     assert list(tomlkit.parse((tmp_path / '.codex/config.toml').read_text())['mcp_servers']) == ['litellm-memory']
     assert list(json.loads((tmp_path / '.claude.json').read_text())['mcpServers']) == ['litellm-memory']
+
+
+def test_memory_hooks_are_advisory_selective_and_allow_empty_turns():
+    for event in ('SessionStart', 'UserPromptSubmit'):
+        output = memory_hook({'hook_event_name': event, 'prompt': 'PRIVATE_PROMPT'})
+        assert output['hookSpecificOutput']['hookEventName'] == event
+        context = output['hookSpecificOutput']['additionalContext']
+        assert 'Keep a low bar' in context and 'Skip saving' in context
+        assert 'PRIVATE_PROMPT' not in context
+        assert 'decision' not in output  # Never block/force a continuation to create a memory.
+        assert 'recording is paused' in memory_hook({'hook_event_name': event}, paused=True)['hookSpecificOutput']['additionalContext']
+        assert memory_hook({'hook_event_name': event}, connected=False) == {}
+    for event in ('Stop', 'PostToolUse', 'unknown'):
+        assert memory_hook({'hook_event_name': event}) == {}
+
+
+def test_hook_command_never_reads_transcripts_or_flushes_records(tmp_path, monkeypatch, capsys):
+    import io
+
+    from litellm_memory.connector import main
+
+    directory = tmp_path / 'state'
+    local = LocalCapture(directory)
+    local.set('connection', {'url': 'https://memory.example'})
+    local.enqueue({'source_id': 'explicit-import', 'content': 'QUEUED_IMPORT'})
+    local.db.commit()
+    local.close()
+    def forbidden(*args, **kwargs):
+        raise AssertionError('A reminder hook must not capture or upload data')
+    monkeypatch.setattr(LocalCapture, 'capture', forbidden)
+    monkeypatch.setattr(LocalCapture, 'flush', forbidden)
+    monkeypatch.setattr('sys.argv', ['connector', '--directory', str(directory), 'hook', '--host', 'codex'])
+    monkeypatch.setattr('sys.stdin', io.StringIO(json.dumps({
+        'hook_event_name': 'UserPromptSubmit', 'transcript_path': '/must/not/read', 'prompt': 'PRIVATE_PROMPT'})))
+    main()
+    output = capsys.readouterr().out
+    assert 'record_work' in json.loads(output)['hookSpecificOutput']['additionalContext']
+    assert 'PRIVATE_PROMPT' not in output and 'QUEUED_IMPORT' not in output
+    local = LocalCapture(directory)
+    assert local.status()['queued'] == 1
+    local.close()
+
+
+def test_optional_agent_guidance_preserves_other_instructions_and_disconnect_removes_it(tmp_path):
+    originals = {}
+    for relative in ('.codex/AGENTS.md', '.claude/CLAUDE.md'):
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        originals[path] = '# My instructions\nKeep unrelated guidance, including product-team-knowledge.\n'
+        path.write_text(originals[path])
+    args = (tmp_path, tmp_path / 'state', 'https://memory.example', ['codex', 'claude'])
+    configure_hosts(*args)
+    assert all(path.read_text() == original for path, original in originals.items())
+    for _ in range(2):
+        configure_hosts(*args, agent_instructions=True)
+    for path, original in originals.items():
+        text = path.read_text()
+        assert text.startswith(original)
+        assert text.count('<!-- BEGIN litellm-memory-agent-instructions -->') == 1
+        assert 'record_work' in text and 'Do not search automatically' in text
+    # An ordinary reconnect must not silently opt out or duplicate instructions.
+    before = {path: path.read_text() for path in originals}
+    configure_hosts(*args)
+    assert all(path.read_text() == text for path, text in before.items())
+    configure_hosts(*args, remove=True)
+    assert all(path.read_text() == original for path, original in originals.items())
+
+
+def test_guidance_can_be_disabled_independently_and_malformed_markers_fail_before_writes(tmp_path):
+    args = (tmp_path, tmp_path / 'state', 'https://memory.example', ['codex', 'claude'])
+    configure_hosts(*args, agent_instructions=True)
+    config = tmp_path / '.codex/config.toml'
+    hooks = tmp_path / '.codex/hooks.json'
+    before = (config.read_bytes(), hooks.read_bytes())
+    configure_hosts(*args, agent_instructions=False, instructions_only=True)
+    assert (config.read_bytes(), hooks.read_bytes()) == before
+    assert not (tmp_path / '.codex/AGENTS.md').read_text()
+    assert not (tmp_path / '.claude/CLAUDE.md').read_text()
+    (tmp_path / '.claude/CLAUDE.md').write_text('<!-- BEGIN litellm-memory-agent-instructions -->\nUnfinished')
+    with pytest.raises(ValueError, match='instruction markers'):
+        configure_hosts(*args, agent_instructions=True)
+    assert not (tmp_path / '.codex/AGENTS.md').read_text()
+    assert (config.read_bytes(), hooks.read_bytes()) == before

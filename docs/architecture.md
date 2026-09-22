@@ -1,10 +1,12 @@
 # Architecture
 
-LiteLLM Memory stores evidence about people's work. Its retrieval is explicit: a capture hook records new work; a user later opens Ask, searches the archive, or asks @Memory. Capturing a normal coding turn never performs background recall into that conversation.
+LiteLLM Memory stores evidence about people's work. Its retrieval is explicit: a reminder hook guides the coding agent to save useful new work through MCP; a user later opens Ask, searches the archive, or asks @Memory. Capturing a normal coding turn never performs background recall into that conversation.
 
 ```mermaid
 flowchart LR
-  C[Codex / Claude capture hooks] -->|OAuth, encrypted local queue| A[litellm-memory API]
+  C[Codex / Claude reminder hooks] --> G[Coding agent selects useful work]
+  G -->|record_work| M[Remote MCP]
+  B[Explicit historical import] -->|OAuth, encrypted local queue| A[litellm-memory API]
   W[Slack sign-in + web app] --> A
   S[Slack bot] -->|fresh audience check| A
   M[Remote MCP] -->|personal OAuth| A
@@ -22,7 +24,7 @@ flowchart LR
 
 ## Capture and evidence
 
-The connector reads complete appended transcript rows. Local encrypted queue insertion and cursor advancement share a transaction. The API binds the owner from authentication, derives a stable record ID from the owner/source identity, rejects content replacement under the same ID, and commits encrypted intake before remote I/O. Unavailable Ente writes remain in `storing` for recovery. The original source object is immutable; the derived working object is replaceable.
+Live hooks provide low-threshold memory guidance; they never read or upload transcripts, search memories, or force an extra turn. The coding agent saves a concise account through `record_work`, tagged as `agent_memory`, or makes no call when nothing useful changed. Such accounts preserve attribution and uncertainty; they are not raw transcripts or proof of tool execution. Explicit historical imports read complete transcript rows. Their local encrypted queue insertion and cursor advancement share a transaction. The API binds the owner from authentication, derives a stable record ID from the owner/source identity, rejects content replacement under the same ID, and commits encrypted intake before remote I/O. Unavailable Ente writes remain in `storing` for recovery. The original source object is immutable; the derived working object is replaceable.
 
 Historical ingestion uses the same path with separate worker capacity and historical dates. Byte-preserved legacy originals live inside encrypted source metadata. Source role/uploader are provenance, not proof of who made a claim.
 
