@@ -44,9 +44,10 @@ def test_slack_billing_failure_is_reported_once_without_retries(tmp_path):
         signed_event(client, {'type': 'message', 'channel_type': 'im', 'channel': 'D1',
                               'user': 'UOWNER', 'ts': '1', 'text': 'hello'})
         for _ in range(80):
-            if 'reactions.remove' in reactions:
+            if any('reports no API credits' in text for text in replies):
                 break
             time.sleep(.05)
         assert attempts == ['hello']
         assert sum('reports no API credits' in text for text in replies) == 1
-        assert 'reactions.add' in reactions and 'reactions.remove' in reactions
+        assert reactions == []
+        assert len(replies) == 2  # One acknowledgment and one final error.

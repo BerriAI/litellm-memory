@@ -39,6 +39,7 @@ from .processing import cleanup_worker, processing_worker
 from .query import answer_work
 from .query_worker import query_worker
 from .setup import DeploymentConfig, install_setup
+from .sharing import Sharing
 from .storage import QueueFull, Storage
 from .time_settings import DisplayPreferences, ScheduleUpdate, Timezone, date_boundary
 from .transfer import ExportStream
@@ -81,6 +82,10 @@ class Search(BaseModel):
 class SaveModels(BaseModel):
     models: ModelConfiguration
     revision: int = Field(ge=0)
+
+
+class ShareExisting(BaseModel):
+    revision: str = Field(pattern=r'^[0-9a-f]{64}$')
 
 
 class ExportOptions(BaseModel):
@@ -139,6 +144,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     async def lifespan(app):
         await store.open()
         await archive.open()
+        await archive.configure_privacy_threshold(settings.jev_private_threshold)
         await transfers.open()
         await views.open()
         await model_service.load()
@@ -491,6 +497,18 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         filters.update(created_from=start.isoformat() if start else None,
                        created_before=end.isoformat() if end else None)
         return await archive.search(reader, **filters, vector=vector, embedding_model=settings.memory_embedding_model)
+
+    @api.get('/sharing/preview-existing')
+    async def preview_existing(request: Request):
+        return await Sharing(archive, settings).review(await browser_account(request))
+
+    @api.post('/sharing/existing')
+    async def share_existing(body: ShareExisting, request: Request):
+        return await Sharing(archive, settings).share_existing(await browser_account(request), body.revision)
+
+    @api.get('/memories/{record_id}/privacy-matches')
+    async def privacy_matches(record_id: str, request: Request):
+        return await Sharing(archive, settings).matches(await browser_account(request), record_id)
 
     @api.get("/memories/{record_id}")
     async def read(record_id: str, request: Request):

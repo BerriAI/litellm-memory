@@ -114,20 +114,19 @@ async def test_slack_feedback_thread_context_and_multiple_sources(tmp_path):
     job = await store.next_job()
     history = await slack.history(job)
     assert history == [{'role': 'user', 'content': '<@U2>: Earlier human context'}, {'role': 'assistant', 'content': 'Earlier answer'}]
-    assert any(method == 'reactions.add' and p['name'] == 'eyes' for method, p in calls)
-    assert any(method == 'assistant.threads.setStatus' for method, _ in calls)
+    assert any(method == 'chat.postMessage' and 'reply here when the answer is ready' in p['text'] for method, p in calls)
+    assert not any(method == 'assistant.threads.setStatus' for method, _ in calls)
     await store.progress(jid, 'Writing an answer', 'Some words')
-    slack.last_update.clear()
     await slack.indicator(jid)
-    assert any(method == 'chat.update' and 'Some words' in p['text'] for method, p in calls)
+    assert not any(method == 'chat.update' for method, p in calls)
     text = 'Uses [one](http://localhost:8000/memory/one) and [two](http://localhost:8000/memory/two).'
     assert await slack.post_answer(job, text)
     final = calls[-1]
     assert final[0] == 'chat.update'
     assert '/sources?ids=one%2Ctwo' in final[1]['text']
     await slack.indicator(jid)
-    assert any(method == 'reactions.remove' for method, _ in calls)
-    assert calls[-1] == ('assistant.threads.setStatus', {'channel_id': 'D1', 'thread_ts': '1', 'status': ''})
+    assert calls[-1] == final
+    assert not any(method.startswith('reactions.') for method, _ in calls)
     assert (await store.get_job(jid))['indicator_done']
     assert len([c for c in calls if c[0] == 'chat.postMessage']) == 1
     await store.close()
@@ -209,12 +208,12 @@ async def test_slack_native_markdown_and_workspace_fallback(tmp_path):
     assert slack.api.call_args.args[1]['text'] == payload['text']
 
 
-def test_owner_created_group_dm_reacts_before_model_and_cleans_up(tmp_path):
+def test_owner_created_group_dm_acknowledges_before_model_then_delivers_once(tmp_path):
     calls = []
 
     async def agent(settings, question, history):
         # Exercise the real queue + worker + monitor, rather than calling the indicator directly.
-        assert any(method == 'reactions.add' for method, _ in calls)
+        assert any(method == 'chat.postMessage' for method, _ in calls)
         await asyncio.sleep(.1)
         return 'Group DM answer'
 
@@ -233,16 +232,13 @@ def test_owner_created_group_dm_reacts_before_model_and_cleans_up(tmp_path):
         signed_event(client, {'type': 'app_mention', 'user': 'UTIN', 'channel': 'C-GROUP-DM',
                               'channel_type': 'mpim', 'ts': '10', 'text': '<@UBOT> hello'})
         for _ in range(80):
-            if any(method == 'reactions.remove' for method, _ in calls):
+            if any(method == 'chat.update' for method, _ in calls):
                 break
             time.sleep(.05)
         assert client.portal.call(app.state.store.channel_allowed, 'T1', 'C-GROUP-DM')
         assert any(method == 'chat.update' and payload['text'] == 'Group DM answer' for method, payload in calls)
         reactions = [(method, payload) for method, payload in calls if method.startswith('reactions.')]
-        assert reactions == [
-            ('reactions.add', {'channel': 'C-GROUP-DM', 'timestamp': '10', 'name': 'eyes'}),
-            ('reactions.remove', {'channel': 'C-GROUP-DM', 'timestamp': '10', 'name': 'eyes'}),
-        ]
+        assert reactions == []
         assert not any(method == 'assistant.threads.setStatus' for method, _ in calls)
 
 
@@ -275,36 +271,25 @@ async def test_group_dm_recovery_never_bypasses_owner_or_revocation(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_reaction_failures_retry_and_cleanup_is_not_marked_done_early(tmp_path):
+async def test_acknowledgment_retries_without_streaming_or_overwriting_final(tmp_path):
     store = Storage(tmp_path / 'db')
     await store.open()
     slack = Slack(config(tmp_path), store)
-    outcomes = {'reactions.add': [SlackAPIError('ratelimited', 12), SlackAPIError('already_reacted')],
-                'reactions.remove': [SlackAPIError('internal_error'), SlackAPIError('no_reaction')]}
-    calls = []
-
-    async def api(method, payload):
-        calls.append(method)
-        if method in outcomes and outcomes[method]:
-            raise outcomes[method].pop(0)
-        return {'ok': True, 'ts': '99'}
-
-    slack.api = api
+    slack.api = AsyncMock(side_effect=[RuntimeError('temporarily unavailable'), {'ok': True, 'ts': '99'}, {'ok': True}])
     p = {'team': 'T1', 'channel': 'D1', 'user': 'UOWNER', 'thread_ts': '1', 'message_ts': '2'}
     jid = await store.enqueue('owner', 'slack', p)
     await slack.indicator(jid)
-    assert not (await store.get_job(jid))['indicator_active']
-    assert slack.reaction_retry[(jid, True)][0] >= time.monotonic() + 11
+    assert not (await store.get_job(jid))['response_ts']
     await slack.indicator(jid)
-    assert calls.count('reactions.add') == 1
-    slack.reaction_retry.clear()
+    assert (await store.get_job(jid))['response_ts'] == '99'
+    job = await store.next_job()
+    await store.progress(jid, 'Some stage', 'Unverified text')
     await slack.indicator(jid)
-    assert (await store.get_job(jid))['indicator_active']
-    await store.result(jid)
+    assert slack.api.await_count == 2
+    assert await slack.post_answer(job, 'Verified answer')
     await slack.indicator(jid)
-    assert not (await store.get_job(jid))['indicator_done']
-    slack.reaction_retry.clear()
-    await slack.indicator(jid)
-    record = await store.get_job(jid)
-    assert record['indicator_done'] and not record['indicator_active']
+    assert slack.api.await_count == 3
+    assert (await store.get_job(jid))['indicator_done']
+    assert slack.api.call_args.args[0] == 'chat.update'
+    assert slack.api.call_args.args[1]['text'] == 'Verified answer'
     await store.close()

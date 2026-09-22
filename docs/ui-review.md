@@ -24,7 +24,7 @@ Search opens a panel near the top of the window, keeping scope and results toget
 
 ## Activity
 
-Company is the first tab and opens by default; My work is second. Ask about the selected feed, or open an entry to inspect its source. Private entries carry both a lock and a label.
+Company is the first tab and opens by default; My work is second. Ask about the selected feed, or open an entry to inspect its source. Private entries carry both a lock and a label. Date and time align at the right. Read more expands the complete memory inline; Show less collapses it. The title independently opens detail.
 
 ![Activity](assets/dashboard.jpg)
 
@@ -42,13 +42,13 @@ Connections puts saved-work status and connected tools first. Setup and recordin
 
 Choose the memory scope and a gateway model. Responses include clickable source citations. Composers omit repeated privacy boilerplate; memory entries still show their audience. Stop cancels work; changing scope confirms before clearing a conversation.
 
-![Ask](assets/ask.jpg)
+![Ask](assets/ask.png)
 
 ## Sharing
 
-Memories start private. Future sharing is opt-in. Write topics that Jev should keep private; no predefined category grid is required. Existing restrictive policies remain enforced.
+Memories start private. Future sharing is opt-in. Write topics that Jev should keep private; no predefined category grid is required. Existing restrictive policies remain enforced. Filtered beside Private opens an owner-only list of matching Jev topics. Share existing memories reviews eligible records before confirmation and leaves filtered or unfinished records private.
 
-![Privacy](assets/settings.jpg)
+![Privacy](assets/settings.png)
 
 ## Sources and metadata
 
@@ -67,3 +67,5 @@ The backend suite covers selective hook guidance without transcript uploads, opt
 Use the [release checklist](release-checklist.md) for deployment status and `CONTRIBUTING.md` for repeatable checks. Previous development screenshots and chronological review logs were removed; Git history retains them. This is not a claim of a flawless interface or a complete screen-reader/browser certification.
 
 Connector approval stays on the hosted site. Verified locally with disposable accounts and host files: approval → both host configurations saved → Connections first-memory guide; a deliberate local failure → no saved credential and a clear terminal recovery message. The browser never navigates to a connector loopback callback. The failure page was also checked at 390 × 844 with no horizontal overflow. These checks use synthetic data; they do not certify a teammate's machine or Slack account.
+
+The latest sharing review covers cached matching-topic explanations, bulk-sharing counts and confirmation, inline memory expansion, right-aligned date/time, and compact composer controls at 1280px and 390px. Keyboard Escape restores focus from the topic dialog, including when opened above memory detail. No browser console errors or horizontal overflow were observed in these synthetic checks.

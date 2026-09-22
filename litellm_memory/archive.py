@@ -132,6 +132,23 @@ class Archive:
         self.search_index.close()
         await self.db.close()
 
+    async def configure_privacy_threshold(self, threshold):
+        """Apply a changed cutoff at startup, reusing stored Jev probabilities."""
+        previous = await (await self.db.execute(
+            "SELECT value FROM archive_state WHERE key='privacy_threshold'")).fetchone()
+        if previous and float(previous['value']) == threshold:
+            return
+        # Withdraw affected publications before recalculating. Preserve intent:
+        # a lower match count is never consent to share previously private work.
+        await self.db.execute("""UPDATE records SET visibility='private',
+            status=CASE WHEN status='storing' THEN 'storing' ELSE 'pending' END,
+            attempts=0,next_attempt=0,work_lease='' WHERE deleted=0
+            AND owner IN (SELECT owner FROM privacy_rules WHERE active=1)""")
+        await self.db.execute("""UPDATE members SET policy_version=policy_version+1
+            WHERE id IN (SELECT owner FROM privacy_rules WHERE active=1)""")
+        await self.db.execute("INSERT OR REPLACE INTO archive_state VALUES('privacy_threshold',?)", (str(threshold),))
+        await self.db.commit()
+
     async def member(self, owner):
         row = await (await self.db.execute("SELECT * FROM members WHERE id=? AND active=1", (owner,))).fetchone()
         if not row:
@@ -608,10 +625,10 @@ class Archive:
             await self.db.commit()
             return {**dict(row), "attempts": row["attempts"] + 1, "work_lease": lease}
 
-    async def cached_labels(self, row, criteria):
+    async def cached_labels(self, row, criteria, *, require_agent=True):
         rows = await (await self.db.execute("SELECT * FROM classification WHERE record_id=? AND digest=?",
                                           (row["id"], row["content_hash"]))).fetchall()
-        key = await self.key(row["owner"], require_agent=True)
+        key = await self.key(row["owner"], require_agent=require_agent)
         return {r["criterion"]: decrypt_blob(json.loads(r["payload"]), key) for r in rows
                 if r["criterion"] in criteria and r["version"] == criteria[r["criterion"]]["version"]}
 

@@ -91,7 +91,8 @@ async def process_record(archive, gateway, row):
         # Preserve imported metadata and earlier classifications; only add new results.
         payload.setdefault("labels", {}).update({key.removeprefix("type_"): value["noul"]
                                                 for key, value in labels.items() if key.startswith("type_")})
-        private_match = any(labels[key]["noul"] > 0.2 for key, c in criteria.items() if c["private"])
+        private_match = any(labels[key]["noul"] >= gateway.settings.jev_private_threshold
+                            for key, c in criteria.items() if c["private"])
         payload['privacy_blocked'] = private_match
         # record_work is already a deliberate, agent-authored memory. Publish and
         # index its text as written; a second model rewrite adds no source evidence.

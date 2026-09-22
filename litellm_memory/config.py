@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     model_config_revision: int = 1
     jev_path: str = "/typesafe/v1/systemone"
     jev_model: str = "jev-latest"
+    jev_private_threshold: float = Field(default=0.7, gt=0, le=1)
     jev_concurrency: int = Field(default=8, ge=1, le=64)
     model_catalog_ttl: int = Field(default=300, ge=0)
     search_cache_mb: int = Field(default=128, ge=16, le=2048)

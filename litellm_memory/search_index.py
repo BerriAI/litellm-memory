@@ -42,7 +42,10 @@ class Partition:
             result = {k: v for k, v in data.items() if k not in {
                 'original', 'embedding', 'publication_embedding', 'content', 'privacy_blocked', 'publication_digest'}}
             result.update(visibility=row['visibility'], status=row['status'], historical=bool(row['historical']),
-                          excerpt=(data.get('summary') or data['content'])[:500])
+                          excerpt=(data.get('summary') or data['content'])[:500],
+                          excerpt_truncated=len(data.get('summary') or data['content']) > 500)
+            if audience == 'owner' and row['status'] == 'ready':
+                result['privacy_blocked'] = data.get('privacy_blocked') is True
             result['metadata'] = {k: v for k, v in result.get('metadata', {}).items() if k != 'original_file'}
             self.documents[row['id']] = result
             occurred = instant(data.get('created_at'))

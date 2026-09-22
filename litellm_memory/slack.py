@@ -45,8 +45,6 @@ class Slack:
         self.running = {}
         self.event_lock = asyncio.Lock()
         self.delivery_locks = defaultdict(asyncio.Lock)
-        self.last_update = {}
-        self.last_display = {}
         self.conversation_cache = {}
         self.conversation_locks = defaultdict(asyncio.Lock)
         self.reaction_retry = {}
@@ -283,48 +281,32 @@ class Slack:
             terminal = record["status"] in TERMINAL
             if not terminal and not await self.permitted(p):
                 return
-            reaction = {"channel": p["channel"], "timestamp": p.get("message_ts", p["thread_ts"]), "name": "eyes"}
             if terminal:
-                # Clean up even after an add timeout: Slack may have accepted that request.
-                if record["status"] != "ignored" and not await self.reaction(job_id, reaction, False):
-                    return
-                if record["indicator_active"] and p["channel"].startswith("D"):
-                    await self.optional_api("assistant.threads.setStatus", {
-                        "channel_id": p["channel"], "thread_ts": p["thread_ts"], "status": ""})
+                if record["indicator_active"]:
+                    reaction = {"channel": p["channel"], "timestamp": p.get("message_ts", p["thread_ts"]), "name": "eyes"}
+                    if not await self.reaction(job_id, reaction, False):
+                        return
+                    if p["channel"].startswith("D"):
+                        await self.optional_api("assistant.threads.setStatus", {
+                            "channel_id": p["channel"], "thread_ts": p["thread_ts"], "status": ""})
                 if record["status"] == "cancelled" and record["response_ts"]:
-                    await self.optional_api("chat.update", {"channel": p["channel"], "ts": record["response_ts"], "text": "Stopped."})
+                    await self.optional_api("chat.update", {"channel": p["channel"], "ts": record["response_ts"],
+                                                           **formatted("Stopped.")})
                 await self.store.slack_delivery(job_id, active=0, done=1)
                 self.reaction_retry.pop((job_id, True), None)
-                self.last_update.pop(job_id, None)
-                self.last_display.pop(job_id, None)
                 return
-            if not record["indicator_active"]:
-                if await self.reaction(job_id, reaction, True):
-                    await self.store.slack_delivery(job_id, active=1)
-            now = time.monotonic()
-            if now - self.last_update.get(job_id, 0) < 2.5:
-                return
-            status = record["phase"] if record["status"] == "running" else "Queued"
-            display = (status, record["partial"])
-            if self.last_display.get(job_id) == display and now - self.last_update.get(job_id, 0) < 50:
-                return
-            if p["channel"].startswith("D"):
-                await self.optional_api("assistant.threads.setStatus", {
-                    "channel_id": p["channel"], "thread_ts": p["thread_ts"], "status": status})
-            status_text = status if status.endswith((".", "!", "?", "…")) else status + "…"
-            text = record["partial"][:11000] + "\n\n_Working…_" if record["partial"] else status_text
+            # A single durable acknowledgment, then a single completed answer.
+            # Never send unverified partial text or expose internal queue phases.
             if record["response_ts"]:
-                await self.optional_api("chat.update", {"channel": p["channel"], "ts": record["response_ts"], **formatted(text)})
-            else:
-                response = await self.optional_api("chat.postMessage", {
-                    "channel": p["channel"], "thread_ts": p["thread_ts"], **formatted(text),
-                    "unfurl_links": False, "unfurl_media": False,
-                    "client_msg_id": str(uuid.uuid5(uuid.NAMESPACE_URL, job_id + ":status")),
-                })
-                if response and response.get("ts"):
-                    await self.store.slack_delivery(job_id, response_ts=response["ts"])
-            self.last_update[job_id] = now
-            self.last_display[job_id] = display
+                return
+            response = await self.optional_api("chat.postMessage", {
+                "channel": p["channel"], "thread_ts": p["thread_ts"],
+                **formatted("I’ll look into that and reply here when the answer is ready."),
+                "unfurl_links": False, "unfurl_media": False,
+                "client_msg_id": str(uuid.uuid5(uuid.NAMESPACE_URL, job_id + ":status")),
+            })
+            if response and response.get("ts"):
+                await self.store.slack_delivery(job_id, response_ts=response["ts"])
 
     async def post_answer(self, job, text):
         async with self.delivery_locks[job["id"]]:

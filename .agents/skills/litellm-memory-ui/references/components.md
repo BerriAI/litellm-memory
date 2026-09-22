@@ -102,7 +102,7 @@ Avoid a full-width primary button on a large screen unless the task is intention
 
 A row should let the person answer “what is this?” before “what can I do to it?”. Use a title/name first, context next, and secondary metadata last. Keep actions aligned so their position is predictable from row to row.
 
-Feed entries have author, private/company meaning, time, a meaningful title, a readable excerpt, and source metadata. Put source details and raw metadata in the detail view. Do not present every internal label as a chip. Keep the main title clickable and independently keyboard accessible.
+Feed entries have author, private/company meaning, time, a meaningful title, a readable excerpt, and source metadata. Put source details and raw metadata in the detail view. Do not present every internal label as a chip. Keep the main title clickable and independently keyboard accessible. Date and time align right. A separate Read more control expands text inline without opening detail. Filtered appears beside Private only for a completed Jev privacy match; it opens a small accessible dialog listing the matching topics, never a hover-only explanation.
 
 People rows contain identity, a brief scope explanation, and Ask. Do not make the whole row an ambiguous button containing nested buttons. Long names wrap or truncate without moving the action offscreen.
 

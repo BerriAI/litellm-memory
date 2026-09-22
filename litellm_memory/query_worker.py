@@ -28,6 +28,8 @@ async def query_worker(settings, store, slack, archive, gateway, running, agent_
         is_slack = job["kind"] == "slack"
         try:
             reader = await slack.reader(payload) if is_slack else Reader(payload["principal"], payload.get("audience", "owner"))
+            if is_slack:
+                await slack.indicator(job["id"])
             stamp = await archive.policy_stamp(reader)
             history = await slack.history(job) if is_slack else payload.get("history", [])
             # Do not reuse private replies if a conversation's delivery audience has changed.
@@ -37,7 +39,8 @@ async def query_worker(settings, store, slack, archive, gateway, running, agent_
             async def progress(phase, partial):
                 if stamp != await archive.policy_stamp(reader):
                     raise PermissionError("Access changed during this answer.")
-                await store.progress(job["id"], phase, partial)
+                if not is_slack:
+                    await store.progress(job["id"], phase, partial)
 
             context = reporter.set(progress)
             origin = request_source.set("slack" if is_slack else payload.get("request_source", "web"))
