@@ -624,11 +624,11 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         <pre class="code-block">uv tool install --force git+https://github.com/moe-berri/litellm-memory.git@main
 litellm-memory-connector connect {url}</pre>
         <h2>2. Restart your coding tool</h2>
-        <p>The installer adds capture hooks and the LiteLLM Memory MCP, preserving your existing connections.
+        <p>The installer adds memory reminder hooks and the LiteLLM Memory MCP, preserving your existing connections.
         Restart Codex or Claude Code, then sign in to its LiteLLM Memory MCP when prompted.
-        In Codex, open <code>/hooks</code> and review/trust the LiteLLM Memory capture hooks.</p>
-        <p>Visible conversation text is recorded privately. Tool outputs, system messages and hidden reasoning
-        are excluded. Memories are searched only when you ask.</p>
+        In Codex, open <code>/hooks</code> and review/trust the LiteLLM Memory reminder hooks.</p>
+        <p>Your agent saves useful work memories privately: what it is doing, progress, findings and decisions.
+        It can skip turns with nothing useful to add. Hooks never upload transcripts. Memories are searched only when you ask.</p>
         <details class="advanced"><summary>Choose a tool or import history</summary>
         <pre class="code-block">litellm-memory-connector connect {url} --host codex
 litellm-memory-connector connect {url} --host claude
@@ -636,17 +636,23 @@ litellm-memory-connector backfill ~/.codex/sessions --host codex
 litellm-memory-connector backfill ~/.claude/projects --host claude</pre>
         <p>History import is opt-in. Review which projects you want to import first; a specific folder or
         transcript file works too. Originals and their dates are preserved.</p></details>
+        <details class="advanced"><summary>Optional global agent instructions</summary>
+        <p>Hooks already provide memory guidance. Add it to Codex's AGENTS.md and Claude Code's CLAUDE.md too:</p>
+        <pre class="code-block">litellm-memory-connector instructions enable
+litellm-memory-connector instructions disable</pre>
+        <p>Only LiteLLM Memory's marked block is changed. Start a fresh session afterward.
+        Disabling this block does not turn off reminder hooks or the MCP connection.</p></details>
         <details class="advanced"><summary>Status, pause, and disconnect</summary>
         <pre class="code-block">litellm-memory-connector status
 litellm-memory-connector flush
 litellm-memory-connector pause
 litellm-memory-connector resume
 litellm-memory-connector disconnect</pre>
-        <p>The connector buffers offline work locally with encryption and retries on the next hook.
+        <p>Explicit history imports use an encrypted local queue. Run flush to retry a failed import upload.
         A 100 MB limit pauses buffering instead of silently dropping old work. The status command reports
         queued work and items needing attention. Revoke access at any time from Connections.</p></details>
         <p class="fine-print">Requires Python 3.12+, uv, and a current Codex or Claude Code on macOS/Linux.
-        Transcript formats can change; check capture status after a host update.
+        Check that a memory actually arrives after a host update. Transcript formats affect explicit imports.
         While this repository is private, installation also requires GitHub access.</p></main></html>''')
 
     @api.post("/connections")

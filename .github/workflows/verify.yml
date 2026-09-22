@@ -29,7 +29,7 @@ jobs:
           else
             npm install -g @anthropic-ai/claude-code@2.1.278
           fi
-      - name: Verify actual hooks and visible transcript capture
+      - name: Verify memory guidance reaches each host without transcript uploads
         env:
           LITELLM_MEMORY_DISPOSABLE_HOST_TEST: "1"
         run: uv run python tests/smoke_hosts.py '${{ matrix.host }}'

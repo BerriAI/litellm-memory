@@ -512,7 +512,7 @@ async function loadFeed(append = false) {
             ? selected
               ? `${selected.name} hasn’t shared work with your company yet.`
               : "This feed fills as teammates share summaries. Your own recordings stay in My work until you choose to share."
-            : "Connect your coding tool, send a message, and let it finish its reply. Your work is saved privately.",
+            : "Connect your coding tool. Your agent saves useful work memories privately as you work.",
         result.personal_filters_active && !filtered
           ? { label: "Edit personal filters", run: editViewPreferences }
           : filtered
@@ -912,7 +912,7 @@ function updateScope() {
     "chat-filter-notice",
     Boolean(
       state.viewPreferences &&
-      Object.values(state.viewPreferences).some((values) => values.length),
+        Object.values(state.viewPreferences).some((values) => values.length),
     ),
   );
   const person = scope.startsWith("person:")
@@ -1104,14 +1104,14 @@ function recordingMessage(status) {
   if (!status.connected_clients)
     return {
       title: "Bring your work into LiteLLM Memory",
-      copy: "Connect Codex or Claude Code once. Your conversations are recorded privately as you work.",
+      copy: "Connect Codex or Claude Code once. Your agent saves useful work memories privately as you work.",
       action: "Connect a tool",
       destination: "connections",
     };
   if (!status.received)
     return {
       title: "Connected. Waiting for work.",
-      copy: "Finish the tool setup, then send a message and let it finish its reply. This updates when work arrives.",
+      copy: "Finish tool setup, then ask your agent to remember what you’re working on. This updates when a memory arrives.",
       action: "Finish setup",
       destination: "connections",
     };
@@ -1153,14 +1153,14 @@ function renderRecording() {
   $("recording-copy").textContent = !status.capture_enabled
     ? "Your existing history is kept. Turn recording back on below when you’re ready."
     : !status.connected_clients
-      ? "Follow the setup below to start saving conversations."
+      ? "Follow the setup below to start saving useful work memories."
       : !status.received
-        ? "Finish setup in your tool, then send a message and wait for its reply."
+        ? "Finish setup, then ask your agent to remember what you’re working on. Turns with nothing useful to add may be skipped."
         : !status.agent_enabled
           ? "Your work is saved. Enable your agent below to organize and ask about it."
           : status.stats.failed
             ? "Your work is saved. Retry the failed items below."
-            : "Open My work to browse your saved conversations.";
+            : "Open My work to browse your saved memories.";
   $("recording-last-received").textContent = status.last_received_at
     ? `Last work received ${date(status.last_received_at * 1000, true)}.`
     : status.stats.total
@@ -1239,8 +1239,8 @@ function renderConnectorGuide() {
     host === "codex" ? "Finish setup in Codex" : "Finish setup in Claude Code";
   $("capture-restart").textContent =
     host === "codex"
-      ? "Restart Codex and sign in to its LiteLLM Memory MCP when prompted. Open /hooks and review and trust the LiteLLM Memory capture hooks."
-      : "Restart Claude Code and sign in to its LiteLLM Memory MCP when prompted. The connector has added the recording hooks.";
+      ? "Restart Codex and sign in to its LiteLLM Memory MCP when prompted. Open /hooks and review and trust the LiteLLM Memory reminder hooks."
+      : "Restart Claude Code and sign in to its LiteLLM Memory MCP when prompted. The connector has added memory reminder hooks.";
   renderBackfillGuide();
 }
 function renderBackfillGuide() {

@@ -30,9 +30,9 @@ After joining, members land on Company. A compact setup prompt leads to inline C
 
 ## Capture and storage
 
-Host hooks observe new visible user/assistant transcript messages. The remote MCP cannot observe an entire conversation on its own. Hooks perform no inference, retrieval or prompt injection. They exclude hidden reasoning, system/developer context and tool-result dumps.
+SessionStart and UserPromptSubmit hooks remind the coding agent to save useful new work with a low threshold: what it is doing, progress, attempts and results, findings, decisions, blockers and next steps. The agent writes concise memories through MCP or skips a turn with no useful change. Hooks do not read/upload transcripts, run another model, search history, or force a continuation. Optional global instructions provide the same guidance.
 
-Each captured message retains its original text and available source, session, role, time and metadata. Capture currently processes individual messages, splitting exceptionally long messages into parts. The connector encrypts its local outbox and resumes interrupted uploads with stable source identities. Recording is opt-in through connector setup; pausing does not delete history or silently backfill the paused period.
+Agent-authored memories are identified as such and preserve available source/session context and uncertainty. An explicit historical backfill retains original visible message text, role and time, excludes hidden reasoning/system text/tool dumps, and uses an encrypted local outbox with stable source identities for retries. Recording is opt-in through connector setup; pausing does not delete history or silently backfill the paused period.
 
 The API stores immutable encrypted source objects and separate encrypted derived records in Ente. SQLite holds encrypted operational state. Git holds code and documentation, never live personal memories. Historical imports preserve originals, dates and attribution, deduplicate replays, and never publish automatically. Deletion markers stop old backfills from restoring deleted records.
 

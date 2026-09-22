@@ -1,7 +1,8 @@
 """Exercise real host hook dispatch in a fresh, disposable CI account.
 
 Model responses and the upload endpoint are deterministic loopback fixtures.
-This proves host dispatch/transcript compatibility, not personal OAuth or Jev.
+This proves advisory hook dispatch and no automatic transcript uploads, not
+personal OAuth, model judgment, MCP saves or Jev.
 Never run against a developer's configured home directory.
 """
 
@@ -22,6 +23,7 @@ from litellm_memory.connector import LocalCapture, configure_hosts
 PROMPT = "LITELLM_MEMORY_HOST_USER_CANARY: Reply briefly. Do not use tools."
 ANSWER = "LITELLM_MEMORY_HOST_ASSISTANT_CANARY: Capture verified."
 records = []
+model_inputs = []
 
 
 class Fixture(BaseHTTPRequestHandler):
@@ -52,6 +54,7 @@ class Fixture(BaseHTTPRequestHandler):
             records.append(body)
             return self.respond({"id": body["source_id"]})
         if self.path.split("?")[0].endswith("/responses"):
+            model_inputs.append(body)
             message = {"id": "msg_fixture", "type": "message", "role": "assistant", "status": "completed",
                        "content": [{"type": "output_text", "text": ANSWER, "annotations": []}]}
             response = {"id": "resp_fixture", "object": "response", "created_at": int(time.time()),
@@ -76,6 +79,7 @@ class Fixture(BaseHTTPRequestHandler):
         if "count_tokens" in self.path:
             return self.respond({"input_tokens": 1})
         if self.path.split("?")[0].endswith("/messages"):
+            model_inputs.append(body)
             message = {"id": "msg_fixture", "type": "message", "role": "assistant", "model": body.get("model"),
                        "content": [], "stop_reason": None, "stop_sequence": None,
                        "usage": {"input_tokens": 1, "output_tokens": 0}}
@@ -140,18 +144,14 @@ def main():
             print(result.stdout[-4000:])
             print(result.stderr[-4000:])
             raise AssertionError(f"{host} fixture response failed (exit {result.returncode})")
-        deadline = time.monotonic() + 15
-        while time.monotonic() < deadline and not all(any(r["content"] == text for r in records) for text in (PROMPT, ANSWER)):
-            time.sleep(0.1)
-        assert any(r["content"] == PROMPT and r["metadata"]["role"] == "user" for r in records), "user capture missing"
-        assert any(r["content"] == ANSWER and r["metadata"]["role"] == "assistant" for r in records), "assistant capture missing"
-        extras = [r for r in records if r["content"] not in (PROMPT, ANSWER)]
-        assert not extras, f"Synthetic host context was captured: {[r['content'][:120] for r in extras]}"
-        assert len({r["source_id"] for r in records}) == len(records), "duplicate upload"
-        assert all(r["source"] == host and not r["historical"] for r in records)
-        assert all(r["occurred_at"] for r in records)
+        assert not records, 'A reminder hook uploaded conversation text'
+        assert any('Keep a low bar' in json.dumps(body) and 'Skip saving' in json.dumps(body)
+                   for body in model_inputs), 'Memory guidance did not reach the host model'
+        local = LocalCapture(state)
+        assert local.status()['queued'] == 0, 'A reminder hook buffered conversation text'
+        local.close()
         version = subprocess.check_output([host, "--version"], text=True).strip()
-        print(json.dumps({"host": version, "visible_messages_uploaded": len(records), "both_roles_verified": True}))
+        print(json.dumps({"host": version, "transcripts_uploaded": len(records), "guidance_received": True}))
         server.shutdown()
 
 

@@ -39,7 +39,7 @@ For a whole-app redesign, read all six. For a text change, use language plus the
 
 1. **Content has priority.** Page titles orient; section titles group; labels identify; helper text supports; placeholders only demonstrate. Do not promote supporting text by making it larger.
 2. **Structure creates hierarchy.** Group related controls, align edges, and separate tasks with spacing or a rule before adding another card, color, or heading size.
-3. **Controls have a stable scale.** Desktop defaults are 24px page titles, 16px section/content titles, 14px body, 13px controls/labels, and 12px metadata. A Settings section is a compact 14px heading. Narrow desktop panes do not inflate input text.
+3. **Controls have a stable scale.** Desktop defaults are 24px page titles, 16px section/content titles, 14px body, 13px controls/labels, and 12px metadata. Settings sections use the same compact 16px section heading. Narrow desktop panes do not inflate input text.
 4. **One dominant action per task group.** Scope actions to the relevant form. Routine controls stay visually quiet; risky actions are separated and named by consequence.
 5. **Private is explicit.** Preserve lock plus text; distinguish shared summaries from private original conversations. Never imply that a selected query scope publishes the answer.
 6. **Simple is not vague.** Keep visible labels, recovery actions, real status, and discoverable navigation. Remove duplication and decoration first.
