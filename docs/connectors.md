@@ -7,7 +7,7 @@ The remote MCP exposes record/search/read/ask/status/pause tools. The connector 
 Install from the release branch while this project is in verification:
 
 ```sh
-uv tool install --force 'git+https://github.com/moe-berri/litellm-memory.git@main'
+uv tool install --force 'git+https://github.com/BerriAI/litellm-memory.git@main'
 litellm-memory-connector connect https://your-litellm-memory.example --host codex
 # Or --host claude; omit --host to configure both.
 ```

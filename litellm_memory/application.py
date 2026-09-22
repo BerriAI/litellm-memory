@@ -621,7 +621,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         <p>Install the connector once on the computer where you use Codex or Claude Code.
         Sign in with Slack when the browser opens. You don't need an API key or a memory password.</p>
         <h2>1. Install &amp; connect</h2>
-        <pre class="code-block">uv tool install --force git+https://github.com/moe-berri/litellm-memory.git@main
+        <pre class="code-block">uv tool install --force git+https://github.com/BerriAI/litellm-memory.git@main
 litellm-memory-connector connect {url}</pre>
         <h2>2. Restart your coding tool</h2>
         <p>The installer adds memory reminder hooks and the LiteLLM Memory MCP, preserving your existing connections.
@@ -652,7 +652,7 @@ litellm-memory-connector disconnect</pre>
         Revoke access at any time from Connections.</p></details>
         <p class="fine-print">Requires Python 3.12+, uv, and a current Codex or Claude Code on macOS/Linux.
         Check that a memory actually arrives after a host update.
-        While this repository is private, installation also requires GitHub access.</p></main></html>''')
+        Installation also requires access to the BerriAI GitHub repository.</p></main></html>''')
 
     @api.post("/connections")
     async def connection(request: Request):

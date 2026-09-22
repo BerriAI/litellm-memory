@@ -94,7 +94,7 @@ The app's root key and member-key envelopes must be backed up independently of E
 
 Back up **both** `/data` and the Museum PostgreSQL database. The app's root key, encrypted deployment configuration, encrypted SQLite databases and member-key envelopes are required to recover. A database-only backup is incomplete. Keep backups encrypted with your infrastructure's backup encryption and restrict operator access.
 
-For a consistent starter backup, stop the LiteLLM Memory service, back up its volume and PostgreSQL, then restart it. A restore must use matching application and Ente snapshots, preserve the root key and deployment secrets, and run on an isolated hostname with `RECOVERY_MODE=true` until verified. This prevents queued Slack/model work from restarting. Preserve deletion tombstones; never restore an old snapshot over a live instance and assume revoked records remain revoked. The clean-volume restore is tested in [CI](https://github.com/moe-berri/litellm-memory/actions/runs/35532804507).
+For a consistent starter backup, stop the LiteLLM Memory service, back up its volume and PostgreSQL, then restart it. A restore must use matching application and Ente snapshots, preserve the root key and deployment secrets, and run on an isolated hostname with `RECOVERY_MODE=true` until verified. This prevents queued Slack/model work from restarting. Preserve deletion tombstones; never restore an old snapshot over a live instance and assume revoked records remain revoked. The clean-volume restore is tested in [CI](https://github.com/BerriAI/litellm-memory/actions/runs/35532804507).
 
 For Compose, with a protected backup directory prepared:
 
