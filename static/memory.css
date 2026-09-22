@@ -1707,16 +1707,83 @@ dialog::backdrop {
   padding-top: 18px;
   margin-top: 22px;
 }
+.source-dialog {
+  width: 600px;
+  padding: 0;
+}
+.source-dialog .dialog-top {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 12px 20px;
+  background: var(--paper);
+}
+#source-body {
+  padding: 8px 24px 20px;
+}
+.source-dialog .memory-actions {
+  position: sticky;
+  bottom: 0;
+  margin: 0;
+  padding: 14px 24px;
+  background: var(--paper);
+  align-items: center;
+  justify-content: space-between;
+}
 .source-more {
+  position: relative;
+  margin-left: auto;
   font-size: var(--text-control);
 }
 .source-more > summary {
   cursor: pointer;
+  list-style: none;
   color: var(--muted);
-  padding: 8px 0;
+  padding: 8px;
+  border-radius: 6px;
+}
+.source-more > summary::-webkit-details-marker {
+  display: none;
+}
+.source-more > summary:hover,
+.source-more[open] > summary {
+  background: var(--soft);
+  color: var(--ink);
 }
 .source-more .action-row {
-  margin-top: 8px;
+  display: grid;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: 168px;
+  margin: 0;
+  padding: 4px;
+  gap: 0;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px #171b241a;
+}
+.source-more .button {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  font-weight: 450;
+  padding: 8px 10px;
+}
+.source-status {
+  margin: 0 24px 20px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--soft);
+  color: var(--body);
+  font-size: 12px;
+  line-height: 1.6;
+}
+#source-error:not(:empty) {
+  margin: 0 24px 16px;
+  font-size: 12px;
 }
 .dialog-actions > .privacy {
   margin-right: auto;
@@ -1736,18 +1803,18 @@ dialog::backdrop {
 #source-body h1 {
   font-size: 20px;
   line-height: 1.4;
-  margin-bottom: 10px;
+  margin: 0 0 8px;
   overflow-wrap: anywhere;
 }
 .source-meta {
   font-size: 12px;
   color: var(--muted);
-  margin-bottom: 22px;
+  margin: 0 0 20px;
 }
 #source-body details {
   border-top: 1px solid var(--line);
-  padding-top: 16px;
-  margin-top: 22px;
+  padding-top: 12px;
+  margin-top: 20px;
   color: var(--muted);
   font-size: 12px;
 }

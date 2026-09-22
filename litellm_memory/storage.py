@@ -54,6 +54,10 @@ class Storage:
             CREATE TABLE IF NOT EXISTS oauth_requests (
               digest TEXT PRIMARY KEY, payload TEXT NOT NULL, expires REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS device_grants (
+              digest TEXT PRIMARY KEY, browser_digest TEXT UNIQUE NOT NULL,
+              payload TEXT NOT NULL, expires REAL NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS history (
               id INTEGER PRIMARY KEY, session TEXT, role TEXT, content TEXT
             );

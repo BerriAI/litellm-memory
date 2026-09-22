@@ -18,7 +18,7 @@ The actual application, shown with synthetic local records. See [Ask](docs/asset
 
 - **Browse:** Company opens first, with a chronological feed and Slack profiles. Open a teammate’s shared activity or switch to My work.
 - **Record:** connect Codex or Claude Code once. Your agent saves useful work context and can skip turns with nothing new. Connection status shows when work actually arrives.
-- **Share deliberately:** work starts private. Preview a separate summary, or opt in to sharing future summaries. TypeSafe Jev checks your private topics in parallel and caches completed checks.
+- **Share deliberately:** work starts private. Preview a memory before sharing it, or opt in to sharing new memories. Agent-written memories are kept as written, without another model rewrite. TypeSafe Jev checks your private topics in parallel and caches completed checks.
 - **Ask:** get cited answers through the web, Slack, API or MCP, limited to the evidence the audience can access. No automatic recall on coding turns or scheduled daily digests.
 - **Use your gateway:** model choices come from LiteLLM. Optional [Pydantic Logfire](docs/observability.md) shows usage and latency without private content.
 

@@ -1,100 +1,10 @@
 import json
-from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
 import pytest
 import tomlkit
 
 from litellm_memory.connector import LocalCapture, configure_hosts, memory_hook, visible_message
-
-
-@pytest.mark.parametrize('failure', [None, 'token', 'identity', 'binding', 'setup'])
-@pytest.mark.parametrize('hosts', [[], ['codex'], ['codex', 'claude']])
-def test_login_finishes_setup_before_redirect_and_never_redirects_failure(tmp_path, monkeypatch, failure, hosts):
-    from litellm_memory import connector
-
-    real_client = httpx.Client
-    requests = []
-    reminders = [{"host": host, "command": "reviewed-" + host} for host in hosts]
-
-    def remote(request):
-        requests.append(request.url.path)
-        if request.url.path == '/oauth/register':
-            assert json.loads(request.content)['reminder_hooks'] == reminders
-            return httpx.Response(200, json={'client_id': 'test-client', 'reminder_hooks': reminders})
-        if request.url.path == '/oauth/token':
-            form = parse_qs(request.content.decode())
-            assert form['code'] == ['secret-code'] and form['code_verifier']
-            return httpx.Response(400 if failure == 'token' else 200, json={
-                'access_token': 'secret-access', 'refresh_token': 'secret-refresh', 'expires_in': 3600})
-        assert request.url.path == '/api/capture-identity'
-        return httpx.Response(403 if failure == 'identity' else 200, json={'owner': 'T:OWNER'})
-
-    monkeypatch.setattr(connector.httpx, 'Client', lambda **kwargs: real_client(
-        **kwargs, transport=httpx.MockTransport(remote)))
-    local = LocalCapture(tmp_path)
-    if failure == 'binding':
-        local.set('account_binding', {'url': 'https://memory.example', 'owner': 'T:OTHER'})
-        local.db.commit()
-    configured = []
-
-    def setup():
-        assert local.get('connection')['owner'] == 'T:OWNER'
-        if failure == 'setup':
-            raise ValueError('Sensitive setup failure')
-        local.set('hosts', ['codex'])
-        configured.append(True)
-
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        responses = []
-
-        def opener(auth_url):
-            params = parse_qs(urlsplit(auth_url).query)
-
-            def browser():
-                with real_client(timeout=10, follow_redirects=False) as client:
-                    callback = params['redirect_uri'][0]
-                    bad = client.get(callback, params={'state': 'invalid', 'code': 'secret-code'})
-                    assert bad.status_code == 400 and 'location' not in bad.headers
-                    assert requests == ['/oauth/register']
-                    wrong_path = client.get(callback.replace('/callback', '/other'), params={
-                        'state': params['state'][0], 'code': 'secret-code'})
-                    assert wrong_path.status_code == 400
-                    response = client.get(callback + '?' + urlencode({
-                        'state': params['state'][0], 'code': 'secret-code'}))
-                    if failure is None:
-                        assert configured == [True]
-                        # Confirm the transaction committed before the browser leaves localhost.
-                        check = LocalCapture(tmp_path)
-                        assert check.get('hosts') == ['codex']
-                        check.close()
-                    return response
-            responses.append(pool.submit(browser))
-
-        try:
-            if failure:
-                with pytest.raises((httpx.HTTPError, ValueError)):
-                    connector.login(local, 'https://memory.example', opener=opener, on_connected=setup, reminder_hooks=reminders)
-            else:
-                connector.login(local, 'https://memory.example', opener=opener, on_connected=setup, reminder_hooks=reminders)
-            response = responses[0].result(timeout=10)
-            assert response.headers['cache-control'] == 'no-store'
-            assert response.headers['referrer-policy'] == 'no-referrer'
-            assert 'secret-' not in str(response.headers) + response.text
-            if failure:
-                assert response.status_code == 500 and 'location' not in response.headers
-                assert local.get('connection') is None
-                assert 'Sensitive' not in response.text
-                if failure == 'binding':
-                    assert local.get('account_binding')['owner'] == 'T:OTHER'
-            else:
-                assert response.status_code == 303
-                hint = '?setup=' + (hosts[0] if len(hosts) == 1 else 'both') if hosts else ''
-                assert response.headers['location'] == 'https://memory.example/' + hint + '#connections'
-                assert local.status()['status'] == 'connected'
-        finally:
-            local.close()
 
 
 def row(content, role='user', **extra):

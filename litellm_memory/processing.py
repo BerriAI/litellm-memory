@@ -93,6 +93,11 @@ async def process_record(archive, gateway, row):
                                                 for key, value in labels.items() if key.startswith("type_")})
         private_match = any(labels[key]["noul"] > 0.2 for key, c in criteria.items() if c["private"])
         payload['privacy_blocked'] = private_match
+        # record_work is already a deliberate, agent-authored memory. Publish and
+        # index its text as written; a second model rewrite adds no source evidence.
+        if not payload.get('summary') and payload['original'].get('metadata', {}).get('evidence_type') == 'agent_memory':
+            payload['summary'] = payload['content']
+            payload.setdefault('projects', [])
         # Preserve existing memories byte-for-byte. New derived summaries never replace their source.
         if not payload.get("summary"):
             stage = "summarization"

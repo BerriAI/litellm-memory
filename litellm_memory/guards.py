@@ -22,7 +22,7 @@ class RequestGuard:
         if path.startswith('/api/v1/'):
             path = '/api/' + path.removeprefix('/api/v1/')
         rule = {
-            '/oauth/register': (12, 3600), '/oauth/token': (120, 60), '/api/setup/claim': (20, 900),
+            '/oauth/register': (12, 3600), '/oauth/device/code': (12, 3600), '/oauth/token': (120, 60), '/api/setup/claim': (20, 900),
             '/api/chat': (30, 60), '/api/memories': (360, 60), '/api/memories/search': (120, 60),
             '/api/export': (6, 300), '/api/rejoin': (6, 300),
             '/api/transfers/receive': (6, 300), '/api/transfers/send': (6, 300),

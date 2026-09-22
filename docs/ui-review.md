@@ -52,9 +52,9 @@ Memories start private. Future sharing is opt-in. Write topics that Jev should k
 
 ## Sources and metadata
 
-A summary links back to its evidence. The original and metadata remain available without filling the feed with raw JSON.
+Memory detail uses a compact reading column with the private label, title, author/date, and text. Agent-written memories are shown as written. Source details stay in a disclosure. One sharing action sits opposite a compact More actions menu; unavailable sharing has a specific, quiet status message. The layout is checked at desktop and 390px widths.
 
-![Source detail](assets/memory.jpg)
+![Source detail](assets/memory.png)
 
 ## Review scope
 
@@ -65,3 +65,5 @@ The core-loop review covers joining → Company → tool instructions → author
 The backend suite covers selective hook guidance without transcript uploads, optional agent instructions, owner-only intake receipts, expired/refreshed connections, import-versus-live status, private/shared access, on-demand overviews and independent Luna defaults. The September 21 spacing review also covers connected setup, model-save feedback, expanded models, gateway editing, Slack access recovery, Settings disclosures, Connections instructions, feed, Ask and search at narrow widths. Ruff and frontend syntax/format checks pass. UI capture was simulated through a disposable fixture; these checks do not prove a real host connection, external model quality or live Slack OAuth. The release checklist tracks those separately.
 
 Use the [release checklist](release-checklist.md) for deployment status and `CONTRIBUTING.md` for repeatable checks. Previous development screenshots and chronological review logs were removed; Git history retains them. This is not a claim of a flawless interface or a complete screen-reader/browser certification.
+
+Connector approval stays on the hosted site. Verified locally with disposable accounts and host files: approval → both host configurations saved → Connections first-memory guide; a deliberate local failure → no saved credential and a clear terminal recovery message. The browser never navigates to a connector loopback callback. The failure page was also checked at 390 × 844 with no horizontal overflow. These checks use synthetic data; they do not certify a teammate's machine or Slack account.
