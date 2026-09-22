@@ -194,3 +194,24 @@ async def test_failed_daily_job_retries_durably_and_keeps_full_source_input(arch
     result = await views.daily(Reader('T1:A'), day=date(2026, 9, 18), owner='T1:A')
     assert result['summaries'][0]['status'] == 'ready'
     assert len(gateway.inputs) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('output,code', [
+    ('{"items": [{"text": "PRIVATE_MODEL_OUTPUT', 'json_invalid'),
+    (json.dumps({'items': [{'text': 'PRIVATE_MODEL_OUTPUT' * 100, 'sources': ['private-id']}]}),
+     'string_too_long'),
+])
+async def test_invalid_summary_diagnostics_do_not_log_model_output(archive, caplog, output, code):
+    from pydantic import ValidationError
+
+    await ready(archive, 'validation', 'PRIVATE_MEMORY_INPUT', '2026-09-18T12:00:00Z')
+    gateway = ViewGateway()
+    gateway.generate = AsyncMock(return_value=output)
+    views = WorkViews(archive, gateway, SimpleNamespace(values={}))
+    await views.open()
+    await views.daily(Reader('T1:A'), day=date(2026, 9, 18), owner='T1:A')
+    with pytest.raises(ValidationError):
+        await views.build(await views.next())
+    assert code in caplog.text
+    assert 'PRIVATE' not in caplog.text and 'private-id' not in caplog.text and 'T1:A' not in caplog.text
