@@ -322,7 +322,7 @@ def visible_message(item, host):
     return role, content, timestamp, str(item.get("uuid") or message.get("id") or "")
 
 
-def login(local, url, *, opener=webbrowser.open, on_connected=None, reminder_hooks=None):
+def login(local, url, *, opener=webbrowser.open, on_connected=None, reminder_hooks=None, completion_grace=3):
     url = url.rstrip("/")
     parsed = urlsplit(url)
     if (parsed.scheme != "https" and not (parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"})) \
@@ -358,26 +358,35 @@ def login(local, url, *, opener=webbrowser.open, on_connected=None, reminder_hoo
         def do_GET(self):
             params = parse_qs(urlsplit(self.path).query)
             valid = (urlsplit(self.path).path == "/callback" and len(params.get("state", [])) == 1
-                     and secrets.compare_digest(params["state"][0], state) and len(params.get("code", [])) == 1)
+                     and secrets.compare_digest(params["state"][0].encode(), state.encode()) and len(params.get("code", [])) == 1)
             status, body = 400, b"Invalid connection response. Start connecting again from your client."
             if valid:
                 try:
-                    finish_connection(params["code"][0])
-                    result["connected"] = True
+                    if result.get('connected'):
+                        if not secrets.compare_digest(digest(params['code'][0]), result['code_digest']):
+                            raise ValueError('The connection code does not match the completed setup.')
+                    else:
+                        finish_connection(params["code"][0])
+                        result.update(connected=True, code_digest=digest(params['code'][0]))
                     status, body = 303, b"Setup saved. Opening LiteLLM Memory to finish connecting your tool."
                 except Exception as error:
-                    result["error"] = error
+                    if not result.get('connected'):
+                        result["error"] = error
                     status, body = 500, b"Connection could not finish. Check your terminal and run connect again."
             self.send_response(status)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("Content-Length", str(len(body)))
             if status == 303:
                 hosts = [hook['host'] for hook in reminder_hooks or []]
                 setup = ('?setup=' + (hosts[0] if len(hosts) == 1 else 'both')) if hosts else ''
                 self.send_header("Location", url + "/" + setup + "#connections")
-            self.end_headers()
-            self.wfile.write(body)
+            # A second navigation can cancel the first browser request while
+            # host setup finishes. Its socket closing does not undo the save.
+            with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+                self.end_headers()
+                self.wfile.write(body)
 
         def log_message(self, *_):
             pass
@@ -402,6 +411,13 @@ def login(local, url, *, opener=webbrowser.open, on_connected=None, reminder_hoo
         deadline = time.monotonic() + 300
         while not result and time.monotonic() < deadline:
             server.handle_request()
+        if result.get('connected'):
+            # Drain duplicate handoffs already sent by the browser. Redirect them
+            # without exchanging the one-use code or configuring the hosts twice.
+            deadline = time.monotonic() + completion_grace
+            server.timeout = min(.2, max(0, completion_grace))
+            while time.monotonic() < deadline:
+                server.handle_request()
         if not result:
             raise ConnectionSetupError("Sign-in timed out after five minutes. Run connect again and use the new browser page.")
         if "error" in result:

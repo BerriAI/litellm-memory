@@ -52,9 +52,9 @@ Memories start private. Future sharing is opt-in. Write topics that Jev should k
 
 ## Sources and metadata
 
-A summary links back to its evidence. The original and metadata remain available without filling the feed with raw JSON.
+Memory detail uses a compact reading column with the private label, title, author/date, and text. Agent-written memories are shown as written. Source details stay in a disclosure. One sharing action sits opposite a compact More actions menu; unavailable sharing has a specific, quiet status message. The layout is checked at desktop and 390px widths.
 
-![Source detail](assets/memory.jpg)
+![Source detail](assets/memory.png)
 
 ## Review scope
 

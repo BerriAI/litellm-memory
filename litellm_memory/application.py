@@ -514,9 +514,22 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         eligible = await archive.publication_allowed({**row, 'intent': 'public'}, payload)
         can_share = (row['status'] == 'ready' and eligible and bool(payload.get('summary'))
                      and payload.get('privacy_blocked') is False)
+        if not settings.sharing_enabled:
+            notice = 'Company sharing is off. Your workspace admin can enable it in Settings.'
+        elif row['status'] == 'failed':
+            notice = 'This memory is saved, but processing failed. Retry it from Connections before sharing.'
+        elif row['status'] != 'ready':
+            notice = 'This memory is saved. Sharing will be available when processing finishes.'
+        elif payload.get('privacy_blocked') is True:
+            notice = 'This memory matches a topic you chose to keep private. Review your topics in Settings → Sharing.'
+        elif not eligible:
+            notice = 'Your sharing preferences exclude this memory. Review them in Settings → Sharing.'
+        elif not can_share:
+            notice = 'This memory has no text ready to share. Retry processing from Connections.'
+        else:
+            notice = 'Your company will see the text below. Source details and metadata stay private.'
         return {'title': payload['title'], 'summary': payload.get('summary', ''), 'can_share': can_share,
-                'notice': 'Only this summary is shared with eligible company members. Original evidence stays private.'
-                if can_share else 'This memory is still processing, matches a private topic, or is excluded by your sharing types.'}
+                'notice': notice}
 
     @api.delete("/memories/{record_id}")
     async def delete(record_id: str, request: Request):

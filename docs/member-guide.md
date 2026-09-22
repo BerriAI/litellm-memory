@@ -38,7 +38,7 @@ In Slack, talk to **@Memory**. A verified personal DM can use your private histo
 
 Everything starts private. **Company-public** means eligible members of your installation, never the open internet. Sharing may be disabled for the whole workspace during a pilot.
 
-Open a memory to preview the separate summary that would be shared. The original evidence stays private. In **Settings → Sharing**, optionally enable **Automatically share new summaries**. Previously saved work is not shared automatically.
+Open a memory and choose **Share memory** to preview the text your company will see. Agent-written memories are shared as written; source details and metadata stay private. In **Settings → Sharing**, optionally enable **Automatically share new memories**. Previously saved work is not shared automatically.
 
 Under **Never share work about**, describe a topic to exclude. Jev checks existing and future source chunks, caching each result for the criterion and classifier version. Adding a rule checks that new rule; it does not rerun previously completed rules. Uncertain matches remain private, and the rule withdraws existing publications while checks run.
 

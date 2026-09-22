@@ -42,7 +42,7 @@ Return to the coding tool or terminal and start connecting again, then use the n
 
 ## What gets saved
 
-SessionStart and UserPromptSubmit provide lightweight guidance to the coding agent. The importance threshold is low: current work, progress, attempted approaches and results, findings, decisions and reasons, blockers, next steps and corrections all count. The agent saves concise, self-contained memories through `record_work`, preserving attribution and uncertainty. These records are marked as agent-authored memories, not verbatim transcript evidence.
+SessionStart and UserPromptSubmit provide lightweight guidance to the coding agent. The importance threshold is low: current work, progress, attempted approaches and results, findings, decisions and reasons, blockers, next steps and corrections all count. The agent saves concise, self-contained memories through `record_work`, preserving attribution and uncertainty. These records are marked as agent-authored memories, not verbatim transcript evidence. LiteLLM Memory keeps that text as written: it does not call another model to summarize it again. Processing adds the search index and any required Jev privacy checks. When you share one, the preview shows the memory text; source details and metadata remain private. Older transcript imports can still use summarization.
 
 Acknowledgments, repetitions and turns with no useful new context can be skipped. There is no mandatory empty checkpoint or forced extra turn. Hooks never read a transcript, upload text, search memories or run a separate model. Retrieval happens only when requested. Actual saving depends on the host agent following the guidance and completing an authorized MCP call; the connector cannot guarantee complete coverage or model judgment.
 

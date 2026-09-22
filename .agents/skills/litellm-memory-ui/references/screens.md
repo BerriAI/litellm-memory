@@ -62,11 +62,11 @@ The page title is Settings. A short subtitle establishes scope, followed by Shar
 
 Two task groups: sharing and private topics.
 
-- Sharing explains private-by-default and exposes the existing opt-in for future summaries when company sharing is available.
+- Sharing explains private-by-default and exposes the opt-in for new memories when company sharing is available.
 - Private topics uses a visible label, example, Add topic, concise Jev explanation, and existing rules.
 - Do not add Progress/Decisions/Findings/Blockers/Plans checklists. Existing restrictive legacy policies must continue to work even though new users do not receive a preset taxonomy.
 - Company sharing being unavailable is a real state with an explanation; do not substitute a disabled switch that looks like a personal preference.
-- Existing history and original conversations remain distinct from newly shared summaries. Copy must preserve that boundary.
+- Existing history and source details remain distinct from newly shared memory text. Copy must preserve that boundary.
 
 ### Recording belongs in Connections
 
@@ -88,7 +88,7 @@ Transfer, export, and leave are separate tasks with plain consequences. Encrypte
 
 ## Source detail
 
-**Source:** audience and title → useful content → provenance → expandable originals/metadata → actions. A source title may wrap. Original text remains legible, selectable, and properly escaped/sanitized. Metadata remains filterable and inspectable without rendering a raw JSON wall in the feed.
+**Source:** compact audience/close bar → title and provenance → the memory text → expandable originals/metadata → one sharing action and a compact More actions menu. Agent-authored memories are kept as written; do not add another summary heading or rewrite. Processing and privacy restrictions have specific, quiet inline explanations rather than a red list of possible causes. A source title may wrap. Original text remains legible, selectable, and properly escaped/sanitized. Metadata remains filterable and inspectable without rendering a raw JSON wall in the feed.
 
 Sharing preview is the primary owner action. Corrections and deletion stay under More actions. The API and MCP can record work manually, but the dashboard focuses on connected capture rather than note authoring.
 

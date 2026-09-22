@@ -11,7 +11,7 @@
       rel="icon"
     />
     <link href="/static/memory.css" rel="stylesheet" />
-    <script src="/static/memory.js?v=11" type="module"></script>
+    <script src="/static/memory.js?v=12" type="module"></script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -842,8 +842,8 @@
               <div class="section-copy">
                 <h2>Share new work</h2>
                 <p>
-                  Memories start private. Only summaries you choose to share are
-                  visible to your company.
+                  Memories start private. You choose which memories your company
+                  can see.
                 </p>
               </div>
               <div class="section-controls">
@@ -854,10 +854,10 @@
                 <form hidden id="sharing-form">
                   <label class="setting-row"
                     ><span
-                      ><strong>Automatically share new summaries</strong
+                      ><strong>Automatically share new memories</strong
                       ><small
-                        >Private topics are excluded. Original conversations and
-                        existing history stay private.</small
+                        >Private topics are excluded. Source details and
+                        existing memories stay private.</small
                       ></span
                     ><input id="auto-share" role="switch" type="checkbox"
                   /></label>
@@ -1023,7 +1023,7 @@
               <div class="section-controls">
                 <label class="setting-row"
                   ><span
-                    ><strong>Allow shared summaries</strong
+                    ><strong>Allow shared memories</strong
                     ><small
                       >Each person still chooses what they share.</small
                     ></span
@@ -1290,7 +1290,7 @@
         </button>
       </div>
     </dialog>
-    <dialog aria-label="Memory" class="source-dialog" id="source-dialog">
+    <dialog aria-labelledby="source-title" class="source-dialog" id="source-dialog">
       <div class="dialog-top">
         <span id="source-visibility"></span
         ><button
@@ -1302,6 +1302,7 @@
         </button>
       </div>
       <div id="source-body"></div>
+      <p class="source-status" id="source-status" role="status" hidden></p>
       <p class="inline-error" id="source-error" role="alert"></p>
       <div class="dialog-actions memory-actions" id="source-actions"></div>
     </dialog>

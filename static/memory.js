@@ -590,7 +590,11 @@ function openPerson(id) {
 async function openMemory(id) {
   const version = ++state.memoryVersion;
   $("source-error").textContent = "";
-  $("source-body").replaceChildren(el("p", "Loading memory…", "muted"));
+  $("source-status").textContent = "";
+  show("source-status", false);
+  const loadingTitle = el("h1", "Memory");
+  loadingTitle.id = "source-title";
+  $("source-body").replaceChildren(loadingTitle, el("p", "Loading memory…", "muted"));
   $("source-actions").replaceChildren();
   $("source-visibility").replaceChildren();
   if (!$("source-dialog").open) $("source-dialog").showModal();
@@ -599,33 +603,21 @@ async function openMemory(id) {
     if (version !== state.memoryVersion || !$("source-dialog").open) return;
     $("source-visibility").replaceChildren(privacy(m.visibility));
     const body = $("source-body");
+    const title = el("h1", m.title);
+    title.id = "source-title";
     body.replaceChildren(
-      el("h1", m.title),
+      title,
       el(
         "p",
         `${profile(m.owner).name} · ${date(m.created_at || m.captured_at, true)} · ${sourceName(m.source)}`,
         "source-meta",
       ),
     );
-    if (m.summary && m.summary.trim() !== (m.content || "").trim()) {
-      body.append(el("h2", "Summary"), el("p", m.summary));
-      body.append(
-        el(
-          "h2",
-          m.visibility === "public" && m.original
-            ? "Original evidence · only you"
-            : "Original evidence",
-        ),
-      );
-    }
-    if (m.original && m.visibility === "public") {
-      body.append(privacy("private"), el("h3", "Original evidence · only you"));
-    }
-    body.append(el("div", m.content, "source-content"));
+    body.append(el("div", m.summary || m.content, "source-content"));
     if (m.original) {
-      const details = el("details");
+      const details = el("details", "", "source-details");
       details.append(
-        el("summary", "Original evidence & metadata"),
+        el("summary", m.visibility === "public" ? "Original & details · private" : "Original & details"),
         el("pre", JSON.stringify(m.original, null, 2)),
       );
       body.append(details);
@@ -646,8 +638,9 @@ async function openMemory(id) {
     const actions = $("source-actions");
     actions.replaceChildren();
     if (m.owner === state.me.id) {
-      const correct = el("button", "Add correction", "button secondary");
+      const correct = el("button", "Add correction", "button quiet");
       correct.onclick = () => {
+        more.open = false;
         let correctionRequest = null;
         const form = el("form", undefined, "correction-form");
         const label = el("label", "What should this say now?");
@@ -667,6 +660,7 @@ async function openMemory(id) {
         cancel.onclick = () => {
           form.remove();
           correct.disabled = false;
+          more.open = true;
           correct.focus();
         };
         form.append(label, explanation, submit, cancel);
@@ -714,11 +708,20 @@ async function openMemory(id) {
       maintenance.append(correct);
       more.append(maintenance);
       if (state.me.sharing_enabled) {
+        const preview = m.visibility === "public" ? null : await api(
+          `/api/v1/memories/${encodeURIComponent(id)}/sharing-preview`,
+        );
+        if (version !== state.memoryVersion || !$("source-dialog").open) return;
         const share = el(
           "button",
-          m.visibility === "public" ? "Make private" : "Preview sharing",
-          "button secondary",
+          m.visibility === "public" ? "Make private" : "Share memory",
+          m.visibility === "public" ? "button secondary" : "button primary",
         );
+        share.disabled = preview && !preview.can_share;
+        if (preview && !preview.can_share) {
+          $("source-status").textContent = preview.notice;
+          show("source-status", true);
+        }
         share.onclick = () =>
           busy(share, async () => {
             try {
@@ -734,7 +737,7 @@ async function openMemory(id) {
                   !(await confirmAction({
                     title: "Share with your company?",
                     description: preview.notice,
-                    confirm: "Share summary",
+                    confirm: "Share memory",
                     preview,
                   }))
                 )
@@ -760,7 +763,10 @@ async function openMemory(id) {
             }
           });
         actions.append(share);
-      } else actions.append(privacy("private"));
+      } else {
+        $("source-status").textContent = "Company sharing is off. Your workspace admin can enable it in Settings.";
+        show("source-status", true);
+      }
       const remove = el("button", "Delete memory", "button quiet danger");
       remove.onclick = async () => {
         if (
@@ -1127,7 +1133,7 @@ function recordingMessage(status) {
     };
   return {
     title: state.firstReceipt ? "Your first memory is saved" : "Work received",
-    copy: "Open My work to read it, ask about it, or preview a summary to share.",
+    copy: "Open My work to read it, ask about it, or choose what to share.",
     action: "View my work",
     destination: "mine",
   };
@@ -1747,6 +1753,8 @@ $("account-button").onclick = () => {
   if (open) $("account-menu").querySelector("button").focus();
 };
 document.addEventListener("click", (e) => {
+  const more = $("source-actions").querySelector(".source-more[open]");
+  if (more && !more.contains(e.target)) more.open = false;
   if (
     !$("account-menu").contains(e.target) &&
     !$("account-button").contains(e.target)
@@ -2023,6 +2031,14 @@ $("stop-answer").onclick = () =>
     }
   });
 $("close-source").onclick = () => $("source-dialog").close();
+$("source-dialog").addEventListener("cancel", (event) => {
+  const more = $("source-actions").querySelector(".source-more[open]");
+  if (more) {
+    event.preventDefault();
+    more.open = false;
+    more.querySelector("summary").focus();
+  }
+});
 $("finish-signup").onclick = () =>
   busy($("finish-signup"), async () => {
     try {

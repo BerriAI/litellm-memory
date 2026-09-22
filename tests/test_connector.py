@@ -75,9 +75,9 @@ def test_login_finishes_setup_before_redirect_and_never_redirects_failure(tmp_pa
         try:
             if failure:
                 with pytest.raises((httpx.HTTPError, ValueError)):
-                    connector.login(local, 'https://memory.example', opener=opener, on_connected=setup, reminder_hooks=reminders)
+                    connector.login(local, 'https://memory.example', opener=opener, on_connected=setup, reminder_hooks=reminders, completion_grace=0)
             else:
-                connector.login(local, 'https://memory.example', opener=opener, on_connected=setup, reminder_hooks=reminders)
+                connector.login(local, 'https://memory.example', opener=opener, on_connected=setup, reminder_hooks=reminders, completion_grace=0)
             response = responses[0].result(timeout=10)
             assert response.headers['cache-control'] == 'no-store'
             assert response.headers['referrer-policy'] == 'no-referrer'
@@ -480,3 +480,63 @@ def test_guidance_can_be_disabled_independently_and_malformed_markers_fail_befor
         configure_hosts(*args, agent_instructions=True)
     assert not (tmp_path / '.codex/AGENTS.md').read_text()
     assert (config.read_bytes(), hooks.read_bytes()) == before
+
+
+def test_duplicate_callback_after_cancelled_navigation_redirects_without_repeating_setup(tmp_path, monkeypatch):
+    import socket
+    import threading
+
+    from litellm_memory import connector
+
+    real_client = httpx.Client
+    setup_started, release_setup = threading.Event(), threading.Event()
+    calls = []
+
+    def remote(request):
+        calls.append(request.url.path)
+        if request.url.path == '/oauth/register':
+            return httpx.Response(200, json={'client_id': 'client'})
+        if request.url.path == '/oauth/token':
+            return httpx.Response(200, json={'access_token': 'private-access', 'refresh_token': 'private-refresh',
+                                            'expires_in': 3600})
+        return httpx.Response(200, json={'owner': 'T:OWNER'})
+
+    monkeypatch.setattr(connector.httpx, 'Client', lambda **kwargs: real_client(
+        **kwargs, transport=httpx.MockTransport(remote)))
+
+    def setup():
+        setup_started.set()
+        assert release_setup.wait(3)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        responses = []
+
+        def opener(url):
+            params = parse_qs(urlsplit(url).query)
+            callback = params['redirect_uri'][0]
+            query = urlencode({'state': params['state'][0], 'code': 'private-code'})
+
+            def browser():
+                endpoint = urlsplit(callback)
+                first = socket.create_connection((endpoint.hostname, endpoint.port))
+                first.sendall(f'GET /callback?{query} HTTP/1.0\r\nHost: localhost\r\n\r\n'.encode())
+                assert setup_started.wait(3)
+                # User clicks the fallback while the automatic navigation is pending.
+                first.close()
+                release_setup.set()
+                with real_client(timeout=3, follow_redirects=False) as http:
+                    duplicate = http.get(callback + '?' + query)
+                    assert duplicate.status_code == 303
+                    rejected = http.get(callback, params={'state': params['state'][0], 'code': 'another-code'})
+                    assert rejected.status_code == 500 and 'location' not in rejected.headers
+                    return duplicate
+            responses.append(pool.submit(browser))
+
+        local = LocalCapture(tmp_path)
+        try:
+            connector.login(local, 'https://memory.example', opener=opener, on_connected=setup, completion_grace=.3)
+            assert responses[0].result().headers['location'] == 'https://memory.example/#connections'
+            assert calls.count('/oauth/token') == 1
+            assert local.get('status') == 'connected'
+        finally:
+            local.close()
