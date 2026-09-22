@@ -98,7 +98,9 @@ Corrections accept `content`, optional `title` and `reason`. For safe retries, a
 
 ## Remote MCP
 
-Connect to `https://YOUR_INSTALLATION/mcp`. Discovery is available at `/.well-known/oauth-protected-resource/mcp` and `/.well-known/oauth-authorization-server`. OAuth supports public-client registration, authorization code + S256 PKCE, one-hour access tokens, 30-day rotating refresh tokens and revocation. Redirects must be HTTPS or loopback; callback/resource/client binding is checked.
+Connect to `https://YOUR_INSTALLATION/mcp`. Discovery is available at `/.well-known/oauth-protected-resource/mcp` and `/.well-known/oauth-authorization-server`. The bundled connector starts at `POST /oauth/device/code` with its client name and reminder commands, opens `verification_uri_complete`, then polls `/oauth/token` with the returned client ID, device code and `urn:ietf:params:oauth:grant-type:device_code` grant. It respects pending/slow-down/expiry responses and posts completion only after saving local setup. Browser consent/status require the signed-in account; browser codes cannot redeem tokens. This setup endpoint combines client registration with a device authorization request and is specific to the connector.
+
+For other MCP clients, OAuth supports public-client registration, authorization code + S256 PKCE, one-hour access tokens, 30-day rotating refresh tokens and revocation. Redirects must be HTTPS or loopback; callback/resource/client binding is checked.
 
 Tools: `record_work`, `search_memories`, `read_memory`, `ask_memories`, `capture_status`, `pause_capture`. Tools cannot publish records or change privacy policies. Recording and status checks do not automatically invoke memory search.
 

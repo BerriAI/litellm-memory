@@ -48,7 +48,8 @@ def install_oauth(app, settings, store, archive, account, same_origin):
         return {"issuer": issuer, "authorization_endpoint": issuer + "/oauth/authorize",
                 "token_endpoint": issuer + "/oauth/token", "registration_endpoint": issuer + "/oauth/register",
                 "revocation_endpoint": issuer + "/oauth/revoke", "response_types_supported": ["code"],
-                "grant_types_supported": ["authorization_code", "refresh_token"], "code_challenge_methods_supported": ["S256"],
+                "device_authorization_endpoint": issuer + "/oauth/device/code",
+                "grant_types_supported": ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"], "code_challenge_methods_supported": ["S256"],
                 "token_endpoint_auth_methods_supported": ["none"], "scopes_supported": ["memory"]}
 
     @app.get("/.well-known/oauth-protected-resource")
@@ -73,7 +74,7 @@ def install_oauth(app, settings, store, archive, account, same_origin):
         if not client:
             raise HTTPException(400, "Unknown client")
         client = json.loads(client)
-        if (p.get("redirect_uri") not in client["redirect_uris"] or p.get("response_type") != "code"
+        if (p.get("redirect_uri") not in client.get("redirect_uris", []) or p.get("response_type") != "code"
                 or p.get("code_challenge_method") != "S256" or len(p.get("code_challenge", "")) != 43
                 or p.get("resource", resource) != resource or p.get("scope", "memory") != "memory"):
             raise HTTPException(400, "Invalid authorization request")
@@ -122,7 +123,7 @@ def install_oauth(app, settings, store, archive, account, same_origin):
         form = await request.form()
         nonce = str(form.get("nonce", ""))
         p = await store.consume_oauth_request(hashlib.sha256(nonce.encode()).hexdigest(), owner)
-        if not p:
+        if not p or "device" in p:
             return HTMLResponse('''<!doctype html><html lang="en"><meta name="viewport" content="width=device-width">
             <title>Start a new connection · LiteLLM Memory</title><link rel="stylesheet" href="/static/memory.css">
             <main class="auth-card"><p class="eyebrow">LiteLLM Memory</p><h1>Start a new connection</h1>
@@ -188,9 +189,14 @@ def install_oauth(app, settings, store, archive, account, same_origin):
                              "expires_in": 3600, "refresh_token": refresh},
                             headers={"Cache-Control": "no-store", "Pragma": "no-cache"})
 
+    from .device_oauth import install_device_oauth
+    redeem_device = install_device_oauth(app, store, archive, account, same_origin, issuer, issue_refresh, token_response)
+
     @app.post("/oauth/token")
     async def token(request: Request):
         p = dict(await request.form())
+        if p.get("grant_type") == "urn:ietf:params:oauth:grant-type:device_code":
+            return await redeem_device(p)
         if p.get("grant_type") == "refresh_token":
             return await rotate_refresh(p)
         if p.get("grant_type") != "authorization_code":

@@ -1637,9 +1637,10 @@ async function initialize() {
     const connectionRequest = new URLSearchParams(location.search).get(
       "connect",
     );
+    const deviceRequest = new URLSearchParams(location.search).get("device");
     if (!state.me.signed_in) {
       show("welcome");
-      if (connectionRequest) {
+      if (connectionRequest || deviceRequest) {
         $("welcome").querySelector("a").href =
           "/auth/slack?" + new URLSearchParams({ next: "/" + location.search });
       }
@@ -1659,6 +1660,10 @@ async function initialize() {
         $("finish-signup").textContent = "Restore my account";
       }
       show("setup");
+      return;
+    }
+    if (deviceRequest) {
+      location.replace("/oauth/device?" + new URLSearchParams({user_code: deviceRequest}));
       return;
     }
     if (connectionRequest) {

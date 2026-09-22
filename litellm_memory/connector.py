@@ -5,7 +5,6 @@ or upload transcripts. Transcript adapters run only for an explicit backfill.
 """
 
 import argparse
-import base64
 import contextlib
 import hashlib
 import json
@@ -17,9 +16,8 @@ import sys
 import time
 import webbrowser
 from datetime import datetime
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlencode, urlsplit
+from urllib.parse import urlsplit
 
 import httpx
 import tomlkit
@@ -322,106 +320,93 @@ def visible_message(item, host):
     return role, content, timestamp, str(item.get("uuid") or message.get("id") or "")
 
 
-def login(local, url, *, opener=webbrowser.open, on_connected=None, reminder_hooks=None, completion_grace=3):
+def login(local, url, *, opener=webbrowser.open, on_connected=None, reminder_hooks=None):
+    """Approve on the hosted site; poll it without opening a localhost listener."""
     url = url.rstrip("/")
     parsed = urlsplit(url)
     if (parsed.scheme != "https" and not (parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"})) \
-            or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path:
-        raise ValueError("Use the HTTPS address of your LiteLLM Memory installation.")
-    result = {}
-    state, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(48)
-
-    def finish_connection(code):
-        response = client.post("/oauth/token", data={"grant_type": "authorization_code", "code": code,
-            "client_id": client_id, "code_verifier": verifier, "redirect_uri": callback, "resource": url + "/mcp"})
+            or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path:
+        raise ConnectionSetupError("Use the HTTPS address of your LiteLLM Memory installation.")
+    reminders = reminder_hooks or []
+    hosts = [hook['host'] for hook in reminders]
+    name = ' and '.join('Codex' if host == 'codex' else 'Claude Code' for host in hosts) or 'LiteLLM Memory connector'
+    with httpx.Client(base_url=url, timeout=20) as client:
+        response = client.post('/oauth/device/code', json={'client_name': name, 'reminder_hooks': reminders})
+        if response.status_code == 404:
+            raise ConnectionSetupError('The website needs the latest version before setup can continue.')
         response.raise_for_status()
-        token = response.json()
-        binding = local.get("account_binding")
-        if binding and binding["url"] != url:
-            raise ValueError("Use --directory for a different installation; queued work belongs to the original account.")
-        status = client.get("/api/capture-identity", headers={"Authorization": "Bearer " + token["access_token"]})
-        status.raise_for_status()
-        owner = status.json()["owner"]
-        if binding and binding.get("owner") != owner:
-            raise ValueError("This capture directory belongs to another account. Use --directory to keep accounts separate.")
-        # Do not return to the dashboard until credentials and host setup are saved.
-        with local.db:
-            local.set("account_binding", {"url": url, "owner": owner})
-            local.set("connection", {"url": url, "owner": owner, "client_id": client_id, **token,
-                                     "expires_at": time.time() + token["expires_in"]})
-            local.set("status", "connected")
-            local.set_paused(False)
-            if on_connected:
-                on_connected()
-
-    class Callback(BaseHTTPRequestHandler):
-        def do_GET(self):
-            params = parse_qs(urlsplit(self.path).query)
-            valid = (urlsplit(self.path).path == "/callback" and len(params.get("state", [])) == 1
-                     and secrets.compare_digest(params["state"][0].encode(), state.encode()) and len(params.get("code", [])) == 1)
-            status, body = 400, b"Invalid connection response. Start connecting again from your client."
-            if valid:
-                try:
-                    if result.get('connected'):
-                        if not secrets.compare_digest(digest(params['code'][0]), result['code_digest']):
-                            raise ValueError('The connection code does not match the completed setup.')
-                    else:
-                        finish_connection(params["code"][0])
-                        result.update(connected=True, code_digest=digest(params['code'][0]))
-                    status, body = 303, b"Setup saved. Opening LiteLLM Memory to finish connecting your tool."
-                except Exception as error:
-                    if not result.get('connected'):
-                        result["error"] = error
-                    status, body = 500, b"Connection could not finish. Check your terminal and run connect again."
-            self.send_response(status)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("Content-Length", str(len(body)))
-            if status == 303:
-                hosts = [hook['host'] for hook in reminder_hooks or []]
-                setup = ('?setup=' + (hosts[0] if len(hosts) == 1 else 'both')) if hosts else ''
-                self.send_header("Location", url + "/" + setup + "#connections")
-            # A second navigation can cancel the first browser request while
-            # host setup finishes. Its socket closing does not undo the save.
-            with contextlib.suppress(BrokenPipeError, ConnectionResetError):
-                self.end_headers()
-                self.wfile.write(body)
-
-        def log_message(self, *_):
-            pass
-
-    with HTTPServer(("127.0.0.1", 0), Callback) as server, httpx.Client(base_url=url, timeout=20) as client:
-        callback = f"http://127.0.0.1:{server.server_port}/callback"
-        response = client.post("/oauth/register", json={"client_name": "LiteLLM Memory connector",
-                               "redirect_uris": [callback], "token_endpoint_auth_method": "none",
-                               "reminder_hooks": reminder_hooks or []})
-        response.raise_for_status()
-        if reminder_hooks and response.json().get('reminder_hooks') != reminder_hooks:
-            raise ValueError('Update the website before approving reminder hooks through setup.')
-        client_id = response.json()["client_id"]
-        challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
-        auth_url = url + "/oauth/authorize?" + urlencode({"client_id": client_id, "redirect_uri": callback,
-            "response_type": "code", "code_challenge_method": "S256", "code_challenge": challenge,
-            "state": state, "scope": "memory", "resource": url + "/mcp"})
-        print("Sign in with Slack in the browser to connect this computer.")
+        device = response.json()
+        if device.get('reminder_hooks') != reminders:
+            raise ConnectionSetupError('The website could not confirm the reminder commands. Update it before connecting.')
+        auth_url = device['verification_uri_complete']
+        target = urlsplit(auth_url)
+        if target.scheme != parsed.scheme or target.netloc != parsed.netloc or target.path != '/oauth/device':
+            raise ConnectionSetupError('The website returned an invalid approval address.')
+        print('Sign in with Slack and approve setup in the browser. Keep this terminal running.')
         print(auth_url)
         opener(auth_url)
-        server.timeout = 1
-        deadline = time.monotonic() + 300
-        while not result and time.monotonic() < deadline:
-            server.handle_request()
-        if result.get('connected'):
-            # Drain duplicate handoffs already sent by the browser. Redirect them
-            # without exchanging the one-use code or configuring the hosts twice.
-            deadline = time.monotonic() + completion_grace
-            server.timeout = min(.2, max(0, completion_grace))
+        form = {'client_id': device['client_id'], 'device_code': device['device_code']}
+        interval = max(3, device.get('interval', 3))
+        deadline = time.monotonic() + min(600, device['expires_in'])
+        try:
             while time.monotonic() < deadline:
-                server.handle_request()
-        if not result:
-            raise ConnectionSetupError("Sign-in timed out after five minutes. Run connect again and use the new browser page.")
-        if "error" in result:
-            raise result["error"]
+                time.sleep(interval)
+                try:
+                    response = client.post('/oauth/token', data={**form,
+                        'grant_type': 'urn:ietf:params:oauth:grant-type:device_code', 'resource': url + '/mcp'})
+                except httpx.TransportError:
+                    interval = min(interval * 2, 30)
+                    continue
+                if response.status_code in {429, 502, 503, 504}:
+                    interval = min(max(interval * 2, 5), 60)
+                    continue
+                token = response.json()
+                if token.get('error') in {'authorization_pending', 'slow_down'}:
+                    if token['error'] == 'slow_down':
+                        interval += 5
+                    continue
+                if token.get('error') == 'access_denied':
+                    raise ConnectionSetupError('Setup was cancelled. Run connect again when you are ready.')
+                if token.get('error') in {'expired_token', 'invalid_grant'}:
+                    raise ConnectionSetupError('This setup request has ended. Run connect again and use the new page.')
+                response.raise_for_status()
+                break
+            else:
+                raise ConnectionSetupError('Sign-in timed out after ten minutes. Run connect again and use the new page.')
+            binding = local.get('account_binding')
+            if binding and binding['url'] != url:
+                raise ConnectionSetupError('Use --directory for a different installation; queued work belongs to the original account.')
+            status = client.get('/api/capture-identity', headers={'Authorization': 'Bearer ' + token['access_token']})
+            status.raise_for_status()
+            owner = status.json()['owner']
+            if binding and binding.get('owner') != owner:
+                raise ConnectionSetupError('This capture directory belongs to another account. Use --directory to keep accounts separate.')
+            with local.db:
+                local.set('account_binding', {'url': url, 'owner': owner})
+                local.set('connection', {'url': url, 'owner': owner, 'client_id': device['client_id'], **token,
+                                        'expires_at': time.time() + token['expires_in']})
+                local.set('status', 'connected')
+                local.set_paused(False)
+                if on_connected:
+                    on_connected()
+        except Exception:
+            # Revoke only this attempted connection if identity/host setup fails.
+            with contextlib.suppress(httpx.HTTPError):
+                client.post('/oauth/device/complete', data={**form, 'status': 'failed'})
+            raise
+        # The local transaction is committed before the browser can report success.
+        for attempt in range(3):
+            try:
+                response = client.post('/oauth/device/complete', data={**form, 'status': 'complete'})
+                response.raise_for_status()
+                break
+            except httpx.HTTPError:
+                if attempt == 2:
+                    print('Setup is saved on this computer, but the browser could not be notified. Open Connections to test it.')
+                else:
+                    time.sleep(2)
+        setup = hosts[0] if len(hosts) == 1 else 'both'
+        print('Test your connection: ' + url + '/?setup=' + setup + '#connections')
 
 
 INSTRUCTIONS_BEGIN = '<!-- BEGIN litellm-memory-agent-instructions -->'

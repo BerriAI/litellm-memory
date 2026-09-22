@@ -312,7 +312,7 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         parts = urlsplit(path)
         if parts.scheme or parts.netloc:
             return "/"
-        return path if parts.path in {"/", "/oauth/authorize", "/transfer/receive", "/transfer/send"} or parts.path.startswith("/memory/") else "/"
+        return path if parts.path in {"/", "/oauth/authorize", "/oauth/device", "/transfer/receive", "/transfer/send"} or parts.path.startswith("/memory/") else "/"
 
     @app.get("/health")
     async def health():
