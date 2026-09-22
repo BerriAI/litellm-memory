@@ -18,10 +18,10 @@ from .observability import Telemetry
 
 
 class GatewayError(RuntimeError):
-    def __init__(self, operation: str, status: int = 503, *, provider_auth_failed=False):
+    def __init__(self, operation: str, status: int = 503, *, provider_auth_failed=False, message=None):
         self.operation, self.status = operation, status
         self.provider_auth_failed = provider_auth_failed
-        super().__init__(f"The gateway could not complete {operation} (HTTP {status}).")
+        super().__init__(message or f"The gateway could not complete {operation} (HTTP {status}).")
 
 
 class ModelOption(BaseModel):
@@ -144,7 +144,9 @@ class Gateway:
                 ], model=model, json_output=True)
                 ExtractedWork.model_validate_json(result)
             except (ValueError, TypeError):
-                raise GatewayError("structured background model check", 422) from None
+                raise GatewayError("structured background model check", 422, message=(
+                    "The background model responded, but its output did not match the required format. "
+                    "Try again or choose another background model.")) from None
             return {"status": "ready"}
         response = await self.http.post(self.root + "/v1/chat/completions", json={
             "model": model, "messages": [{"role": "user", "content": "Call connection_check once."}],
@@ -284,4 +286,13 @@ class Gateway:
             response = await self.http.post(self.root + "/v1/chat/completions", json=body)
             if not response.is_success:
                 raise GatewayError("generation", response.status_code)
-            return response.json()["choices"][0]["message"]["content"]
+            content = response.json()["choices"][0]["message"]["content"]
+            if json_output and isinstance(content, str):
+                # Some gateway routes return JSON mode output in a Markdown fence.
+                # Remove only a whole-response wrapper; callers still validate JSON
+                # and their schema. Never extract an object from surrounding prose.
+                fenced = re.fullmatch(r"\s*```(?:json)?[ \t]*\r?\n(.*?)\r?\n```\s*", content,
+                                      flags=re.IGNORECASE | re.DOTALL)
+                if fenced:
+                    content = fenced[1]
+            return content
