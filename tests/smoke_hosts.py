@@ -25,6 +25,7 @@ PROMPT = "LITELLM_MEMORY_HOST_USER_CANARY: Reply briefly. Do not use tools."
 ANSWER = "LITELLM_MEMORY_HOST_ASSISTANT_CANARY: Capture verified."
 records = []
 model_inputs = []
+mcp_requests = []
 
 
 class Fixture(BaseHTTPRequestHandler):
@@ -53,6 +54,7 @@ class Fixture(BaseHTTPRequestHandler):
         if self.path == "/mcp/":
             assert self.headers.get("Authorization") == "Bearer disposable-fixture"
             method = body.get("method")
+            mcp_requests.append(method)
             if "id" not in body:
                 self.send_response(202)
                 self.end_headers()
@@ -162,7 +164,13 @@ def main():
             print(result.stdout[-4000:])
             print(result.stderr[-4000:])
             raise AssertionError(f"{host} fixture response failed (exit {result.returncode})")
-        assert any('record_work' in json.dumps(body.get('tools', [])) for body in model_inputs), 'Memory MCP tools did not reach the host model'
+        # Codex can defer MCP tool schemas through tool search instead of putting
+        # them directly in the model request. The downstream list request proves
+        # the host discovered the authenticated bridge's actual tool catalog.
+        if 'tools/list' not in mcp_requests:
+            print(result.stdout[-4000:])
+            print(result.stderr[-4000:])
+            raise AssertionError('Host did not discover the authenticated memory MCP tools')
         assert not records, 'A reminder hook uploaded conversation text'
         assert any('Keep a low bar' in json.dumps(body) and 'Skip saving' in json.dumps(body)
                    for body in model_inputs), 'Memory guidance did not reach the host model'
