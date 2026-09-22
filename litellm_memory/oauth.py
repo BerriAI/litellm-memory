@@ -119,8 +119,20 @@ def install_oauth(app, settings, store, archive, account, same_origin):
         if p.get("state"):
             params["state"] = p["state"]
         sep = "&" if "?" in p["redirect_uri"] else "?"
-        return RedirectResponse(p["redirect_uri"] + sep + urlencode(params), status_code=303,
-                                headers={"Cache-Control": "no-store"})
+        callback = escape(p["redirect_uri"] + sep + urlencode(params))
+        # A cross-origin redirect after a form POST is blocked by form-action
+        # in Chromium. Finish the POST here, then navigate from this document.
+        # Keep the application's CSP unchanged and offer a no-JavaScript link.
+        return HTMLResponse(f'''<!doctype html><html lang="en"><head>
+        <meta charset="utf-8"><meta name="viewport" content="width=device-width">
+        <title>Return to your client · LiteLLM Memory</title>
+        <link rel="stylesheet" href="/static/memory.css">
+        <script src="/static/oauth-callback.js" defer></script></head><body>
+        <main class="auth-card"><p class="eyebrow">LiteLLM Memory</p><h1>Return to your client</h1>
+        <p>Your approval is ready. Your client will open to finish connecting.</p>
+        <a id="client-callback" class="button primary" href="{callback}" rel="noreferrer">Return to client</a>
+        <p class="fine-print">If your client is no longer waiting, return to your coding tool or terminal
+        and start connecting again.</p></main></body></html>''', headers={"Cache-Control": "no-store"})
 
     async def issue_refresh(connection_id, client_id):
         value = secrets.token_urlsafe(48)
