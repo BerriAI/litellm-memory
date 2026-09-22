@@ -3,17 +3,34 @@
 import json
 import os
 import selectors
+import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
 import tomlkit
 
-from .connector import atomic_private, reminder_command
+from .connector import ConnectionSetupError, atomic_private, reminder_command
+
+
+def codex_executable(home):
+    executable = shutil.which('codex')
+    if executable:
+        return executable
+    if sys.platform == 'darwin':
+        # A normal Terminal shell does not inherit the desktop app's private PATH.
+        for applications in (Path(home) / 'Applications', Path('/Applications')):
+            for app in ('Codex.app', 'ChatGPT.app'):
+                candidate = applications / app / 'Contents/Resources/codex'
+                if candidate.is_file() and os.access(candidate, os.X_OK):
+                    return str(candidate)
+    raise ConnectionSetupError('Codex was not found. Install or open the Codex desktop app, or install the Codex CLI. '
+                               'To connect only Claude Code, run connect again with --host claude.')
 
 
 def codex_hooks(home):
-    process = subprocess.Popen(['codex', 'app-server'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+    process = subprocess.Popen([codex_executable(home), 'app-server'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.DEVNULL, text=True, bufsize=1,
                                env={**os.environ, 'CODEX_HOME': str(home / '.codex')})
     def send(value):
@@ -41,7 +58,8 @@ def codex_hooks(home):
                     if 'error' in message:
                         break
                     return [hook for entry in message['result']['data'] for hook in entry['hooks']]
-        raise ValueError('Could not review Codex hooks. Open /hooks in Codex to finish setup.')
+        raise ConnectionSetupError('Could not review Codex hooks. Update Codex and run connect again. '
+                                   'To connect only Claude Code, add --host claude.')
     finally:
         process.terminate()
         try:
@@ -60,10 +78,10 @@ def trust_reviewed_codex_hooks(home, directory, *, list_hooks=codex_hooks):
              and hook['key'].startswith(str(home / '.codex/hooks.json') + ':')
              and hook['eventName'] in {'sessionStart', 'userPromptSubmit'} and not hook['isManaged']]
     if len(hooks) != 2 or {hook['eventName'] for hook in hooks} != {'sessionStart', 'userPromptSubmit'}:
-        raise ValueError('The reviewed reminder hooks changed. Run setup again.')
+        raise ConnectionSetupError('The reviewed reminder hooks changed. Run setup again.')
     path = home / '.codex/config.toml'
     if path.is_symlink():
-        raise ValueError('Review symlink-managed Codex hooks manually.')
+        raise ConnectionSetupError('Review symlink-managed Codex hooks manually.')
     original = path.read_text()
     document = tomlkit.parse(original)
     states = document.setdefault('hooks', {}).setdefault('state', {})
@@ -71,9 +89,15 @@ def trust_reviewed_codex_hooks(home, directory, *, list_hooks=codex_hooks):
         # Codex supplies its own hash; never guess it or grant blanket hook trust.
         states[hook['key']] = {'enabled': True, 'trusted_hash': hook['currentHash']}
     if path.read_text() != original:
-        raise ValueError('Codex settings changed during review. Run setup again.')
+        raise ConnectionSetupError('Codex settings changed during review. Run setup again.')
     atomic_private(path.with_name(path.name + '.litellm-memory-backup-' + str(time.time_ns())), original)
-    atomic_private(path, tomlkit.dumps(document))
-    verified = {hook['key']: hook for hook in list_hooks(home)}
-    if any(verified.get(hook['key'], {}).get('trustStatus') != 'trusted' for hook in hooks):
-        raise ValueError('Codex has not confirmed hook trust. Open /hooks to finish setup.')
+    updated = tomlkit.dumps(document)
+    atomic_private(path, updated)
+    try:
+        verified = {hook['key']: hook for hook in list_hooks(home)}
+        if any(verified.get(hook['key'], {}).get('trustStatus') != 'trusted' for hook in hooks):
+            raise ConnectionSetupError('Codex has not confirmed hook trust. Open /hooks to review it, then run setup again.')
+    except Exception:
+        if path.read_text() == updated:
+            atomic_private(path, original)
+        raise
