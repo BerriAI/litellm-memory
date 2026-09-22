@@ -147,4 +147,4 @@ Introduce a new pattern only when the old one materially fails the task. Explain
 
 ## Product wordmark
 
-Use **LiteLLM Memory** in the workspace header and page titles. The sidebar wordmark is 17px, weight 700, with a -0.6px letter spacing. Keep the full name on one line at desktop and mobile widths; do not add decorative punctuation or shorten it to an old product name. The repository/package identifier is `litellm-memory`; the Slack app is **LiteLLM Memory** and the bot mention is `@memory`.
+Use **LiteLLM Memory** in the workspace header and page titles. The sidebar wordmark is 17px, weight 700, with a -0.6px letter spacing. Keep the full name on one line at desktop and mobile widths; do not add decorative punctuation or shorten it to an old product name. The repository/package identifier is `litellm-memory`; the Slack app is **LiteLLM Memory** and the bot mention is `@Memory`.

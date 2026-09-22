@@ -32,7 +32,7 @@ Ask questions such as “What did Tin work on yesterday?” directly in Ask. The
 
 **Settings → Preferences** lets you choose your display time zone or follow your device. Dates and feed date filters use that choice; original timestamps stay unchanged. A date without an original timezone is marked as incomplete and excluded from exact date ranges.
 
-In Slack, talk to **@memory**. A verified personal DM can use your private history. Shared conversations use only company-public evidence that is safe for every participant. Slack membership failures or external/unknown participants cause the agent to withhold an answer. It cannot retract information someone already read.
+In Slack, talk to **@Memory**. A verified personal DM can use your private history. Shared conversations use only company-public evidence that is safe for every participant. Slack membership failures or external/unknown participants cause the agent to withhold an answer. It cannot retract information someone already read.
 
 ## Control sharing
 

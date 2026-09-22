@@ -100,7 +100,7 @@ function renderChat() {
     if (m.role === 'user') { const article = el('article','message user'); article.append(el('div','user-bubble',m.content)); $('messages').append(article); }
     else {
       const article = el('article','message assistant'); const heading = el('div','answer-heading');
-      const avatar = el('img','avatar'); avatar.src = '/static/litellm-memory-icon.jpg'; avatar.alt = '';
+      const avatar = el('img','avatar'); avatar.src = '/static/litellm-memory-icon.png'; avatar.alt = '';
       heading.append(avatar, document.createTextNode('LiteLLM Memory'));
       const status = el('div','working'); const content = el('div','answer-content'); const actions = el('div','answer-actions');
       article.append(heading,status,content,actions); $('messages').append(article);

@@ -9,7 +9,7 @@ def slack_manifest(base_url):
     return {
         "display_information": {"name": "LiteLLM Memory", "description": "See what your team is working on. Ask about anything shared with you.",
                                 "background_color": "#2b302b"},
-        "features": {"bot_user": {"display_name": "memory", "always_online": False},
+        "features": {"bot_user": {"display_name": "Memory", "always_online": False},
                      "agent_view": {"agent_description": "Ask about work and decisions you can access.",
                                     "suggested_prompts": [
                                         {"title": "My recent work", "message": "What did I work on recently?"},
