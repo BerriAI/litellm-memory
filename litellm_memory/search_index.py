@@ -16,7 +16,7 @@ from array import array
 from collections import OrderedDict
 
 from .crypto import decrypt_blob, encode
-from .time_settings import date_boundary, instant
+from .time_settings import activity_timestamp, date_boundary, instant
 from .view_preferences import projects_in, source_key, types_in
 
 
@@ -48,9 +48,11 @@ class Partition:
                 result['privacy_blocked'] = data.get('privacy_blocked') is True
             result['metadata'] = {k: v for k, v in result.get('metadata', {}).items() if k != 'original_file'}
             self.documents[row['id']] = result
-            occurred = instant(data.get('created_at'))
-            latest = occurred or instant(data.get('captured_at'))
-            self.dates[row['id']] = (occurred, latest.timestamp() if latest else float('-inf'))
+            activity = activity_timestamp(result)
+            result.update(activity_at=activity.isoformat() if activity else None,
+                          date_basis=('event' if result.get('created_at') else 'recorded') if activity else None)
+            latest = activity or instant(data.get('captured_at'))
+            self.dates[row['id']] = (activity, latest.timestamp() if latest else float('-inf'))
             # Conservative payload + FTS estimate; account for Python objects and
             # SQLite pages separately, without permitting plaintext disk spilling.
             self.size += len(encode(result)) * 3 + len(text.encode()) * 3 + len(metadata.encode()) * 3 + 1500

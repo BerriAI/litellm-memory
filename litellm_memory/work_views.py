@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from .archive import Reader, now
 from .crypto import decrypt_blob, encode, encrypt_blob
-from .time_settings import ScheduleSettings, instant
+from .time_settings import ScheduleSettings, activity_timestamp, instant
 from .view_preferences import ViewPreferences, projects_in
 
 log = logging.getLogger(__name__)
@@ -93,23 +93,12 @@ class WorkViews:
         return self.schedule_status()
 
     @staticmethod
-    def timestamp(record):
-        # Live agent memories may omit event time. Use their receipt time, without
-        # changing the original or guessing a date for undated historical imports.
-        stamp = instant(record.get('created_at'))
-        if not record.get('created_at') and not record.get('historical') and (
-                record.get('metadata', {}).get('evidence_type') == 'agent_memory'
-                or record.get('source') in {'mcp', 'codex', 'claude'}):
-            stamp = instant(record.get('captured_at'))
-        return stamp
-
-    @staticmethod
     def includes(record, request, preferences, timezone):
         if not preferences.includes(record):
             return False
         if request.project and request.project.strip().casefold() not in projects_in(record):
             return False
-        stamp = WorkViews.timestamp(record)
+        stamp = activity_timestamp(record)
         # Undated records affect reported coverage, but never become daily evidence.
         return request.kind != 'daily' or stamp is None or stamp.astimezone(timezone).date() == request.day
 
@@ -283,7 +272,7 @@ class WorkViews:
         async for record in self.archive.iter_records(reader, owner=owner):
             if not self.includes(record, request, preferences, timezone):
                 continue
-            stamp = self.timestamp(record)
+            stamp = activity_timestamp(record)
             timestamp = stamp.isoformat() if stamp else None
             if request.kind == 'daily':
                 if stamp is None:
@@ -420,7 +409,7 @@ class WorkViews:
                 reader = Reader(owner, audience)
                 dates = set()
                 async for record in self.archive.iter_records(reader, owner=owner):
-                    stamp = self.timestamp(record)
+                    stamp = activity_timestamp(record)
                     if stamp and (work_day := stamp.astimezone(self.timezone()).date()) <= day:
                         dates.add(work_day)
                 # One nightly reconciliation, including missed days and late captures.

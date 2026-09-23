@@ -59,6 +59,20 @@ def instant(value):
         return None
 
 
+def activity_timestamp(record):
+    """Date live agent updates by receipt only when no event time was supplied.
+
+    Shared by daily summaries and search. Never assign an import or an explicitly
+    timezone-unknown event to its upload day, or modify the original timestamps.
+    """
+    stamp = instant(record.get('created_at'))
+    if not record.get('created_at') and not record.get('historical') and (
+            record.get('metadata', {}).get('evidence_type') == 'agent_memory'
+            or record.get('source') in {'mcp', 'codex', 'claude'}):
+        stamp = instant(record.get('captured_at'))
+    return stamp
+
+
 def date_boundary(value, timezone='UTC'):
     if not value:
         return None

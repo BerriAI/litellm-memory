@@ -2,6 +2,7 @@ import json
 import threading
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -14,6 +15,7 @@ from litellm_memory.config import Settings
 from litellm_memory.gateway import Gateway
 from litellm_memory.observability import request_source
 from litellm_memory.query import CitationError, answer_work
+from litellm_memory.work_views import WorkViews
 
 archive = archive_fixture
 
@@ -157,6 +159,61 @@ async def test_current_query_stops_before_delivering_after_access_revoked(archiv
             gateway.validate_model = AsyncMock(return_value='route')
             with pytest.raises(PermissionError, match='Access changed'):
                 await answer_work(settings, archive, gateway, Reader('T1:A'), 'What shipped?')
+
+
+async def test_slack_today_search_pages_live_public_work_in_workspace_timezone(archive, monkeypatch):
+    monkeypatch.setattr('litellm_memory.archive.now', lambda: '2026-09-23T01:40:00+00:00')
+    records = set()
+    for index in range(31):
+        saved = await archive.capture('T1:A', WorkInput(source='codex', source_id=f'live-{index}',
+                                                       content='Live work update'))
+        records.add(saved['id'])
+        await archive.set_visibility('T1:A', saved['id'], 'public')
+        row = await archive.next_work()
+        payload = await archive.decode(row)
+        payload.update(summary='Approved live update', labels={'progress': .95})
+        await archive.complete_work(row, payload, private_match=False)
+    await archive.capture('T1:A', WorkInput(source='codex', source_id='private', content='PRIVATE_TODAY_CANARY'))
+    settings = Settings(_env_file=None, public_base_url='http://localhost:8000')
+    seen, cited = set(), []
+    arguments = {'query': '', 'person': 'T1:A', 'from_date': '2026-09-22', 'before_date': '2026-09-23'}
+
+    def respond(body, index):
+        assert 'PRIVATE_TODAY_CANARY' not in json.dumps(body)
+        if index == 1:
+            system = body['messages'][0]['content']
+            assert 'Workspace timezone: America/Los_Angeles' in system
+            assert 'This response will be delivered in a Slack thread.' in system
+            return 200, completion(tool='search_work', arguments=arguments)
+        if index in {2, 3}:
+            page = json.loads(body['messages'][-1]['content'])
+            assert page['total'] == 31
+            assert page['next_offset'] == (30 if index == 2 else None)
+            assert len(page['results']) == (30 if index == 2 else 1)
+            assert not seen.intersection(item['id'] for item in page['results'])
+            seen.update(item['id'] for item in page['results'])
+            assert all(item['date_basis'] == 'recorded' for item in page['results'])
+            if index == 2:
+                return 200, completion(tool='search_work', arguments={**arguments, 'offset': 30})
+            assert seen == records
+            cited.append(page['results'][0]['id'])
+            return 200, completion(tool='read_work', arguments={'record_id': cited[0]})
+        return 200, completion(text=f'Today’s update. [Source]({settings.public_base_url}/memory/{cited[0]})')
+
+    with model_gateway(respond) as (url, requests):
+        settings.litellm_base_url, settings.litellm_api_key = url, 'synthetic-key'
+        async with Gateway(settings) as gateway:
+            gateway.validate_model = AsyncMock(return_value='route')
+            gateway.embeddings = AsyncMock(side_effect=AssertionError('Empty browsing needs no embedding'))
+            archive.views = WorkViews(archive, gateway, SimpleNamespace(values={'timezone': 'America/Los_Angeles'}))
+            context = request_source.set('slack')
+            try:
+                answer = await answer_work(settings, archive, gateway, Reader('T1:B', 'public'), 'What did Alice do today?')
+            finally:
+                request_source.reset(context)
+            assert cited[0] in answer
+            gateway.embeddings.assert_not_called()
+        assert len(requests) == 4
 
 
 @pytest.mark.parametrize('role', ['assistant', 'user'])

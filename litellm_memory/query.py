@@ -7,6 +7,7 @@ import re
 import time
 from datetime import UTC, date, datetime
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo
 
 from liteagents import AssistantMessage, LiteAgentClient, TextDelta, ToolUseBlock
 
@@ -15,6 +16,7 @@ from .archive import Reader
 from .observability import Telemetry, request_source
 from .progress import report
 from .storage import QueueFull
+from .time_settings import date_boundary
 from .work_views import ViewRequest
 
 
@@ -110,6 +112,7 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
         operation.set(model=model)
     stamp = await archive.policy_stamp(reader)
     preferences = await archive.view_preferences(reader.owner)
+    timezone = archive.views.timezone() if hasattr(archive, 'views') else ZoneInfo('UTC')
     sources = set()
 
     async def check_access():
@@ -123,18 +126,30 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
     @telemetry.tool("search_work")
     async def search_work(query: str, person: str | None = None, from_date: str | None = None,
                           before_date: str | None = None, project: str | None = None,
-                          source: str | None = None, memory_type: str | None = None) -> str:
-        """Search accessible work by meaning/keywords; optional person ID and ISO dates."""
+                          source: str | None = None, memory_type: str | None = None, offset: int = 0) -> str:
+        """Search accessible work. An empty query browses all work in the date/person scope.
+
+        Calendar dates use the workspace timezone; timestamps require an offset.
+        from_date is inclusive, before_date exclusive. Follow next_offset for more results.
+        activity_at uses event time, or recorded time for live agent memories without event time.
+        date_basis identifies which was used; original timestamps are unchanged.
+        """
         await check_access()
         await report("Searching work history")
+        start, end = date_boundary(from_date, timezone.key), date_boundary(before_date, timezone.key)
+        if start and end and start >= end:
+            raise ValueError('The end date must follow the start date.')
         vector = None
-        try:
-            vector = (await gateway.embeddings([query]))[0]
-        except Exception:
-            pass  # Exact-term search remains available and reports its actual mode.
-        result = await archive.search(reader, query, owner=scope or person, created_from=from_date,
-                                      created_before=before_date, project=project, source=source, kind=memory_type,
-                                      limit=12, vector=vector,
+        if query.strip():
+            try:
+                vector = (await gateway.embeddings([query]))[0]
+            except Exception:
+                pass  # Exact-term search remains available and reports its actual mode.
+        result = await archive.search(reader, query, owner=scope or person,
+                                      created_from=start.isoformat() if start else None,
+                                      created_before=end.isoformat() if end else None,
+                                      project=project, source=source, kind=memory_type,
+                                      limit=12 if query.strip() else 30, offset=offset, vector=vector,
                                       embedding_model=settings.memory_embedding_model)
         return json.dumps(result, ensure_ascii=False)
 
@@ -206,6 +221,7 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
         model,
         system=f"""You answer questions about people's work from their recorded evidence.
 Current UTC time: {datetime.now(UTC).isoformat()}. Your user's identity is {reader.owner}.
+Workspace timezone: {timezone.key}. Today in that timezone: {datetime.now(timezone).date().isoformat()}.
 {delivery_context}The delivery audience is {reader.audience}. Tools enforce it; you cannot expand it.
 Personal viewing preferences also narrow the available work. Do not work around exclusions.
 Be clear, useful and concise. The user explicitly opened this memory query interface.
@@ -213,10 +229,13 @@ For "what has someone been up to", give 3–5 short bullets about their latest w
 with citations. Default to at most 200 words unless the question asks for more detail. Do not turn a
 short burst of updates into a long chronological narrative or add praise about the quality of the work.
 For a work question, search, then read the relevant records. Resolve a person's ID with list_people.
-For a daily recap or what someone did on a particular day, start with daily_summaries. It returns
+For a recap of a completed day, start with daily_summaries. It returns
 the same generated summaries shown in the app, their dates, timezone, and source IDs.
-Use its timezone and today to resolve relative dates. Cite its source IDs; read_work is available
-for details or verification. Summaries cover completed days only; search source records for today.
+Use the workspace timezone and today to resolve relative dates. Cite its source IDs; read_work is available
+for details or verification. For today, search source records with an empty query, person and date bounds.
+Follow next_offset when more records are needed; search results are a page, not the whole day's work.
+Live agent updates without event time are dated by recording time, indicated by date_basis=recorded;
+this dates the update, not when the underlying work began. Historical undated imports stay undated.
 Summaries generate nightly; reading them never starts generation. If none is available yet,
 search the day's source records when needed. Do not invent generation failures or present
 a partial account as the complete day.
