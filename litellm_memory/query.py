@@ -201,11 +201,12 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
         await report(" ".join(message.split())[:160])
         return "Updated"
 
+    delivery_context = 'This response will be delivered in a Slack thread.\n' if request_source.get() == 'slack' else ''
     options = gateway.agent_options(
         model,
         system=f"""You answer questions about people's work from their recorded evidence.
 Current UTC time: {datetime.now(UTC).isoformat()}. Your user's identity is {reader.owner}.
-The delivery audience is {reader.audience}. Tools enforce it; you cannot expand it.
+{delivery_context}The delivery audience is {reader.audience}. Tools enforce it; you cannot expand it.
 Personal viewing preferences also narrow the available work. Do not work around exclusions.
 Be clear, useful and concise. The user explicitly opened this memory query interface.
 For "what has someone been up to", give 3–5 short bullets about their latest work and current status,

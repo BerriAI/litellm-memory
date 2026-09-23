@@ -12,6 +12,7 @@ from litellm_memory.agent_runtime import RunOutput, agent_options, chat_history,
 from litellm_memory.archive import Reader, WorkInput
 from litellm_memory.config import Settings
 from litellm_memory.gateway import Gateway
+from litellm_memory.observability import request_source
 from litellm_memory.query import CitationError, answer_work
 
 archive = archive_fixture
@@ -115,12 +116,15 @@ async def test_real_gateway_auth_error_is_not_retried():
         assert len(requests) == 1
 
 
-async def test_current_query_uses_real_loop_and_revalidates_evidence(archive):
+@pytest.mark.parametrize('surface', ['web', 'slack'])
+async def test_current_query_uses_real_loop_and_revalidates_evidence(archive, surface):
     record = await archive.capture('T1:A', WorkInput(source_id='synthetic', content='Shipped the migration.'))
     settings = Settings(_env_file=None, public_base_url='http://localhost:8000')
     answer = f'Shipped the migration. [Source]({settings.public_base_url}/memory/{record["id"]})'
 
     def respond(body, index):
+        system = next(message['content'] for message in body['messages'] if message['role'] == 'system')
+        assert ('This response will be delivered in a Slack thread.' in system) == (surface == 'slack')
         return 200, (completion(tool='read_work', arguments={'record_id': record['id']}) if index == 1
                      else completion(text=answer))
 
@@ -129,7 +133,11 @@ async def test_current_query_uses_real_loop_and_revalidates_evidence(archive):
         settings.litellm_api_key = 'synthetic-key'
         async with Gateway(settings) as gateway:
             gateway.validate_model = AsyncMock(return_value='route')
-            assert await answer_work(settings, archive, gateway, Reader('T1:A'), 'What shipped?') == answer
+            context = request_source.set(surface)
+            try:
+                assert await answer_work(settings, archive, gateway, Reader('T1:A'), 'What shipped?') == answer
+            finally:
+                request_source.reset(context)
         assert len(requests) == 2
 
 

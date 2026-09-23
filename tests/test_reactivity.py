@@ -1,8 +1,10 @@
 import asyncio
+import re
 import time
 import uuid
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from test_app import config, signed_event
@@ -102,6 +104,7 @@ async def test_slack_feedback_thread_context_and_multiple_sources(tmp_path):
                         'response_metadata': {'next_cursor': 'next'}}
             return {'ok': True, 'messages': [
                 {'ts': '2', 'user': 'UBOT', 'text': 'Earlier answer'},
+                {'ts': '3', 'user': 'UBOT', 'text': 'I’ll look into that and reply here when the answer is ready.'},
                 {'ts': '99', 'user': 'UBOT', 'text': '_Working…_'},
                 {'ts': '100', 'user': 'U1', 'text': 'question'},
             ]}
@@ -122,13 +125,13 @@ async def test_slack_feedback_thread_context_and_multiple_sources(tmp_path):
     text = 'Uses [one](http://localhost:8000/memory/one) and [two](http://localhost:8000/memory/two).'
     assert await slack.post_answer(job, text)
     final = calls[-1]
-    assert final[0] == 'chat.update'
+    assert final[0] == 'chat.postMessage'
     assert '/sources?ids=one%2Ctwo' in final[1]['text']
     await slack.indicator(jid)
     assert calls[-1] == final
     assert not any(method.startswith('reactions.') for method, _ in calls)
     assert (await store.get_job(jid))['indicator_done']
-    assert len([c for c in calls if c[0] == 'chat.postMessage']) == 1
+    assert len([c for c in calls if c[0] == 'chat.postMessage']) == 2
     await store.close()
 
 
@@ -152,6 +155,63 @@ async def test_cancelled_slack_never_posts_stale_answer_and_falls_back_honestly(
     await store.result(jid, answer='late', status='done')
     assert (await store.get_job(jid))['status'] == 'cancelled'
     await store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('body', ['A' * 4500, ('A' * 1700 + '\n') * 8,
+                                'A' * 10980 + '[source](http://localhost:8000/memory/one)'])
+async def test_long_slack_answer_posts_followups_and_preserves_all_text_and_sources(tmp_path, body):
+    settings = config(tmp_path)
+    store = Storage(tmp_path / 'db')
+    await store.open()
+    slack = Slack(settings, store)
+    calls = []
+
+    async def api(method, payload):
+        if method == 'chat.update' and len(payload['text']) > 4000:
+            raise SlackAPIError('msg_too_long')
+        assert len(payload['text']) <= 40000
+        assert len(payload['blocks'][0]['text']) <= 12000
+        calls.append((method, payload))
+        return {'ok': True, 'ts': str(len(calls))}
+
+    slack.api = api
+    p = {'team': 'T1', 'channel': 'D1', 'user': 'U1', 'thread_ts': '1', 'question': 'question'}
+    jid = await store.enqueue('T1:U1', 'slack', p)
+    await slack.indicator(jid)
+    job = await store.next_job()
+    text = body + '\n[one](http://localhost:8000/memory/one) [two](http://localhost:8000/memory/two)'
+    try:
+        assert await slack.post_answer(job, text)
+        delivery = calls[1:]
+        assert all(method == 'chat.postMessage' and payload['thread_ts'] == '1'
+                   for method, payload in delivery)
+        complete = ''.join(payload['blocks'][0]['text'] for _, payload in delivery)
+        assert complete.startswith(text)
+        assert complete.endswith('/sources?ids=one%2Ctwo)')
+        links = r'\[[^\]\n]*\]\(https?://[^\s)]+\)'
+        assert [link for _, payload in delivery for link in re.findall(links, payload['blocks'][0]['text'])] == re.findall(links, complete)
+        assert (await store.get_job(jid))['status'] == 'done'
+        assert (await store.get_job(jid))['answer'] == complete
+    finally:
+        await store.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('code,expected', [('msg_too_long', 'msg_too_long'),
+                                          ('private message content', 'unknown_error')])
+async def test_slack_failure_logs_only_method_and_sanitized_code(tmp_path, monkeypatch, caplog, code, expected):
+    real_client = httpx.AsyncClient
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json={
+        'ok': False, 'error': code, 'response_metadata': {'messages': ['private upstream body']}}))
+    monkeypatch.setattr('litellm_memory.slack.httpx.AsyncClient',
+                        lambda **kwargs: real_client(transport=transport, **kwargs))
+    slack = Slack(config(tmp_path), None)
+    slack.token = AsyncMock(return_value='synthetic-secret')
+    with pytest.raises(SlackAPIError):
+        await slack.api('chat.update', {'text': 'private answer', 'channel': 'C1', 'ts': '1'})
+    assert f'Slack chat.update failed ({expected})' in caplog.text
+    assert 'private' not in caplog.text and 'synthetic-secret' not in caplog.text
 
 
 def test_slack_followup_cancels_running_model_and_answers_latest(tmp_path):
@@ -232,11 +292,11 @@ def test_owner_created_group_dm_acknowledges_before_model_then_delivers_once(tmp
         signed_event(client, {'type': 'app_mention', 'user': 'UTIN', 'channel': 'C-GROUP-DM',
                               'channel_type': 'mpim', 'ts': '10', 'text': '<@UBOT> hello'})
         for _ in range(80):
-            if any(method == 'chat.update' for method, _ in calls):
+            if any(method == 'chat.postMessage' and payload['text'] == 'Group DM answer' for method, payload in calls):
                 break
             time.sleep(.05)
         assert client.portal.call(app.state.store.channel_allowed, 'T1', 'C-GROUP-DM')
-        assert any(method == 'chat.update' and payload['text'] == 'Group DM answer' for method, payload in calls)
+        assert any(method == 'chat.postMessage' and payload['text'] == 'Group DM answer' for method, payload in calls)
         reactions = [(method, payload) for method, payload in calls if method.startswith('reactions.')]
         assert reactions == []
         assert not any(method == 'assistant.threads.setStatus' for method, _ in calls)
@@ -290,6 +350,6 @@ async def test_acknowledgment_retries_without_streaming_or_overwriting_final(tmp
     await slack.indicator(jid)
     assert slack.api.await_count == 3
     assert (await store.get_job(jid))['indicator_done']
-    assert slack.api.call_args.args[0] == 'chat.update'
+    assert slack.api.call_args.args[0] == 'chat.postMessage'
     assert slack.api.call_args.args[1]['text'] == 'Verified answer'
     await store.close()
