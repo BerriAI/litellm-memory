@@ -7,7 +7,8 @@ import tarfile
 from contextlib import asynccontextmanager
 
 import httpx
-from agents.mcp import MCPServerStdio, create_static_tool_filter
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
 
 from .config import Settings
 
@@ -35,14 +36,11 @@ async def memory_server(settings: Settings):
     }
     if settings.gh_token:
         env["GH_TOKEN"] = settings.gh_token
-    async with MEMORY_SLOTS, MCPServerStdio(
-        name="product-team-knowledge",
-        params={"command": "node", "args": [str(settings.memory_script), "serve"], "env": env},
-        client_session_timeout_seconds=240,
-        cache_tools_list=True,
-        tool_filter=create_static_tool_filter(allowed_tool_names=READ_TOOLS),
-    ) as server:
-        yield server
+    params = StdioServerParameters(command="node", args=[str(settings.memory_script), "serve"], env=env)
+    async with MEMORY_SLOTS, stdio_client(params) as (read, write):
+        async with ClientSession(read, write, read_timeout_seconds=240) as server:
+            await server.initialize()
+            yield server
 
 
 async def memory_call(server, name: str, args: dict):

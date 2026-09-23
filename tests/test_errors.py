@@ -22,6 +22,14 @@ def test_billing_error_is_not_confused_with_temporary_throttling():
     assert explain_error(rate_limit('Rate limit reached for requests per minute')).retryable
 
 
+def test_mcp_task_group_preserves_terminal_billing_failures():
+    error = ExceptionGroup('MCP session cleanup', [ExceptionGroup('session', [
+        rate_limit('You have no credits remaining.'),
+    ])])
+    result = explain_error(error)
+    assert not result.retryable and 'reports no API credits' in result.message
+
+
 def test_slack_billing_failure_is_reported_once_without_retries(tmp_path):
     attempts, replies, reactions = [], [], []
 

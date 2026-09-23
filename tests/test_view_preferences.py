@@ -1,5 +1,4 @@
 import json
-from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -143,35 +142,36 @@ async def test_type_search_uses_jev_labels_instead_of_a_conflicting_summary_type
 
 @pytest.mark.asyncio
 async def test_agent_read_tool_cannot_bypass_a_personal_filter(archive, monkeypatch):
+    from liteagents import AssistantMessage, TextBlock
+
     from litellm_memory import query
+    from litellm_memory.agent_runtime import agent_options
     saved = await archive.capture('T1:A', WorkInput(source_id='hidden', source='codex', content='EXCLUDED_CANARY'))
     await archive.save_view_preferences('T1:A', ViewPreferences(hidden_sources=['codex']))
 
-    @asynccontextmanager
-    async def chat_client():
-        yield object()
-
-    class Stream:
-        is_complete = True
+    class Client:
         final_output = 'No matching work.'
 
-        def __init__(self, agent):
-            self.tools = {tool.__name__: tool for tool in agent.tools}
+        def __init__(self, *, options, history):
+            self.tools = {tool.name: tool for tool in options.tools}
 
-        async def stream_events(self):
-            result = json.loads(await self.tools['search_work']('EXCLUDED_CANARY'))
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+        async def query(self, question):
+            result = json.loads(await self.tools['search_work'].execute({'query': 'EXCLUDED_CANARY'}))
             assert result['total'] == 0
-            read = await self.tools['read_work'](saved['id'])
+            read = await self.tools['read_work'].execute({'record_id': saved['id']})
             assert 'EXCLUDED_CANARY' not in read and 'preferences' in read
-            if False:
-                yield None
+            yield AssistantMessage([TextBlock(self.final_output)], model="chat", stop_reason="end_turn")
 
-    gateway = SimpleNamespace(chat_client=chat_client, validate_model=AsyncMock(return_value='chat'),
+    gateway = SimpleNamespace(agent_options=lambda model, **kwargs: agent_options(Settings(_env_file=None), model, **kwargs),
+                              validate_model=AsyncMock(return_value='chat'),
                               embeddings=AsyncMock(return_value=[[]]))
-    monkeypatch.setattr(query, 'function_tool', lambda function: function)
-    monkeypatch.setattr(query, 'Agent', lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(query, 'OpenAIChatCompletionsModel', lambda **kwargs: object())
-    monkeypatch.setattr(query.Runner, 'run_streamed', lambda agent, *args, **kwargs: Stream(agent))
+    monkeypatch.setattr(query, 'LiteAgentClient', Client)
     assert await query.answer_work(Settings(_env_file=None), archive, gateway, Reader('T1:A'), 'My work') == 'No matching work.'
 
 

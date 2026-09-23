@@ -11,6 +11,11 @@ class Failure:
 
 def explain_error(error: Exception) -> Failure:
     # Inspect provider details locally, but never send raw upstream bodies or credentials to users.
+    if isinstance(error, ExceptionGroup):
+        # MCP transports use task groups. Keep billing/auth failures terminal
+        # even when session cleanup wraps the original provider exception.
+        failures = [explain_error(child) for child in error.exceptions]
+        return next((failure for failure in failures if not failure.retryable), failures[0])
     if isinstance(error, RateLimitError):
         detail = str(error).lower()
         if any(marker in detail for marker in (
