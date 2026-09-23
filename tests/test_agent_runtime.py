@@ -240,13 +240,13 @@ async def test_search_only_draft_is_grounded_in_full_public_sources_before_deliv
     async def ground(messages, **kwargs):
         evidence = json.loads(messages[-1]['content'])
         assert evidence['question'] == 'Did it ship?'
-        assert evidence['answer'] == draft
+        assert evidence['answer'] == draft.replace(settings.public_base_url + '/memory/' + saved['id'], 'memory-source:S1')
         assert len(evidence['evidence']) == 1
         assert evidence['evidence'][0]['text'] == summary  # Includes the late correction past 8,000 chars.
         assert evidence['evidence'][0]['date_basis'] == 'recorded'
         assert 'PRIVATE_ORIGINAL_CANARY' not in json.dumps(messages)
         assert 'PRIVATE_RECORD_CANARY' not in json.dumps(messages)
-        return corrected
+        return 'The change remains unmerged. [Source](memory-source:S1)'
 
     with model_gateway(respond) as (url, requests):
         settings.litellm_base_url, settings.litellm_api_key = url, 'synthetic-key'
