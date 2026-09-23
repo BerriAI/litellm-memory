@@ -50,7 +50,7 @@ Browsing uses text, person, source, project, saved type metadata and dates. Pers
 
 Web, Slack, MCP and API use the same read-only query agent. It can search, inspect originals it is permitted to read, list people and consult current/daily views. It has no tool that publishes work or changes permissions.
 
-Permissions apply before retrieval/decryption and again before delivering an answer. Shared Slack conversations use company-public evidence only and fail closed for unknown or ineligible participants. Private questions require a verified personal audience. Changing audience/person invalidates previous conversation context; access changes can also invalidate in-flight answers.
+Permissions apply before retrieval/decryption and again before delivering an answer. Slack checks the requester's eligibility and enrollment and the channel's owner approval. Shared conversations use company-public evidence only, regardless of other participants, including apps and external members. Private questions require a verified personal DM with the requester. Changing audience/person invalidates previous conversation context; access changes can also invalidate in-flight answers.
 
 Slack posts one acknowledgment, then replaces it with the completed, verified answer. It never streams partial answers or changing queue statuses. Native Slack source links and Markdown citations share validation; one internal repair attempt may fix invalid citations before delivery.
 

@@ -79,6 +79,12 @@ jobs:
           docker compose -p litellm-memory-restored exec -T litellm-memory python -c "import httpx; c=httpx.Client(base_url='http://127.0.0.1:8000'); assert c.get('/health').json()['status']=='recovery'; assert c.post('/slack/events',json={}).status_code==503; assert c.post('/mcp',json={}).status_code==503"
           docker compose -p litellm-memory-restored up -d --wait --wait-timeout 180
           docker compose -p litellm-memory-restored exec -T litellm-memory python - < tests/smoke_bundle.py
+      - name: Exercise the deployed SDK and tools within the production memory limit
+        run: |
+          docker update --memory 512m --memory-swap 512m "$(docker compose -p litellm-memory-restored ps -q litellm-memory)"
+          docker compose -p litellm-memory-restored restart litellm-memory
+          docker compose -p litellm-memory-restored up --wait --wait-timeout 180 -d
+          docker compose -p litellm-memory-restored exec -T litellm-memory python - < tests/smoke_agent_deployment.py
       - name: Show content-free service status
         if: always()
         run: docker compose ps

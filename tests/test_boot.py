@@ -1,9 +1,20 @@
 import json
+import subprocess
+import sys
 
 import httpx
 import pytest
 
 from litellm_memory.boot import BootError, database_config, museum_config, provision_account
+
+
+def test_launcher_does_not_load_the_workers_model_sdk():
+    # Boot remains resident while uvicorn runs in another process. Importing
+    # LiteLLM in both exhausted the production container's 512 MiB limit.
+    subprocess.run([sys.executable, '-c', (
+        'import sys; import litellm_memory.boot; '
+        'assert "liteagents" not in sys.modules; assert "litellm" not in sys.modules'
+    )], check=True, timeout=30)
 
 
 def test_museum_boot_configuration_is_private_and_hardened_after_bootstrap():

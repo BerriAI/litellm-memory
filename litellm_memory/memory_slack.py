@@ -109,20 +109,7 @@ class MemorySlack(Slack):
         info = data.get("channel", {})
         if info.get("is_im") and info.get("user") == payload["user"]:
             return Reader(owner, "owner")
-        if info.get("is_ext_shared") or info.get("is_org_shared") or info.get("is_shared"):
-            raise PermissionError("Open the dashboard to ask in a conversation with external participants.")
-        # Confirm every channel participant is a current, non-guest workspace member.
-        cursor = ""
-        while True:
-            page = await self.api("conversations.members", {"channel": payload["channel"], "cursor": cursor, "limit": 200})
-            for user_id in page.get("members", []):
-                if user_id == await self.bot_id():
-                    continue
-                user = (await self.api("users.info", {"user": user_id})).get("user", {})
-                if (not self.eligible(user, user_id)
-                        or not await self.archive.member(f"{payload['team']}:{user_id}")):
-                    raise PermissionError("Open the dashboard for this question.")
-            cursor = page.get("response_metadata", {}).get("next_cursor", "")
-            if not cursor:
-                break
+        # Authorize the requester and the owner-approved conversation, not its
+        # other participants. Every channel/MPIM uses shared publications only,
+        # including channels with apps, unenrolled people or external members.
         return Reader(owner, "public")

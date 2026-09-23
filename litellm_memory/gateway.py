@@ -12,7 +12,6 @@ from typing import Literal
 import httpx
 from pydantic import BaseModel, Field
 
-from .agent_runtime import agent_options
 from .config import Settings
 from .observability import Telemetry
 
@@ -61,6 +60,10 @@ class Gateway:
         await self.http.aclose()
 
     def agent_options(self, model, **kwargs):
+        # The launcher uses Gateway for setup, but only the web worker runs
+        # agents. Keep the model SDK out of the launcher's resident memory.
+        from .agent_runtime import agent_options
+
         return agent_options(self.settings, model, **kwargs)
 
     def snapshot(self, **overrides):
