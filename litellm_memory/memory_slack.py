@@ -111,7 +111,9 @@ class MemorySlack(Slack):
             return Reader(owner, "owner")
         if info.get("is_ext_shared") or info.get("is_org_shared") or info.get("is_shared"):
             raise PermissionError("Open the dashboard to ask in a conversation with external participants.")
-        # Confirm every channel participant is a current, non-guest workspace member.
+        # An approved internal channel can include installed workspace apps.
+        # Bots are audience members, not people who can enroll in Memory. They
+        # still receive only the public projection returned below.
         cursor = ""
         while True:
             page = await self.api("conversations.members", {"channel": payload["channel"], "cursor": cursor, "limit": 200})
@@ -119,6 +121,10 @@ class MemorySlack(Slack):
                 if user_id == await self.bot_id():
                     continue
                 user = (await self.api("users.info", {"user": user_id})).get("user", {})
+                if (user.get('id') == user_id and user.get('is_bot') and not user.get('deleted')
+                        and user.get('team_id') == self.settings.slack_team_id
+                        and not user.get('is_restricted') and not user.get('is_ultra_restricted')):
+                    continue
                 if (not self.eligible(user, user_id)
                         or not await self.archive.member(f"{payload['team']}:{user_id}")):
                     raise PermissionError("Open the dashboard for this question.")

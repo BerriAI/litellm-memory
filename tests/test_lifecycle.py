@@ -134,6 +134,17 @@ async def test_slack_fresh_membership_and_shared_audience_fail_closed(archive):
     assert await slack.reader(payload) == Reader('T1:A')
     channel = {'is_private': True, 'is_im': False}
     assert await slack.reader(payload) == Reader('T1:A', 'public')
+    users['APP'] = {'id': 'APP', 'team_id': 'T1', 'is_bot': True}
+    participants.append('APP')
+    assert await slack.reader(payload) == Reader('T1:A', 'public')
+    for field, value in [('id', 'OTHER'), ('team_id', 'OTHER'), ('deleted', True),
+                         ('is_restricted', True), ('is_ultra_restricted', True)]:
+        valid = users['APP'].copy()
+        users['APP'][field] = value
+        with pytest.raises(PermissionError):
+            await slack.reader(payload)
+        users['APP'] = valid
+    participants.remove('APP')
     for invalid in [{'is_ext_shared': True}, {'is_org_shared': True}, {'is_shared': True}]:
         channel = invalid
         with pytest.raises(PermissionError):
