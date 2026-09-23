@@ -48,7 +48,7 @@ async def test_slack_only_delivers_acknowledgment_and_validated_final(archive, t
         assert record['status'] == ('failed' if fail else 'done')
         await slack.indicator(jid)
         calls = slack.api.call_args_list
-        assert [c.args[0] for c in calls] == ['chat.postMessage', 'chat.update']
+        assert [c.args[0] for c in calls] == ['chat.postMessage', 'chat.postMessage']
         assert all('UNVERIFIED' not in str(c) for c in calls)
         assert 'reply here when the answer is ready' in calls[0].args[1]['text']
         assert not record['partial']

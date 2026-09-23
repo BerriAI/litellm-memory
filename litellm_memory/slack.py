@@ -15,6 +15,9 @@ from .access import AccessPolicy, Principal
 
 log = logging.getLogger(__name__)
 TERMINAL = {"done", "failed", "cancelled", "ignored"}
+# Leave headroom under the 12,000-character limit for Markdown blocks.
+MESSAGE_MARKDOWN_LIMIT = 11000
+ACKNOWLEDGMENT = "I’ll look into that and reply here when the answer is ready."
 
 
 class SlackAPIError(RuntimeError):
@@ -70,11 +73,16 @@ class Slack:
                 retry_after = min(3600, max(1, float(response.headers.get("retry-after", "30"))))
             except ValueError:
                 retry_after = 30
+            log.warning("Slack %s failed (ratelimited)", method)
             raise SlackAPIError("ratelimited", retry_after)
         response.raise_for_status()
         data = response.json()
         if not data.get("ok"):
-            raise SlackAPIError(data.get("error", "unknown_error"))
+            error = SlackAPIError(data.get("error", "unknown_error"))
+            # Codes are sanitized by SlackAPIError; never log response bodies,
+            # message contents, or credentials.
+            log.warning("Slack %s failed (%s)", method, error.code)
+            raise error
         return data
 
     async def message_api(self, method, payload):
@@ -247,6 +255,8 @@ class Slack:
                 if not text or message.get("subtype") in {"message_deleted", "channel_join", "channel_leave"}:
                     continue
                 ours = message.get("user") == bot_id
+                if ours and text == ACKNOWLEDGMENT:
+                    continue
                 history.append({"role": "assistant" if ours else "user",
                                 "content": text[:3000] if ours else f"<@{message.get('user', 'unknown')}>: {text[:3000]}"})
             if truncated:
@@ -301,7 +311,7 @@ class Slack:
                 return
             response = await self.optional_api("chat.postMessage", {
                 "channel": p["channel"], "thread_ts": p["thread_ts"],
-                **formatted("I’ll look into that and reply here when the answer is ready."),
+                **formatted(ACKNOWLEDGMENT),
                 "unfurl_links": False, "unfurl_media": False,
                 "client_msg_id": str(uuid.uuid5(uuid.NAMESPACE_URL, job_id + ":status")),
             })
@@ -319,13 +329,20 @@ class Slack:
                 text += f"\n\n[View all {len(ids)} sources]({self.settings.public_base_url}/sources?{urlencode({'ids': ','.join(ids)})})"
             parts, current = [], ""
             for line in text.splitlines(keepends=True):
-                while len(line) > 11000:
+                while len(line) > MESSAGE_MARKDOWN_LIMIT:
                     if current:
                         parts.append(current)
                         current = ""
-                    parts.append(line[:11000])
-                    line = line[11000:]
-                if len(current) + len(line) > 11000:
+                    split = MESSAGE_MARKDOWN_LIMIT
+                    # Keep source links clickable when a long paragraph crosses
+                    # the boundary between two Slack messages.
+                    for link in re.finditer(r"\[[^\]\n]*\]\(https?://[^\s)]+\)", line):
+                        if 0 < link.start() < split < link.end():
+                            split = link.start()
+                            break
+                    parts.append(line[:split])
+                    line = line[split:]
+                if len(current) + len(line) > MESSAGE_MARKDOWN_LIMIT:
                     parts.append(current)
                     current = ""
                 current += line
@@ -335,13 +352,12 @@ class Slack:
                 if (await self.store.get_job(job["id"]))["status"] == "cancelled":
                     return False
                 args = {"channel": payload["channel"], **formatted(part), "unfurl_links": False, "unfurl_media": False}
-                if index == 0 and record["response_ts"]:
-                    await self.message_api("chat.update", {**args, "ts": record["response_ts"]})
-                else:
-                    result = await self.message_api("chat.postMessage", {**args, "thread_ts": payload["thread_ts"],
-                        "client_msg_id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{job['id']}:{index}"))})
-                    if index == 0 and result.get("ts"):
-                        await self.store.slack_delivery(job["id"], response_ts=result["ts"])
+                # A completed answer is a new thread reply. chat.update has a
+                # stricter text limit and can reject a valid Markdown answer.
+                result = await self.message_api("chat.postMessage", {**args, "thread_ts": payload["thread_ts"],
+                    "client_msg_id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{job['id']}:{index}"))})
+                if index == 0 and result.get("ts"):
+                    await self.store.slack_delivery(job["id"], response_ts=result["ts"])
             # Mark terminal inside the delivery lock so the monitor cannot overwrite the final answer.
             await self.store.result(job["id"], answer=text, status="failed" if record["status"] == "failed" else "done", error=record["error"])
             return True
