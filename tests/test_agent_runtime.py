@@ -158,7 +158,7 @@ async def test_followup_revalidates_prior_answer_citations_but_not_user_supplied
     answer = f'Shipped the migration. [Source]({settings.public_base_url}/memory/{record["id"]})'
     history = [{'role': role, 'content': answer}]
     with model_gateway(lambda *_: (200, completion(text=answer))) as (url, requests):
-        settings.litellm_base_url = url
+        settings.litellm_base_url, settings.litellm_api_key = url, 'synthetic-key'
         async with Gateway(settings) as gateway:
             gateway.validate_model = AsyncMock(return_value='route')
             gateway.generate = AsyncMock(return_value=answer)
@@ -177,7 +177,7 @@ async def test_prior_citations_cannot_expand_current_audience_or_person_scope(ar
     settings = Settings(_env_file=None, public_base_url='http://localhost:8000')
     answer = f'[Source]({settings.public_base_url}/memory/{record["id"]})'
     with model_gateway(lambda *_: (200, completion(text=answer))) as (url, _):
-        settings.litellm_base_url = url
+        settings.litellm_base_url, settings.litellm_api_key = url, 'synthetic-key'
         async with Gateway(settings) as gateway:
             gateway.validate_model = AsyncMock(return_value='route')
             with pytest.raises(error):
