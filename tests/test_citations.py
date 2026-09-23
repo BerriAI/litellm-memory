@@ -40,9 +40,11 @@ async def test_missing_citations_repair_once_using_authorized_evidence():
 
     settings = SimpleNamespace(public_base_url='https://memory.example')
     archive = SimpleNamespace(read=AsyncMock(return_value={'title': 'Build', 'summary': 'Built a widget', 'content': 'Private original'}))
-    gateway = SimpleNamespace(generate=AsyncMock(return_value='Built a widget. [Build](https://memory.example/memory/known)'))
+    gateway = SimpleNamespace(generate=AsyncMock(return_value='Built a widget. [Build](memory-source:S1)'))
     result = await verified_answer('Built a widget.', {'known'}, settings, archive, gateway, Reader('T:A'), 'chosen-agent')
     assert '[Build]' in result
+    assert result.endswith('(https://memory.example/memory/known)')
+    assert 'memory-source:' not in result
     assert gateway.generate.call_args.kwargs['model'] == 'chosen-agent'
     assert 'Private original' not in str(gateway.generate.call_args)
     archive.read.assert_awaited_once_with(Reader('T:A'), 'known')
@@ -54,6 +56,33 @@ async def test_missing_citations_repair_once_using_authorized_evidence():
     with pytest.raises(PermissionError):
         await verified_answer('Uncited.', {'known'}, settings, archive, gateway, Reader('T:A'), 'chosen-agent')
     assert gateway.generate.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_grounding_maps_distinct_source_references_and_rejects_unknown_ones():
+    import json
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from litellm_memory.archive import Reader
+    from litellm_memory.query import verified_answer
+
+    async def read(_reader, record_id):
+        return {'title': record_id, 'summary': 'Savings' if record_id == 'a' else 'Pagination'}
+
+    settings = SimpleNamespace(public_base_url='https://memory.example')
+    archive = SimpleNamespace(read=read)
+    gateway = SimpleNamespace(generate=AsyncMock(return_value='Pagination. [Rows](memory-source:S2)'))
+    draft = 'Pagination. [Wrong source](https://memory.example/memory/a)'
+    result = await verified_answer(draft, {'b', 'a'}, settings, archive, gateway, Reader('T:A'), 'model', ground=True)
+    assert result == 'Pagination. [Rows](https://memory.example/memory/b)'
+    context = json.loads(gateway.generate.call_args.args[0][-1]['content'])
+    assert context['evidence'][1]['source'] == 'S2'
+    assert context['evidence'][1]['text'] == 'Pagination'
+    assert '/memory/' not in json.dumps(context)
+    gateway.generate.return_value = 'Pagination. [Rows](memory-source:S3)'
+    with pytest.raises(CitationError, match='unknown evidence reference'):
+        await verified_answer(draft, {'b', 'a'}, settings, archive, gateway, Reader('T:A'), 'model', ground=True)
 
 
 @pytest.mark.asyncio

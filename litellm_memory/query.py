@@ -73,11 +73,14 @@ async def verified_answer(answer, sources, settings, archive, gateway, reader, m
         raise CitationError('The answer cited evidence that was never retrieved.')
     # Repair once, privately, with the evidence actually read in this run.
     # Never append arbitrary citations or relax validation to hide a failure.
-    evidence = []
-    for record_id in sorted(sources):
+    evidence, links = [], {}
+    for index, record_id in enumerate(sorted(sources), 1):
         record = await archive.read(reader, record_id)
         activity = activity_timestamp(record)
-        evidence.append({'url': settings.public_base_url + '/memory/' + record_id,
+        reference = f'S{index}'
+        links[reference] = settings.public_base_url + '/memory/' + record_id
+        answer = answer.replace(links[reference], 'memory-source:' + reference)
+        evidence.append({'source': reference,
                          'title': record['title'], 'text': record.get('summary') or record.get('content', ''),
                          'activity_at': activity.isoformat() if activity else None,
                          'date_basis': ('event' if record.get('created_at') else 'recorded') if activity else None})
@@ -85,8 +88,10 @@ async def verified_answer(answer, sources, settings, archive, gateway, reader, m
         {'role': 'system', 'content': (
             'Answer the question by correcting the draft against the supplied evidence. '
             'Return only the final answer in Markdown, at most 200 words unless more detail was requested. '
-            'Use the exact supplied source URLs next to supported claims. Remove unsupported claims; '
-            'do not invent or alter IDs or links. Preserve pending, unmerged and planned statuses. '
+            'Cite each supported claim using its matching source, as [title](memory-source:S1). '
+            'Use only supplied source references; the application resolves them to URLs. '
+            'Check that each cited source actually supports that bullet, not just a nearby topic. '
+            'Remove unsupported claims. Preserve pending, unmerged and planned statuses. '
             'Prefer newer corrections for current status. '
             'Recorded dates date the update, not when the underlying work began. '
             'Do not equate incomplete evidence with no activity. '
@@ -95,6 +100,12 @@ async def verified_answer(answer, sources, settings, archive, gateway, reader, m
             'timezone': timezone, 'today': datetime.now(ZoneInfo(timezone)).date().isoformat(),
             'delivery': 'Slack thread' if request_source.get() == 'slack' else request_source.get()}, ensure_ascii=False)},
     ], model=model)
+    def resolve(match):
+        if match[1] not in links:
+            raise CitationError('The answer contained an unknown evidence reference.')
+        return '](' + links[match[1]] + ')'
+
+    repaired = re.sub(r'\]\(memory-source:([^\s)]+)\)', resolve, repaired)
     return validate_citations(repaired, sources, settings.public_base_url)
 
 
