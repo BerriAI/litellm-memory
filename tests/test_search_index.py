@@ -7,6 +7,62 @@ archive = archive_fixture
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('query', ['', 'update'])
+async def test_date_search_includes_live_recorded_work_without_redating_imports(archive, monkeypatch, query):
+    from litellm_memory.time_settings import activity_timestamp
+
+    monkeypatch.setattr('litellm_memory.archive.now', lambda: '2026-09-23T01:40:00+00:00')
+    included = set()
+    for name, options in [
+        ('codex', {'source': 'codex'}),
+        ('claude', {'source': 'claude'}),
+        ('mcp', {'source': 'mcp'}),
+        ('event-in-range', {'source': 'codex', 'occurred_at': '2026-09-22T07:00:00Z'}),
+        ('older-event', {'source': 'codex', 'occurred_at': '2026-09-22T06:59:59Z'}),
+        ('next-day-event', {'source': 'codex', 'occurred_at': '2026-09-23T07:00:00Z'}),
+        ('historical', {'source': 'codex', 'historical': True}),
+        ('timezone-unknown', {'source': 'codex', 'occurred_at': '2026-09-22T12:00:00'}),
+        ('manual', {}),
+    ]:
+        saved = await archive.capture('T1:A', WorkInput(source_id=name, content='Work update', **options))
+        if name in {'codex', 'claude', 'mcp', 'event-in-range'}:
+            included.add(saved['id'])
+        await archive.set_visibility('T1:A', saved['id'], 'public')
+        row = await archive.next_work(historical=options.get('historical', False))
+        payload = await archive.decode(row)
+        payload.update(summary='Shared update', labels={'progress': .95})
+        await archive.complete_work(row, payload, private_match=False)
+    private = await archive.capture('T1:A', WorkInput(source='codex', source_id='private', content='Private update'))
+    bounds = {'created_from': '2026-09-22T07:00:00Z', 'created_before': '2026-09-23T07:00:00Z'}
+    for reader in [Reader('T1:A'), Reader('T1:A', 'public'), Reader('T1:B')]:
+        found = await archive.search(reader, query, owner='T1:A', **bounds)
+        assert {r['id'] for r in found['results']} == included | ({private['id']} if reader.audience == 'owner'
+                                                                 and reader.owner == 'T1:A' else set())
+        for item in found['results']:
+            assert item['activity_at'] == activity_timestamp(item).isoformat()
+            assert item['date_basis'] == ('event' if item['created_at'] else 'recorded')
+            if item['date_basis'] == 'recorded':
+                assert item['created_at'] is None
+                assert item['activity_at'] == item['captured_at']
+    assert not (await archive.search(Reader('T2:C'), query, **bounds))['results']
+    original = await archive.read(Reader('T1:A'), private['id'])
+    assert original['created_at'] is None and original['original']['occurred_at'] is None
+
+
+@pytest.mark.asyncio
+async def test_recorded_time_search_uses_inclusive_start_and_exclusive_end(archive, monkeypatch):
+    ids = []
+    for index, captured in enumerate(['2026-09-22T06:59:59Z', '2026-09-22T07:00:00Z',
+                                     '2026-09-23T06:59:59Z', '2026-09-23T07:00:00Z']):
+        monkeypatch.setattr('litellm_memory.archive.now', lambda: captured)
+        ids.append((await archive.capture('T1:A', WorkInput(source='codex', source_id=str(index),
+                                                           content='Live work')))['id'])
+    found = await archive.search(Reader('T1:A'), created_from='2026-09-22T00:00:00-07:00',
+                                 created_before='2026-09-23T00:00:00-07:00')
+    assert [r['id'] for r in found['results']] == [ids[2], ids[1]]
+
+
+@pytest.mark.asyncio
 async def test_search_reuses_unchanged_partitions_and_invalidates_deleted_content(archive):
     first = await archive.capture('T1:A', WorkInput(source_id='cached', content='SEARCH_PRIVATE_CANARY',
                                                   occurred_at='2026-09-18T12:00:00Z'))
