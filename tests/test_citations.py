@@ -54,3 +54,18 @@ async def test_missing_citations_repair_once_using_authorized_evidence():
     with pytest.raises(PermissionError):
         await verified_answer('Uncited.', {'known'}, settings, archive, gateway, Reader('T:A'), 'chosen-agent')
     assert gateway.generate.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_citation_repair_never_turns_empty_evidence_into_a_successful_answer():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from litellm_memory.archive import Reader
+    from litellm_memory.query import verified_answer
+
+    gateway = SimpleNamespace(generate=AsyncMock(return_value='No evidence available.'))
+    with pytest.raises(CitationError):
+        await verified_answer('[Source](https://memory.example/memory/invented)', set(),
+            SimpleNamespace(public_base_url='https://memory.example'), SimpleNamespace(), gateway, Reader('T:A'), 'model')
+    gateway.generate.assert_not_called()

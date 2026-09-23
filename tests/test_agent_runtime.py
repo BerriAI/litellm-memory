@@ -216,6 +216,48 @@ async def test_slack_today_search_pages_live_public_work_in_workspace_timezone(a
         assert len(requests) == 4
 
 
+@pytest.mark.parametrize('citation', ['returned', 'invented'])
+async def test_search_only_draft_is_grounded_in_full_public_sources_before_delivery(archive, citation):
+    saved = await archive.capture('T1:A', WorkInput(source='codex', source_id='search-only',
+        content='PRIVATE_ORIGINAL_CANARY'))
+    await archive.set_visibility('T1:A', saved['id'], 'public')
+    row = await archive.next_work()
+    payload = await archive.decode(row)
+    summary = 'A' * 9000 + ' The full evidence says the change remains unmerged.'
+    payload.update(summary=summary, labels={'progress': .95})
+    await archive.complete_work(row, payload, private_match=False)
+    await archive.capture('T1:A', WorkInput(source='codex', source_id='private-grounding',
+                                           content='PRIVATE_RECORD_CANARY'))
+    settings = Settings(_env_file=None, public_base_url='http://localhost:8000')
+    record_id = saved['id'] if citation == 'returned' else 'invented'
+    draft = f'Shipped. [Source]({settings.public_base_url}/memory/{record_id})'
+    corrected = f'The change remains unmerged. [Source]({settings.public_base_url}/memory/{saved["id"]})'
+
+    def respond(body, index):
+        return 200, (completion(tool='search_work', arguments={'query': '', 'person': 'T1:A'})
+                     if index == 1 else completion(text=draft))
+
+    async def ground(messages, **kwargs):
+        evidence = json.loads(messages[-1]['content'])
+        assert evidence['question'] == 'Did it ship?'
+        assert evidence['answer'] == draft
+        assert len(evidence['evidence']) == 1
+        assert evidence['evidence'][0]['text'] == summary  # Includes the late correction past 8,000 chars.
+        assert evidence['evidence'][0]['date_basis'] == 'recorded'
+        assert 'PRIVATE_ORIGINAL_CANARY' not in json.dumps(messages)
+        assert 'PRIVATE_RECORD_CANARY' not in json.dumps(messages)
+        return corrected
+
+    with model_gateway(respond) as (url, requests):
+        settings.litellm_base_url, settings.litellm_api_key = url, 'synthetic-key'
+        async with Gateway(settings) as gateway:
+            gateway.validate_model = AsyncMock(return_value='route')
+            gateway.generate = AsyncMock(side_effect=ground)
+            assert await answer_work(settings, archive, gateway, Reader('T1:B', 'public'), 'Did it ship?') == corrected
+            gateway.generate.assert_awaited_once()
+        assert len(requests) == 2
+
+
 @pytest.mark.parametrize('role', ['assistant', 'user'])
 async def test_followup_revalidates_prior_answer_citations_but_not_user_supplied_links(archive, role):
     record = await archive.capture('T1:A', WorkInput(source_id='followup', content='Shipped the migration.'))

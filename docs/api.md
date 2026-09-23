@@ -88,7 +88,7 @@ Once Jev labels are available, type matching and feed chips use those cached cla
 
 Chat accepts a question, optional gateway model, optional person scope, audience (`owner`/`public`), and a previous owned job ID. The server loads history; clients cannot supply an arbitrary privileged transcript. Changing scope/audience requires a fresh conversation. Policy changes invalidate stale results.
 
-Final memory citation links must reference sources read in the same authorized run (or checked source manifests from an overview). Invented links fail the answer with a retry message. This validates source identity and access; it does not automatically prove that every generated sentence faithfully summarizes its source.
+Final memory citation links must reference sources read in the same authorized run (or checked source manifests from an overview). If the model drafts an answer from search results without reading sources, the application re-reads up to 30 retrieved candidates under the current access, person scope and viewing preferences, then corrects the draft against their full permitted summaries and exact source URLs. It never converts an empty citation-repair evidence set into a successful “no evidence” answer. Invented links that cannot be repaired fail the answer with a retry message. These checks do not automatically prove that every generated sentence faithfully summarizes its source; answer-quality review remains necessary.
 
 ## Export and corrections
 
