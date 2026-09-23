@@ -8,8 +8,9 @@ import time
 from datetime import UTC, date, datetime
 from urllib.parse import urlsplit
 
-from agents import Agent, ModelSettings, OpenAIChatCompletionsModel, RunConfig, Runner, function_tool
+from liteagents import AssistantMessage, LiteAgentClient, TextDelta, ToolUseBlock
 
+from .agent_runtime import RunOutput, chat_history, function_tool
 from .archive import Reader
 from .observability import Telemetry, request_source
 from .progress import report
@@ -184,10 +185,9 @@ async def _answer_work(settings, archive, gateway, reader: Reader, question, his
         await report(" ".join(message.split())[:160])
         return "Updated"
 
-    async with gateway.chat_client() as client:
-        agent = Agent(
-            name="LiteLLM Memory",
-            instructions=f"""You answer questions about people's work from their recorded evidence.
+    options = gateway.agent_options(
+        model,
+        system=f"""You answer questions about people's work from their recorded evidence.
 Current UTC time: {datetime.now(UTC).isoformat()}. Your user's identity is {reader.owner}.
 The delivery audience is {reader.audience}. Tools enforce it; you cannot expand it.
 Personal viewing preferences also narrow the available work. Do not work around exclusions.
@@ -224,43 +224,31 @@ are available. Do not claim to save, send or change anything. Do not impersonate
 If evidence is missing, say what is known without guessing. No activity record does not mean no work.
 Before substantial research give a short update with update_status; skip for greetings.
 """,
-            model=OpenAIChatCompletionsModel(model=model, openai_client=client),
-            model_settings=ModelSettings(extra_body={"no-log": True}, parallel_tool_calls=True),
-            tools=[search_work, read_work, list_people, work_overview, daily_summaries, update_status],
-        )
-        result = Runner.run_streamed(agent, [*(history or [])[-16:], {"role": "user", "content": question}],
-                                     max_turns=settings.max_agent_turns,
-                                     run_config=RunConfig(tracing_disabled=True, trace_include_sensitive_data=False))
-        partial, last_update = "", 0.0
-        try:
-            async for event in result.stream_events():
-                if event.type == "raw_response_event" and event.data.type == "response.output_text.delta":
-                    partial += event.data.delta
+        tools=[search_work, read_work, list_people, work_overview, daily_summaries, update_status],
+    )
+    output = RunOutput()
+    async with LiteAgentClient(options=options, history=chat_history((history or [])[-16:])) as agent:
+        async with contextlib.aclosing(agent.query(question)) as events:
+            partial, last_update = "", 0.0
+            async for event in events:
+                if isinstance(event, TextDelta):
+                    partial += event.text
                     if time.monotonic() - last_update > 0.2:
                         await check_access()
                         await report("Writing an answer", partial)
                         last_update = time.monotonic()
-                elif event.type == "run_item_stream_event" and event.name == "tool_called":
-                    partial = ""
-                    await report("Checking the evidence", "")
+                elif isinstance(event, AssistantMessage):
+                    output.observe(event)
+                    if any(isinstance(block, ToolUseBlock) for block in event.content):
+                        partial = ""
+                        await report("Checking the evidence", "")
             await check_access()
             # Verify every read source still passes current access before final delivery.
             for source in sources:
                 await archive.read(reader, source)
             if operation:
-                operation.set(source_count=len(sources))
-                usage = getattr(getattr(result, 'context_wrapper', None), 'usage', None)
-                if usage is not None:
-                    operation.set(input_tokens=usage.input_tokens, output_tokens=usage.output_tokens,
-                                  model_requests=usage.requests)
-            answer = await verified_answer(str(result.final_output), sources, settings, archive, gateway, reader, model)
+                operation.set(source_count=len(sources), input_tokens=output.input_tokens,
+                              output_tokens=output.output_tokens, model_requests=output.requests)
+            answer = await verified_answer(output.final_text(), sources, settings, archive, gateway, reader, model)
             await check_access()
             return answer
-        finally:
-            if not result.is_complete:
-                result.cancel()
-            # SDK cancellation is synchronous; consume its terminal stream so
-            # tools and model requests settle before their HTTP client closes.
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                async for _ in result.stream_events():
-                    pass

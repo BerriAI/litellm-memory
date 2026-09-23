@@ -1,5 +1,4 @@
 import json
-from contextlib import asynccontextmanager
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -184,7 +183,10 @@ def test_daily_api_requires_identity_and_never_returns_another_persons_private_d
 @pytest.mark.asyncio
 @pytest.mark.parametrize('audience', ['owner', 'public'])
 async def test_shared_web_and_slack_agent_reads_the_same_summary_and_checks_scope(archive, monkeypatch, audience):
+    from liteagents import AssistantMessage, TextBlock
+
     from litellm_memory import query
+    from litellm_memory.agent_runtime import agent_options
 
     private = await ready(archive, 'private', 'Private work', '2026-09-18T11:00:00Z')
     shared = await ready(archive, 'public', 'Shared work', '2026-09-18T12:00:00Z', public=True)
@@ -195,35 +197,33 @@ async def test_shared_web_and_slack_agent_reads_the_same_summary_and_checks_scop
     await views.build(await views.next())
     expected = await views.daily(reader, day=date(2026, 9, 18), owner='T1:A')
 
-    @asynccontextmanager
-    async def chat_client():
-        yield object()
-
-    class Stream:
-        is_complete = True
+    class Client:
         final_output = f'Shared work. [Source](http://localhost:8000/memory/{shared})'
 
-        def __init__(self, agent):
-            self.tools = {tool.__name__: tool for tool in agent.tools}
-            assert 'start with daily_summaries' in agent.instructions
+        def __init__(self, *, options, history):
+            self.tools = {tool.name: tool for tool in options.tools}
+            assert 'start with daily_summaries' in options.system
 
-        async def stream_events(self):
-            result = json.loads(await self.tools['daily_summaries']('2026-09-18', 'T1:A'))
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+        async def query(self, question):
+            result = json.loads(await self.tools['daily_summaries'].execute({'day': '2026-09-18', 'person': 'T1:A'}))
             assert result == expected
             ids = result['summaries'][0]['view']['source_ids']
             assert (private in ids) == (audience == 'owner')
-            outside = await self.tools['daily_summaries']('2026-09-18', 'T1:B')
+            outside = await self.tools['daily_summaries'].execute({'day': '2026-09-18', 'person': 'T1:B'})
             assert 'Outside' in outside
-            if False:
-                yield None
+            yield AssistantMessage([TextBlock(self.final_output)], model="chat", stop_reason="end_turn")
 
-    gateway = SimpleNamespace(chat_client=chat_client, validate_model=AsyncMock(return_value='chat'))
-    monkeypatch.setattr(query, 'function_tool', lambda function: function)
-    monkeypatch.setattr(query, 'Agent', lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(query, 'OpenAIChatCompletionsModel', lambda **kwargs: object())
-    monkeypatch.setattr(query.Runner, 'run_streamed', lambda agent, *args, **kwargs: Stream(agent))
+    gateway = SimpleNamespace(agent_options=lambda model, **kwargs: agent_options(Settings(_env_file=None), model, **kwargs),
+                              validate_model=AsyncMock(return_value='chat'))
+    monkeypatch.setattr(query, 'LiteAgentClient', Client)
     assert await query.answer_work(Settings(_env_file=None), archive, gateway, reader,
-                                   'Summarize September 18', scope='T1:A') == Stream.final_output
+                                   'Summarize September 18', scope='T1:A') == Client.final_output
 
 
 @pytest.mark.asyncio

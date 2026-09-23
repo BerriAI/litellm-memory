@@ -3,19 +3,19 @@ import ipaddress
 import json
 import socket
 import time
+from contextlib import aclosing
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
 
 import httpx
-from agents import Agent, OpenAIChatCompletionsModel, Runner, function_tool, set_tracing_disabled
 from bs4 import BeautifulSoup
-from openai import AsyncOpenAI
+from liteagents import AssistantMessage, LiteAgentClient, TextDelta, ToolUseBlock, UserMessage
+from liteagents.mcp import load_mcp_tools
 
+from .agent_runtime import RunOutput, agent_options, chat_history, function_tool
 from .config import ROOT, Settings
-from .memory import memory_server
+from .memory import READ_TOOLS, memory_server
 from .progress import report
-
-set_tracing_disabled(True)
 
 
 async def public_url(url: str):
@@ -72,13 +72,7 @@ def search_tool(settings: Settings):
 async def answer(settings: Settings, question: str, history: list[dict] | None = None):
     now = datetime.now(UTC).isoformat()
     await report("Connecting to Moe’s memories")
-    async with memory_server(settings) as memory, AsyncOpenAI(
-        base_url=settings.litellm_base_url,
-        api_key=settings.litellm_api_key,
-        timeout=90,
-        # The worker owns retries so billing/authentication failures are never retried blindly.
-        max_retries=0,
-    ) as client:
+    async with memory_server(settings) as memory:
         status_message = ""
 
         @function_tool
@@ -90,14 +84,15 @@ async def answer(settings: Settings, question: str, history: list[dict] | None =
                 await report(status_message)
             return "Status updated. Continue the task."
 
-        tools = [read_web_page, update_status]
+        tools = [read_web_page, update_status,
+                 *await load_mcp_tools(memory, allowed_tool_names=READ_TOOLS)]
         if settings.litellm_search_tool:
             tools.append(search_tool(settings))
-        agent = Agent(
-            name="LiteLLM Memory",
-            instructions=f"""You are LiteLLM Memory, a research assistant grounded in Moe's own captured memories.
+        options = agent_options(
+            settings, settings.litellm_model,
+            system=f"""You are LiteLLM Memory, a research assistant grounded in Moe's own captured memories.
 Current UTC time: {now}.
-Current implementation: OpenAI Agents SDK for Python, model {settings.litellm_model} through LiteLLM,
+Current implementation: LiteAgents SDK for Python, model {settings.litellm_model} through LiteLLM,
 with a web app and Slack adapter hosted on Render at {settings.public_base_url}. These are deployed
 implementation facts; older planning notes saying the SDK or host is undecided are historical.
 Owner profile (maintained explicitly by Moe; current corrections supersede older memories):
@@ -135,37 +130,31 @@ Use accessible web pages and web search when available to verify current externa
 If a source or tool is unavailable, say what you could verify rather than inventing an answer.
 Keep the reply useful to the asker; don't narrate every tool call or expose operational credentials.
 """,
-            model=OpenAIChatCompletionsModel(model=settings.litellm_model, openai_client=client),
-            mcp_servers=[memory],
             tools=tools,
         )
-        messages = [*(history or []), {"role": "user", "content": question}]
-        result = Runner.run_streamed(agent, messages, max_turns=settings.max_agent_turns)
-        partial, last_update = "", 0
-        await report("On it")
-        try:
-            async for event in result.stream_events():
-                if event.type == "raw_response_event" and event.data.type == "response.output_text.delta":
-                    partial += event.data.delta
-                    if time.monotonic() - last_update > 0.15:
-                        await report("Writing an answer", partial)
-                        last_update = time.monotonic()
-                elif event.type == "run_item_stream_event" and event.name == "tool_called":
-                    raw = event.item.raw_item
-                    name = raw.get("name", "") if isinstance(raw, dict) else getattr(raw, "name", "")
-                    if name == "update_status":
-                        continue
-                    phase = {"memory_search": "Searching Moe’s memories", "memory_read": "Reading source memories",
-                             "memory_catalog": "Finding relevant memories", "read_web_page": "Reading a web source",
-                             "search_web": "Searching the web"}.get(name, "Checking sources")
-                    partial = ""
-                    await report(status_message or phase, partial)
-                elif event.type == "run_item_stream_event" and event.name == "tool_output":
-                    if not status_message:
+        output = RunOutput()
+        async with LiteAgentClient(options=options, history=chat_history(history)) as agent:
+            async with aclosing(agent.query(question)) as events:
+                partial, last_update = "", 0.0
+                await report("On it")
+                async for event in events:
+                    if isinstance(event, TextDelta):
+                        partial += event.text
+                        if time.monotonic() - last_update > 0.15:
+                            await report("Writing an answer", partial)
+                            last_update = time.monotonic()
+                    elif isinstance(event, AssistantMessage):
+                        output.observe(event)
+                        for block in event.content:
+                            if not isinstance(block, ToolUseBlock) or block.name == "update_status":
+                                continue
+                            phase = {"memory_search": "Searching Moe’s memories",
+                                     "memory_read": "Reading source memories",
+                                     "memory_catalog": "Finding relevant memories",
+                                     "read_web_page": "Reading a web source",
+                                     "search_web": "Searching the web"}.get(block.name, "Checking sources")
+                            partial = ""
+                            await report(status_message or phase, partial)
+                    elif isinstance(event, UserMessage) and not status_message:
                         await report("Connecting the findings")
-        finally:
-            if not result.is_complete:
-                result.cancel()
-                async for _ in result.stream_events():
-                    pass
-        return str(result.final_output)
+                return output.final_text()

@@ -10,9 +10,9 @@ import time
 from typing import Literal
 
 import httpx
-from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
+from .agent_runtime import agent_options
 from .config import Settings
 from .observability import Telemetry
 
@@ -60,12 +60,8 @@ class Gateway:
     async def close(self):
         await self.http.aclose()
 
-    def chat_client(self):
-        return AsyncOpenAI(
-            base_url=self.settings.litellm_base_url, api_key=self.settings.litellm_api_key,
-            timeout=90, max_retries=0,
-            default_headers={"x-litellm-enable-message-redaction": "true"},
-        )
+    def agent_options(self, model, **kwargs):
+        return agent_options(self.settings, model, **kwargs)
 
     def snapshot(self, **overrides):
         """An independent client freezes credentials/model roles for an in-flight job."""
