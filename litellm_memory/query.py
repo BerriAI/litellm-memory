@@ -22,12 +22,28 @@ class CitationError(RuntimeError):
     pass
 
 
-def validate_citations(answer, sources, public_base_url):
-    """Reject invented source links; evidence access is checked separately."""
+def normalize_source_links(answer):
     # Models answering a Slack request may use native Slack links. Normalize
     # those before applying the same origin / ID / no-extra-data checks.
-    answer = re.sub(r'<(https?://[^\s<>|]+)(?:\|([^<>\n]+))?>',
-                    lambda m: f'[{m[2] or "Source"}]({m[1]})', answer)
+    return re.sub(r'<(https?://[^\s<>|]+)(?:\|([^<>\n]+))?>',
+                  lambda m: f'[{m[2] or "Source"}]({m[1]})', answer)
+
+
+def source_ids(answer, public_base_url):
+    """Recognize local source links without granting access to their records."""
+    base = urlsplit(public_base_url)
+    result = set()
+    for target in re.findall(r'\]\(([^\s)]+)\)', normalize_source_links(answer)):
+        url = urlsplit(target)
+        if (url.scheme == base.scheme and url.netloc == base.netloc and not url.query and not url.fragment
+                and url.path.startswith('/memory/')):
+            result.add(url.path.removeprefix('/memory/'))
+    return result
+
+
+def validate_citations(answer, sources, public_base_url):
+    """Reject invented source links; evidence access is checked separately."""
+    answer = normalize_source_links(answer)
     base = urlsplit(public_base_url)
     cited = set()
     for target in re.findall(r'\]\(([^\s)]+)\)', answer):
@@ -243,12 +259,22 @@ Before substantial research give a short update with update_status; skip for gre
                         partial = ""
                         await report("Checking the evidence", "")
             await check_access()
+            text = output.final_text()
+            previous_sources = set().union(*(source_ids(message['content'], settings.public_base_url)
+                for message in (history or [])[-16:] if message['role'] == 'assistant'))
+            # A follow-up can reuse a previous answer's citation without another
+            # model tool call. Re-read only those cited records under the current
+            # audience, scope and viewing preferences before accepting the links.
+            for source in (source_ids(text, settings.public_base_url) & previous_sources) - sources:
+                await read_work.execute({'record_id': source})
+                if source not in sources:
+                    raise PermissionError('Previous evidence is outside the current viewing scope.')
             # Verify every read source still passes current access before final delivery.
             for source in sources:
                 await archive.read(reader, source)
             if operation:
                 operation.set(source_count=len(sources), input_tokens=output.input_tokens,
                               output_tokens=output.output_tokens, model_requests=output.requests)
-            answer = await verified_answer(output.final_text(), sources, settings, archive, gateway, reader, model)
+            answer = await verified_answer(text, sources, settings, archive, gateway, reader, model)
             await check_access()
             return answer

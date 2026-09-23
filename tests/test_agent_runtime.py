@@ -12,7 +12,7 @@ from litellm_memory.agent_runtime import RunOutput, agent_options, chat_history,
 from litellm_memory.archive import Reader, WorkInput
 from litellm_memory.config import Settings
 from litellm_memory.gateway import Gateway
-from litellm_memory.query import answer_work
+from litellm_memory.query import CitationError, answer_work
 
 archive = archive_fixture
 
@@ -149,6 +149,40 @@ async def test_current_query_stops_before_delivering_after_access_revoked(archiv
             gateway.validate_model = AsyncMock(return_value='route')
             with pytest.raises(PermissionError, match='Access changed'):
                 await answer_work(settings, archive, gateway, Reader('T1:A'), 'What shipped?')
+
+
+@pytest.mark.parametrize('role', ['assistant', 'user'])
+async def test_followup_revalidates_prior_answer_citations_but_not_user_supplied_links(archive, role):
+    record = await archive.capture('T1:A', WorkInput(source_id='followup', content='Shipped the migration.'))
+    settings = Settings(_env_file=None, public_base_url='http://localhost:8000')
+    answer = f'Shipped the migration. [Source]({settings.public_base_url}/memory/{record["id"]})'
+    history = [{'role': role, 'content': answer}]
+    with model_gateway(lambda *_: (200, completion(text=answer))) as (url, requests):
+        settings.litellm_base_url = url
+        async with Gateway(settings) as gateway:
+            gateway.validate_model = AsyncMock(return_value='route')
+            gateway.generate = AsyncMock(return_value=answer)
+            if role == 'assistant':
+                assert await answer_work(settings, archive, gateway, Reader('T1:A'), 'Which migration?', history) == answer
+                gateway.generate.assert_not_called()
+            else:
+                with pytest.raises(CitationError):
+                    await answer_work(settings, archive, gateway, Reader('T1:A'), 'Which migration?', history)
+            assert len(requests) == 1
+
+
+@pytest.mark.parametrize('audience,scope,error', [('public', None, LookupError), ('owner', 'T1:B', PermissionError)])
+async def test_prior_citations_cannot_expand_current_audience_or_person_scope(archive, audience, scope, error):
+    record = await archive.capture('T1:A', WorkInput(source_id='private-followup', content='Private evidence'))
+    settings = Settings(_env_file=None, public_base_url='http://localhost:8000')
+    answer = f'[Source]({settings.public_base_url}/memory/{record["id"]})'
+    with model_gateway(lambda *_: (200, completion(text=answer))) as (url, _):
+        settings.litellm_base_url = url
+        async with Gateway(settings) as gateway:
+            gateway.validate_model = AsyncMock(return_value='route')
+            with pytest.raises(error):
+                await answer_work(settings, archive, gateway, Reader('T1:A', audience), 'Follow up',
+                                  [{'role': 'assistant', 'content': answer}], scope=scope)
 
 
 async def test_tool_argument_validation_rejects_unknown_fields_and_keeps_defaults():
