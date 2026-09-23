@@ -108,61 +108,43 @@ async def test_leave_rejoin_retains_private_key_but_never_reactivates_grants(arc
 
 
 @pytest.mark.asyncio
-async def test_slack_fresh_membership_and_shared_audience_fail_closed(archive):
+async def test_slack_requester_authorization_and_private_dm_boundary(archive):
     settings = Settings(_env_file=None, slack_team_id='T1', slack_bot_token='fake', slack_bot_user_id='BOT',
-                        registration_mode='domain', allowed_email_domain='berri.ai', allowed_slack_users='A,B')
+                        registration_mode='domain', allowed_email_domain='berri.ai', access_mode='allowlist',
+                        allowed_slack_users='T1:A,T1:B')
     store = AsyncMock()
     store.setting.return_value = None
-    store.channel_allowed.return_value = True
+    store.channel_approval.return_value = True
     slack = MemorySlack(settings, store, archive)
     assert not slack.explicitly_ineligible({'id': 'A', 'team_id': 'T1', 'profile': {'display_name': 'New name'}})
     assert slack.explicitly_ineligible({'id': 'A', 'deleted': True})
     assert slack.explicitly_ineligible({'id': 'A', 'profile': {'email': 'a@another.example'}})
     users = {u: {'id': u, 'team_id': 'T1', 'profile': {'email': u + '@berri.ai'}} for u in ['A', 'B', 'C']}
     channel = {'is_im': True, 'user': 'A'}
-    participants = ['A', 'B', 'BOT']
     async def api(method, body):
         if method == 'users.info':
             return {'user': users[body['user']]}
         if method == 'conversations.info':
             return {'channel': channel}
-        if method == 'conversations.members':
-            return {'members': participants}
+        # Channel rosters never authorize the requester or widen the audience.
+        # Looking them up was rejecting working channels with other installed apps.
         raise AssertionError(method)
     slack.api = api
     payload = {'team': 'T1', 'user': 'A', 'channel': 'D1'}
     assert await slack.reader(payload) == Reader('T1:A')
-    channel = {'is_private': True, 'is_im': False}
+    channel = {'is_im': True, 'user': 'B'}
     assert await slack.reader(payload) == Reader('T1:A', 'public')
-    users['APP'] = {'id': 'APP', 'team_id': 'T1', 'is_bot': True}
-    participants.append('APP')
-    assert await slack.reader(payload) == Reader('T1:A', 'public')
-    for field, value in [('id', 'OTHER'), ('team_id', 'OTHER'), ('deleted', True),
-                         ('is_restricted', True), ('is_ultra_restricted', True)]:
-        valid = users['APP'].copy()
-        users['APP'][field] = value
-        with pytest.raises(PermissionError):
-            await slack.reader(payload)
-        users['APP'] = valid
-    participants.remove('APP')
-    for invalid in [{'is_ext_shared': True}, {'is_org_shared': True}, {'is_shared': True}]:
-        channel = invalid
-        with pytest.raises(PermissionError):
-            await slack.reader(payload)
-    channel = {}
-    participants.append('C')
+    payload['channel'] = 'C1'
+    for metadata in [{'is_private': True}, {'is_mpim': True}, {'is_ext_shared': True},
+                     {'is_org_shared': True}, {'is_shared': True}, {}]:
+        channel = metadata
+        assert await slack.reader(payload) == Reader('T1:A', 'public')
+    store.channel_approval.return_value = False
     with pytest.raises(PermissionError):
         await slack.reader(payload)
-    participants.remove('C')
-    for field, value in [('is_restricted', True), ('deleted', True), ('team_id', 'OTHER')]:
-        users['B'][field] = value
-        with pytest.raises(PermissionError):
-            await slack.reader(payload)
-        users['B'].pop(field)
-        users['B']['team_id'] = 'T1'
-    users['B']['profile']['email'] = 'someone@notberri.ai'
+    store.channel_approval.return_value = True
     with pytest.raises(PermissionError):
-        await slack.reader(payload)
+        await slack.reader({**payload, 'user': 'C'})  # Requesters must still enroll.
     token = await archive.create_token('T1:A')
     archive.check_eligibility = slack.verify_member
     users['A']['deleted'] = True
