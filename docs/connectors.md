@@ -34,7 +34,7 @@ litellm-memory-connector instructions disable
 
 Both commands default to Codex and Claude Code; use `--host codex` or `--host claude` to choose one. The installer manages a marked block in `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md`, keeps unrelated instructions, and makes private backups. Start a new session after changing instructions. `disconnect` removes the block together with this connector’s MCP entry and hooks.
 
-Other memory products, including `product-team-knowledge`, remain separate. Their MCP entries, hooks and instruction blocks are not removed by this installer.
+Other memory products remain separate. Their MCP entries, hooks and instruction blocks are not removed by this installer.
 
 ## If a connection request expires
 

@@ -114,7 +114,7 @@ class Slack:
             return approved
         # Group DMs can have C-prefixed IDs and do not reliably emit a bot invitation event.
         # Slack's actual conversation metadata, never the ID prefix, proves this is an MPIM
-        # created by Moe. Explicit removals/denials above must never be overridden.
+        # created by the installation owner. Explicit removals/denials above must never be overridden.
         info = await self.conversation_info(payload["channel"])
         if (info.get("is_mpim") and info.get("is_member")
                 and info.get("creator") == self.settings.slack_owner_user_id

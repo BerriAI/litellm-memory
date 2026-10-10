@@ -60,7 +60,7 @@ export async function initializeSetup({ api, show, el, busy, populateSelect }) {
       ? "Connected"
       : "Not connected";
     $("gateway-badge").classList.toggle("ready", status.gateway_connected);
-    $("setup-domain").value = status.allowed_email_domain || "berri.ai";
+    $("setup-domain").value = status.allowed_email_domain || "";
     jev(status.jev);
     if (status.gateway_connected) await models();
     show("slack-panel", status.models_checked);

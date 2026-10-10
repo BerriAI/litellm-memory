@@ -3,9 +3,8 @@ import time
 import httpx
 from fastapi.testclient import TestClient
 from openai import RateLimitError
-from test_app import config, signed_event
+from test_app import config, create_app, signed_event
 
-from litellm_memory.app import create_app
 from litellm_memory.errors import explain_error
 
 
@@ -33,7 +32,7 @@ def test_mcp_task_group_preserves_terminal_billing_failures():
 def test_slack_billing_failure_is_reported_once_without_retries(tmp_path):
     attempts, replies, reactions = [], [], []
 
-    async def agent(settings, question, history):
+    async def agent(settings, archive, gateway, reader, question, history, **kwargs):
         attempts.append(question)
         raise rate_limit('You have no credits remaining.')
 

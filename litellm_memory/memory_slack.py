@@ -18,7 +18,8 @@ class MemorySlack(Slack):
         self.member_checks = {}
 
     def eligible(self, user, user_id):
-        return bool(user.get('id') == user_id and not user.get('deleted') and not user.get('is_bot')
+        return bool(self.settings.allowed_email_domain and user.get('id') == user_id
+                    and not user.get('deleted') and not user.get('is_bot')
                     and not user.get('is_restricted') and not user.get('is_ultra_restricted')
                     and user.get('team_id') == self.settings.slack_team_id
                     and user.get('profile', {}).get('email', '').casefold().rsplit('@', 1)[-1]

@@ -11,7 +11,7 @@ services:
       DATABASE_URL: postgresql://litellm_memory:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/litellm_memory?sslmode=disable
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
       SETUP_CODE: ${SETUP_CODE:-}
-      ALLOWED_EMAIL_DOMAIN: ${ALLOWED_EMAIL_DOMAIN:-berri.ai}
+      ALLOWED_EMAIL_DOMAIN: ${ALLOWED_EMAIL_DOMAIN:-}
       REGISTRATION_MODE: domain
       SHARING_ENABLED: "false"
       SEARCH_CACHE_MB: ${SEARCH_CACHE_MB:-128}

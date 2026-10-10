@@ -355,7 +355,7 @@ def test_optional_agent_guidance_preserves_other_instructions_and_disconnect_rem
     for relative in ('.codex/AGENTS.md', '.claude/CLAUDE.md'):
         path = tmp_path / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        originals[path] = '# My instructions\nKeep unrelated guidance, including product-team-knowledge.\n'
+        originals[path] = '# My instructions\nKeep unrelated guidance, including another-memory-tool.\n'
         path.write_text(originals[path])
     args = (tmp_path, tmp_path / 'state', 'https://memory.example', ['codex', 'claude'])
     configure_hosts(*args)

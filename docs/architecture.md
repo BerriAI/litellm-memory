@@ -54,7 +54,7 @@ The agent receives only authorized search/read/people/overview tools. Web, Slack
 
 LiteAgents runs the tool loop. Gateway model names use the `litellm_proxy/` provider prefix so aliases remain opaque and requests retain the Chat Completions interface. Each run forwards the configured gateway URL/key, a 90-second request timeout, zero SDK retries, `no-log` and message-redaction settings. Text deltas drive progress; completed messages supply per-request token counts. Cancellation closes the provider stream, and an exhausted turn/output limit cannot become a successful answer. Access and source citations are checked again before delivery.
 
-The older research entry point also uses LiteAgents. It owns an MCP stdio session and adapts only `memory_catalog`, `memory_search` and `memory_read`; transport lifetime and credentials remain with the application. LiteLLM's implicit development `.env` loading is disabled by default so the application’s `Settings` remains responsible for configuration.
+LiteLLM's implicit development `.env` loading is disabled by default so the application’s `Settings` remains responsible for configuration.
 
 ## Key custody and processes
 

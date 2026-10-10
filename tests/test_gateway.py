@@ -23,7 +23,7 @@ async def test_catalog_obeys_key_permissions_and_never_exposes_provider_credenti
             {"model_name": "forbidden", "model_info": {"mode": "chat"}},
         ]})
 
-    gateway = Gateway(Settings(_env_file=None), httpx.MockTransport(handler))
+    gateway = Gateway(Settings(_env_file=None, litellm_base_url="https://gateway.example/v1"), httpx.MockTransport(handler))
     try:
         models = await gateway.models()
         assert [m.id for m in models] == ["chat"]
@@ -68,7 +68,7 @@ async def test_jev_parallel_requests_preserve_no_log_and_validate_every_answer()
 
 @pytest.mark.asyncio
 async def test_jev_errors_do_not_return_private_gateway_response():
-    gateway = Gateway(Settings(_env_file=None), httpx.MockTransport(
+    gateway = Gateway(Settings(_env_file=None, litellm_base_url="https://gateway.example/v1"), httpx.MockTransport(
         lambda request: httpx.Response(500, text="PRIVATE PROMPT IN UPSTREAM ERROR")))
     try:
         with pytest.raises(GatewayError) as error:
@@ -86,7 +86,7 @@ async def test_missing_jev_explains_gateway_requirement_without_leaking_diagnost
             return httpx.Response(200, json={"info": {"version": reported}})
         return httpx.Response(404, text="PRIVATE UPSTREAM CONTENT")
 
-    async with Gateway(Settings(_env_file=None), httpx.MockTransport(handler)) as gateway:
+    async with Gateway(Settings(_env_file=None, litellm_base_url="https://gateway.example/v1"), httpx.MockTransport(handler)) as gateway:
         result = await gateway.probe_jev()
     assert result["status"] == "not_enabled"
     assert "v1.103.0-rc" in result["message"] and "TYPESAFE_API_KEY" in result["message"]
@@ -101,7 +101,7 @@ async def test_version_discovery_failure_preserves_missing_jev_diagnosis():
             raise httpx.ReadTimeout("PRIVATE UPSTREAM CONTENT", request=request)
         return httpx.Response(404)
 
-    async with Gateway(Settings(_env_file=None), httpx.MockTransport(handler)) as gateway:
+    async with Gateway(Settings(_env_file=None, litellm_base_url="https://gateway.example/v1"), httpx.MockTransport(handler)) as gateway:
         result = await gateway.probe_jev()
     assert result["status"] == "not_enabled" and result["gateway_version"] is None
     assert "PRIVATE" not in str(result)
@@ -115,7 +115,7 @@ async def test_version_discovery_failure_preserves_missing_jev_diagnosis():
     (['PRIVATE SECRET'], 'authentication_failed'),
 ])
 async def test_jev_auth_diagnosis_distinguishes_provider_key_without_exposing_errors(body, status):
-    async with Gateway(Settings(_env_file=None), httpx.MockTransport(
+    async with Gateway(Settings(_env_file=None, litellm_base_url="https://gateway.example/v1"), httpx.MockTransport(
             lambda request: httpx.Response(401, json=body))) as gateway:
         result = await gateway.probe_jev()
     assert result['status'] == status
@@ -143,7 +143,7 @@ async def test_json_generation_survives_system_messages_becoming_responses_instr
         assert body['no-log'] is True
         return httpx.Response(200, json={'choices': [{'message': {'content': '{"ok":true}'}}]})
 
-    async with Gateway(Settings(_env_file=None), httpx.MockTransport(responses_gateway)) as gateway:
+    async with Gateway(Settings(_env_file=None, litellm_base_url="https://gateway.example/v1"), httpx.MockTransport(responses_gateway)) as gateway:
         assert await gateway.generate(messages, json_output=True) == '{"ok":true}'
     assert messages == original
 
@@ -151,7 +151,7 @@ async def test_json_generation_survives_system_messages_becoming_responses_instr
 @pytest.mark.asyncio
 @pytest.mark.parametrize('http_status,status', [(429, 'rate_limited'), (500, 'unavailable'), (503, 'unavailable')])
 async def test_jev_service_failures_offer_retry_without_claiming_integration_is_missing(http_status, status):
-    async with Gateway(Settings(_env_file=None), httpx.MockTransport(
+    async with Gateway(Settings(_env_file=None, litellm_base_url="https://gateway.example/v1"), httpx.MockTransport(
             lambda request: httpx.Response(http_status, json={'detail': 'PRIVATE_UPSTREAM_CONTENT'}))) as gateway:
         result = await gateway.probe_jev()
     assert result['status'] == status
@@ -169,7 +169,7 @@ async def test_background_probe_requires_the_actual_work_record_schema(content):
             return httpx.Response(200, json={'data': []})
         return httpx.Response(200, json={'choices': [{'message': {'content': content}}]})
 
-    async with Gateway(Settings(_env_file=None), httpx.MockTransport(handler)) as gateway:
+    async with Gateway(Settings(_env_file=None, litellm_base_url="https://gateway.example/v1"), httpx.MockTransport(handler)) as gateway:
         with pytest.raises(GatewayError) as error:
             await gateway.probe_model('candidate', 'generation')
         assert error.value.status == 422
@@ -186,7 +186,7 @@ async def test_background_probe_accepts_plain_or_wholly_fenced_json(wrapper):
         if request.url.path == '/model/info':
             return httpx.Response(200, json={'data': []})
         return httpx.Response(200, json={'choices': [{'message': {'content': wrapper.format(content)}}]})
-    async with Gateway(Settings(_env_file=None), httpx.MockTransport(handler)) as gateway:
+    async with Gateway(Settings(_env_file=None, litellm_base_url="https://gateway.example/v1"), httpx.MockTransport(handler)) as gateway:
         assert await gateway.probe_model('candidate', 'generation') == {'status': 'ready'}
 
 
@@ -205,7 +205,7 @@ async def test_background_probe_still_rejects_invalid_or_embedded_json_without_e
         if request.url.path == '/model/info':
             return httpx.Response(200, json={'data': []})
         return httpx.Response(200, json={'choices': [{'message': {'content': content}}]})
-    async with Gateway(Settings(_env_file=None), httpx.MockTransport(handler)) as gateway:
+    async with Gateway(Settings(_env_file=None, litellm_base_url="https://gateway.example/v1"), httpx.MockTransport(handler)) as gateway:
         with pytest.raises(GatewayError) as error:
             await gateway.probe_model('candidate', 'generation')
         assert 'output did not match the required format' in str(error.value)
@@ -218,5 +218,5 @@ async def test_json_wrapper_normalization_does_not_change_plain_text_generation(
     content = '```json\n{"summary":"Keep the author’s text."}\n```'
     transport = httpx.MockTransport(lambda request: httpx.Response(200, json={
         'choices': [{'message': {'content': content}}]}))
-    async with Gateway(Settings(_env_file=None), transport) as gateway:
+    async with Gateway(Settings(_env_file=None, litellm_base_url="https://gateway.example/v1"), transport) as gateway:
         assert await gateway.generate([{'role': 'user', 'content': 'Give an example'}]) == content

@@ -306,51 +306,6 @@ async def test_tool_argument_validation_rejects_unknown_fields_and_keeps_default
     assert seen == [('q', None)]
 
 
-async def test_research_agent_with_real_stdio_memory_and_gateway(tmp_path):
-    from litellm_memory.agent import answer
-    from litellm_memory.memory import memory_call, memory_server
-
-    # Exercise the application's actual node subprocess/session setup with a
-    # disposable JSON-RPC server. No GitHub or private archive is accessed.
-    script = tmp_path / 'memory.mjs'
-    script.write_text('''
-import readline from 'node:readline';
-for await (const line of readline.createInterface({input: process.stdin})) {
-  const request = JSON.parse(line);
-  if (request.id === undefined) continue;
-  let result;
-  if (request.method === 'initialize') {
-    result = {protocolVersion: request.params.protocolVersion,
-      capabilities: {tools: {}}, serverInfo: {name: 'synthetic-memory', version: '1'}};
-  } else if (request.method === 'tools/list') {
-    result = {tools: ['memory_search', 'memory_write'].map(name => ({name,
-      description: 'Synthetic test tool', inputSchema: {type: 'object',
-        properties: {query: {type: 'string'}}, required: ['query']}}))};
-  } else if (request.method === 'tools/call') {
-    if (request.params.name !== 'memory_search') process.exit(42);
-    result = {content: [{type: 'text', text: JSON.stringify({evidence: 'synthetic source'})}]};
-  } else { result = {}; }
-  process.stdout.write(JSON.stringify({jsonrpc: '2.0', id: request.id, result}) + '\\n');
-}
-''')
-
-    def respond(body, index):
-        names = {tool['function']['name'] for tool in body['tools']}
-        assert 'memory_search' in names and 'memory_write' not in names
-        if index == 1:
-            return 200, completion(tool='memory_search', arguments={'query': 'synthetic'})
-        assert 'synthetic source' in body['messages'][-1]['content']
-        return 200, completion(text='The synthetic source was found.')
-
-    with model_gateway(respond) as (url, requests):
-        settings = Settings(_env_file=None, memory_script=script, state_dir=tmp_path,
-                            litellm_base_url=url, litellm_api_key='synthetic-key')
-        async with memory_server(settings) as memory:
-            assert await memory_call(memory, 'memory_search', {'query': 'q'}) == {'evidence': 'synthetic source'}
-            with pytest.raises(ValueError, match='read-only'):
-                await memory_call(memory, 'memory_write', {'query': 'forbidden'})
-        assert await answer(settings, 'Find synthetic evidence') == 'The synthetic source was found.'
-        assert len(requests) == 2
 
 
 @pytest.mark.parametrize('reason', ['tool_use', 'max_tokens'])

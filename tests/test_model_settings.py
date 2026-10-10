@@ -18,7 +18,7 @@ class Museum:
 
 
 def session(client, user="OWNER"):
-    identity = {"team_id": "T", "user_id": user, "email": user.lower() + "@berri.ai",
+    identity = {"team_id": "T", "user_id": user, "email": user.lower() + "@example.com",
                 "email_verified": True, "name": user}
     cookie = TimestampSigner("test-session").sign(b64encode(json.dumps({"identity": identity}).encode())).decode()
     client.cookies.set("litellm_memory_session", cookie)
@@ -51,6 +51,7 @@ def application(tmp_path, calls, *, jev_status=200):
 
     settings = Settings(_env_file=None, state_dir=tmp_path, session_secret="test-session",
                         slack_team_id="T", slack_owner_user_id="OWNER", registration_mode="domain",
+                        allowed_email_domain="example.com", litellm_base_url="https://gateway.example/v1",
                         litellm_model="chat-a", memory_embedding_model="embed-a", background_model="chat-a",
                         litellm_api_key="SECRET-GATEWAY-KEY")
     gateway = Gateway(settings, httpx.MockTransport(handler))

@@ -106,7 +106,7 @@ class SetupModels(BaseModel):
 
 
 class FinishSetup(BaseModel):
-    allowed_email_domain: str = Field(default="berri.ai", pattern=r"^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+    allowed_email_domain: str = Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
     timezone: Timezone = 'UTC'
 
 

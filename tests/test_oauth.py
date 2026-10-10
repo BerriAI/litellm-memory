@@ -196,7 +196,7 @@ def test_new_domain_member_finishes_setup_before_consent_instead_of_repeating_sl
         params = {'client_id': client_id, 'redirect_uri': 'http://127.0.0.1:9999/callback',
                   'response_type': 'code', 'code_challenge_method': 'S256', 'state': 'state',
                   'code_challenge': base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip('=')}
-        session(client, 'TIN')
+        session(client, 'MEMBER')
         response = client.get('/oauth/authorize', params=params, follow_redirects=False)
         assert response.status_code == 303
         target = urlsplit(response.headers['location'])
@@ -210,24 +210,24 @@ def test_new_domain_member_finishes_setup_before_consent_instead_of_repeating_sl
         nonce = re.search(r'name="nonce" value="([^"]+)"', consent.text)[1]
         tokens = approve_connect(client, client_id, verifier, nonce)
         identity = client.get('/api/capture-identity', headers={'Authorization': 'Bearer '+tokens['access_token']})
-        assert identity.json()['owner'] == 'T:TIN'
+        assert identity.json()['owner'] == 'T:MEMBER'
 
 
 @pytest.mark.parametrize('changes', [
-    {'team_id': 'OTHER'}, {'email_verified': False}, {'email': 'tin@other.example'},
+    {'team_id': 'OTHER'}, {'email_verified': False}, {'email': 'member@other.example'},
 ])
 def test_domain_signup_still_rejects_ineligible_slack_identity(tmp_path, changes):
     import json
 
     from itsdangerous import TimestampSigner
     app = application(tmp_path, [])
-    identity = {'team_id': 'T', 'user_id': 'TIN', 'email': 'tin@berri.ai',
-                'email_verified': True, 'name': 'Tin', **changes}
+    identity = {'team_id': 'T', 'user_id': 'MEMBER', 'email': 'member@example.com',
+                'email_verified': True, 'name': 'Alex', **changes}
     with TestClient(app) as client:
         cookie = TimestampSigner('test-session').sign(base64.b64encode(json.dumps({'identity': identity}).encode())).decode()
         client.cookies.set('litellm_memory_session', cookie)
         assert client.post('/api/signup').status_code == 403
-        assert client.portal.call(app.state.archive.member, 'T:TIN') is None
+        assert client.portal.call(app.state.archive.member, 'T:MEMBER') is None
 
 
 def test_connector_consent_discloses_reviewed_hooks_without_executing_markup(tmp_path):

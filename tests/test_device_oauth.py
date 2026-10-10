@@ -142,20 +142,20 @@ def test_device_new_member_signin_resume_and_reload_survive_restart(tmp_path):
         device = begin(client)
         redirect = client.get(device['verification_uri_complete'], follow_redirects=False)
         assert redirect.headers['location'].startswith('/auth/slack?')
-        session(client, 'TIN')
+        session(client, 'MEMBER')
         redirect = client.get(device['verification_uri_complete'], follow_redirects=False)
         assert parse_qs(urlsplit(redirect.headers['location']).query)['device'] == [device['user_code']]
         assert client.post('/api/signup').status_code == 200
         form = consent(client, device)
     app = application(tmp_path, [])
     with TestClient(app) as client:
-        session(client, 'TIN')
+        session(client, 'MEMBER')
         assert client.post('/oauth/device/approve', data=form, follow_redirects=False).status_code == 303
         assert client.post('/oauth/device/approve', data=form).status_code == 400
         assert 'Finishing setup' in client.get(device['verification_uri_complete']).text
         token = redeem(client, device).json()
         identity = client.get('/api/capture-identity', headers={'Authorization': 'Bearer ' + token['access_token']})
-        assert identity.json()['owner'] == 'T:TIN'
+        assert identity.json()['owner'] == 'T:MEMBER'
 
 
 def test_device_code_consumed_once_concurrently_and_state_encrypted(tmp_path):

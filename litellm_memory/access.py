@@ -17,15 +17,13 @@ class Principal:
 
 
 class AccessPolicy:
-    """A single server-side gate shared by web, Slack, search, and job retrieval."""
+    """Slack requester and installation-owner checks."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
         self.allowed = {x.strip() for x in settings.allowed_slack_users.split(",") if x.strip()}
 
     def authorize(self, principal: Principal) -> None:
-        if self.settings.access_mode == "public":
-            return
         if not principal.user_id:
             raise HTTPException(401, "Sign in with Slack to use LiteLLM Memory.")
         if principal.identity not in self.allowed:

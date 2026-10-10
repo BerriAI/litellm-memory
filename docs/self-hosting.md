@@ -20,7 +20,7 @@ The page keeps the gateway connection, model choices and Slack progress together
 
 The Slack app needs its normal Slack application credentials; LiteLLM Memory supplies a manifest/create link, validates the installation and returns to the same page. Complete sign-in using an eligible Slack account. Activation requires model, Jev, Slack identity and encrypted-storage checks to pass.
 
-Render auto-deploy is disabled in the reusable Blueprint so an upstream commit cannot update other people's installations without their decision. The current private deployment is separate from this reusable Blueprint. It permits verified `berri.ai` members of the configured Slack workspace to join; workspace sharing remains disabled.
+Render auto-deploy is disabled in the reusable Blueprint so an upstream commit cannot update other people's installations without their decision. Choose your company email domain during setup; only verified accounts from that domain in the configured Slack workspace can join. Company sharing starts disabled.
 
 ## Docker / other hosts
 
@@ -59,7 +59,7 @@ Most configuration is completed in the app and stored encrypted. Deployment envi
 | `DATABASE_URL` | PostgreSQL for bundled Ente. Render supplies it; Compose constructs it. |
 | `SESSION_SECRET` | Stable random signing secret. Generated on disk if absent. |
 | `SETUP_CODE` | Initial deployment claim code. Generated privately if absent. |
-| `ALLOWED_EMAIL_DOMAIN` | Initial eligible domain; defaults to `berri.ai`. Setup can set another. |
+| `ALLOWED_EMAIL_DOMAIN` | Optional initial company domain. No domain is preselected; choose one during setup. |
 | `REGISTRATION_MODE` | `domain` for eligible teammates, `owner_only` for an isolated pilot. |
 | `SHARING_ENABLED` | Initial company sharing switch; defaults false. Admins can enable it in Settings. |
 | `ENTE_BASE_URL`, `ENTE_AUTH_TOKEN` | Use an existing compatible Museum instead of the bundled process. |
@@ -96,7 +96,7 @@ The app's root key and member-key envelopes must be backed up independently of E
 
 Back up **both** `/data` and the Museum PostgreSQL database. The app's root key, encrypted deployment configuration, encrypted SQLite databases and member-key envelopes are required to recover. A database-only backup is incomplete. Keep backups encrypted with your infrastructure's backup encryption and restrict operator access.
 
-For a consistent starter backup, stop the LiteLLM Memory service, back up its volume and PostgreSQL, then restart it. A restore must use matching application and Ente snapshots, preserve the root key and deployment secrets, and run on an isolated hostname with `RECOVERY_MODE=true` until verified. This prevents queued Slack/model work from restarting. Preserve deletion tombstones; never restore an old snapshot over a live instance and assume revoked records remain revoked. The clean-volume restore is tested in [CI](https://github.com/BerriAI/litellm-memory/actions/runs/35532804507).
+For a consistent starter backup, stop the LiteLLM Memory service, back up its volume and PostgreSQL, then restart it. A restore must use matching application and Ente snapshots, preserve the root key and deployment secrets, and run on an isolated hostname with `RECOVERY_MODE=true` until verified. This prevents queued Slack/model work from restarting. Preserve deletion tombstones; never restore an old snapshot over a live instance and assume revoked records remain revoked. The clean-volume restore is tested in [CI](https://github.com/BerriAI/litellm-memory/actions/workflows/verify.yml).
 
 For Compose, with a protected backup directory prepared:
 
