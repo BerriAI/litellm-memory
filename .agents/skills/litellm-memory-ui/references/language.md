@@ -4,7 +4,7 @@
 
 Use plain, calm, specific English. The product is capable without sounding theatrical. Labels name tasks and objects; descriptions explain consequences; errors explain recovery. Avoid marketing claims, cheering, synthetic personality, and security theater.
 
-Use sentence case, ordinary verbs, and short paragraphs. “Connect a tool”, “Save time zone”, and “Ask about Tin’s shared work” communicate an outcome. “Unlock your collective intelligence”, “Memory orchestration”, and “Activate seamless insights” do not.
+Use sentence case, ordinary verbs, and short paragraphs. “Connect a tool”, “Save time zone”, and “Ask about Alex’s shared work” communicate an outcome. “Unlock your collective intelligence”, “Memory orchestration”, and “Activate seamless insights” do not.
 
 Do not add a subtitle just to fill the space beneath a heading. Do not put a sentence of implementation detail on every card. If text repeats the control label without resolving uncertainty, remove it.
 
@@ -29,7 +29,7 @@ Do not add a subtitle just to fill the space beneath a heading. Do not put a sen
 | LiteLLM gateway | The configured inference connection and model catalog |
 | Logfire | Pydantic's observability product; not a second model provider |
 
-Use legacy names only when a migration explanation requires them. The Python package is `litellm_memory`. Do not revive “product team knowledge” as the memory source for the new app without verifying that a specific legacy import is being described.
+Use legacy names only when a migration explanation requires them. The Python package is `litellm_memory`.
 
 ## Privacy copy is functional
 

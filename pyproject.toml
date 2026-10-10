@@ -4,7 +4,7 @@ version = "0.2.0"
 description = "Private, queryable work history for your team, built with Ente and LiteLLM"
 requires-python = ">=3.12"
 dependencies = [
-  "liteagents[mcp] @ https://github.com/BerriAI/liteagents/archive/5ef862aae2158de710fa9c6ce06f443df14c10be.tar.gz",
+  "liteagents @ https://github.com/BerriAI/liteagents/archive/5ef862aae2158de710fa9c6ce06f443df14c10be.tar.gz",
   "fastapi>=0.115",
   "uvicorn>=0.34",
   "httpx>=0.28",

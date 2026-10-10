@@ -22,7 +22,7 @@ One sidebar provides navigation. No recommendation algorithm, fixed memory-categ
 
 The Render Blueprint or Docker Compose starts the web app, persistent storage and Ente Museum. The initial administrator claims setup with a private deployment code, connects a LiteLLM URL/key, selects models, and installs Slack from the supplied manifest. Setup progressively reveals these controls on one page and preserves recoverable input after errors.
 
-Slack is the only member identity provider. Both the Slack workspace and exact verified email domain must match; `berri.ai` is the default for this installation. Self-hosters select their own domain. Members do not manage vault keys or a separate application password. An optional encrypted file export has its own passphrase; browser-to-browser installation transfer does not.
+Slack is the only member identity provider. Both the Slack workspace and exact verified email domain must match. The installer selects the company domain during setup. Members do not manage vault keys or a separate application password. An optional encrypted file export has its own passphrase; browser-to-browser installation transfer does not.
 
 Jev must work through LiteLLM before setup completes. The gateway owns the TypeSafe credential. Model discovery is key-scoped; a missing Jev entry in `/v1/models` alone is not a failed capability check. Agent, embeddings, Slack and background model roles can be configured. New setup suggests Luna for background work when the gateway exposes it, independently of the agent model. Explicit operator choices are preserved; deployments without Luna choose from their available generation models.
 

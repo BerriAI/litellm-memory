@@ -1043,11 +1043,6 @@ dependencies = [
 ]
 sdist = { hash = "sha256:c2753d17378b358949827b34f826123048912fb5103b1686dbf1ab2ae88b2bfc" }
 
-[package.optional-dependencies]
-mcp = [
-    { name = "mcp" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "httpx", specifier = ">=0.24.0" },
@@ -1103,7 +1098,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "httpx" },
     { name = "itsdangerous" },
-    { name = "liteagents", extra = ["mcp"] },
+    { name = "liteagents" },
     { name = "logfire" },
     { name = "mcp" },
     { name = "pydantic-settings" },
@@ -1131,7 +1126,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "itsdangerous", specifier = ">=2.2" },
-    { name = "liteagents", extras = ["mcp"], url = "https://github.com/BerriAI/liteagents/archive/5ef862aae2158de710fa9c6ce06f443df14c10be.tar.gz" },
+    { name = "liteagents", url = "https://github.com/BerriAI/liteagents/archive/5ef862aae2158de710fa9c6ce06f443df14c10be.tar.gz" },
     { name = "logfire", specifier = ">=5.1.0" },
     { name = "mcp", specifier = ">=2.2.0" },
     { name = "pydantic-settings", specifier = ">=2.8" },

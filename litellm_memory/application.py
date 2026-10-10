@@ -127,10 +127,8 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
     model_service = ModelSettingsService(settings, store, gateway, archive)
     views = WorkViews(archive, gateway, deployment)
     archive.views = views
-    # Keep the existing installed Slack app and approved channels; the new data layer
-    # further limits every access to an enrolled person and the actual delivery audience.
+    # Slack checks the enrolled requester and the actual delivery audience.
     slack_settings = settings.model_copy()
-    slack_settings.access_mode = "allowlist"
     slack_settings.allowed_slack_users = f"{settings.slack_team_id}:{settings.slack_owner_user_id}"
     slack = MemorySlack(slack_settings, store, archive)
     slack.model_settings = settings
@@ -276,7 +274,8 @@ def create_app(settings=None, *, museum=None, gateway=None, start_workers=True, 
         if settings.registration_mode == "owner_only" and identity["user_id"] != settings.slack_owner_user_id:
             raise HTTPException(403, "This rollout is currently limited to its owner.")
         email = identity.get("email", "").casefold()
-        if not identity.get("email_verified") or email.rsplit("@", 1)[-1] != settings.allowed_email_domain.casefold():
+        if (not settings.allowed_email_domain or not identity.get("email_verified")
+                or "@" not in email or email.rsplit("@", 1)[-1] != settings.allowed_email_domain.casefold()):
             raise HTTPException(403, "Sign in with your verified company Slack account.")
         return identity
 

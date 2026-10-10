@@ -9,7 +9,6 @@ if [ ! -f .env.selfhost ]; then
   {
     printf 'POSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 32)"
     printf 'PUBLIC_BASE_URL=http://localhost:8000\n'
-    printf 'ALLOWED_EMAIL_DOMAIN=berri.ai\n'
   } > "$task_env_file"
   mv "$task_env_file" .env.selfhost
 fi

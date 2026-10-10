@@ -32,7 +32,7 @@ Project and source names match without regard to capitalization. Enter one per l
 
 Each summary reads all of that day’s permitted memories in chronological order and links back to its sources. Your private summary can include private work; a teammate’s summary contains only company-shared work. Undated live memories use their recorded time; undated historical imports are not assigned a guessed day. Missing records are not evidence that someone did no work.
 
-Ask “What did Tin work on yesterday?” in Ask or Slack. Both agents can read the same generated summaries and inspect sources for more detail. Summary generation and retries run in the background. The archive shows saved summaries without generation status or failure messages. **Connections** shows individual-memory processing failures and their retry action.
+Ask “What did Alex work on yesterday?” in Ask or Slack. Both agents can read the same generated summaries and inspect sources for more detail. Summary generation and retries run in the background. The archive shows saved summaries without generation status or failure messages. **Connections** shows individual-memory processing failures and their retry action.
 
 **Settings → Preferences** lets you choose your display time zone or follow your device. Dates and feed date filters use that choice; original timestamps stay unchanged. A date without an original timezone is marked as incomplete and excluded from exact date ranges.
 

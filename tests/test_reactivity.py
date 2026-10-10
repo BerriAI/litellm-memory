@@ -7,9 +7,8 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from test_app import config, signed_event
+from test_app import config, create_app, sign_in, signed_event
 
-from litellm_memory.app import create_app
 from litellm_memory.progress import report
 from litellm_memory.slack import Slack, SlackAPIError
 from litellm_memory.storage import Storage
@@ -18,7 +17,7 @@ from litellm_memory.storage import Storage
 def test_web_stream_cancel_and_idempotent_retry(tmp_path):
     cancelled = []
 
-    async def slow_answer(settings, question, history):
+    async def slow_answer(settings, archive, gateway, reader, question, history, **kwargs):
         if question == 'fast':
             return 'The worker is still available.'
         await report('Reading source memories', 'An early fragment')
@@ -29,6 +28,7 @@ def test_web_stream_cancel_and_idempotent_retry(tmp_path):
             raise
 
     with TestClient(create_app(config(tmp_path), agent_fn=slow_answer)) as client:
+        sign_in(client)
         payload = {'question': 'slow', 'request_id': str(uuid.uuid4())}
         job_id = client.post('/api/chat', json=payload).json()['id']
         assert client.post('/api/chat', json=payload).json()['id'] == job_id
@@ -49,19 +49,20 @@ def test_web_stream_cancel_and_idempotent_retry(tmp_path):
         assert cancelled
         assert result['answer'] == 'The worker is still available.'
         assert client.get('/api/jobs/' + job_id).json()['status'] == 'cancelled'
-        client.cookies.clear()
+        sign_in(client, 'UMEMBER')
         assert client.post(f'/api/jobs/{job_id}/cancel').status_code == 404
 
 
 def test_source_shell_and_date_validation(tmp_path):
-    with TestClient(create_app(config(tmp_path), start_worker=False)) as client:
+    with TestClient(create_app(config(tmp_path), start_workers=False)) as client:
+        sign_in(client)
         assert 'source-dialog' in client.get('/sources?ids=one,two').text
         assert 'source-dialog' in client.get('/memory/one').text
         assert client.post('/api/memories/search', json={'created_from': '2026-09-20', 'created_before': '2026-09-19'}).status_code == 422
 
 
 def test_slack_same_message_two_events_and_thread_steering(tmp_path):
-    app = create_app(config(tmp_path), start_worker=False)
+    app = create_app(config(tmp_path), start_workers=False)
     with TestClient(app) as client:
         first = {'type': 'app_mention', 'user': 'U1', 'channel': 'C1', 'ts': '10', 'text': '<@UBOT> original'}
         signed_event(client, first, 'event1')
@@ -217,7 +218,7 @@ async def test_slack_failure_logs_only_method_and_sanitized_code(tmp_path, monke
 def test_slack_followup_cancels_running_model_and_answers_latest(tmp_path):
     starts, cancelled, delivered = [], [], []
 
-    async def agent(settings, question, history):
+    async def agent(settings, archive, gateway, reader, question, history, **kwargs):
         starts.append(question)
         if question == 'original':
             try:
@@ -271,13 +272,13 @@ async def test_slack_native_markdown_and_workspace_fallback(tmp_path):
 def test_owner_created_group_dm_acknowledges_before_model_then_delivers_once(tmp_path):
     calls = []
 
-    async def agent(settings, question, history):
+    async def agent(settings, archive, gateway, reader, question, history, **kwargs):
         # Exercise the real queue + worker + monitor, rather than calling the indicator directly.
         assert any(method == 'chat.postMessage' for method, _ in calls)
         await asyncio.sleep(.1)
         return 'Group DM answer'
 
-    app = create_app(config(tmp_path, access_mode='allowlist', allowed_slack_users='T1:UTIN'), agent_fn=agent)
+    app = create_app(config(tmp_path, allowed_slack_users='T1:UMEMBER'), agent_fn=agent)
 
     async def api(method, payload):
         calls.append((method, payload))
@@ -289,7 +290,7 @@ def test_owner_created_group_dm_acknowledges_before_model_then_delivers_once(tmp
 
     app.state.slack.api = api
     with TestClient(app) as client:
-        signed_event(client, {'type': 'app_mention', 'user': 'UTIN', 'channel': 'C-GROUP-DM',
+        signed_event(client, {'type': 'app_mention', 'user': 'UMEMBER', 'channel': 'C-GROUP-DM',
                               'channel_type': 'mpim', 'ts': '10', 'text': '<@UBOT> hello'})
         for _ in range(80):
             if any(method == 'chat.postMessage' and payload['text'] == 'Group DM answer' for method, payload in calls):
@@ -306,10 +307,10 @@ def test_owner_created_group_dm_acknowledges_before_model_then_delivers_once(tmp
 async def test_group_dm_recovery_never_bypasses_owner_or_revocation(tmp_path):
     store = Storage(tmp_path / 'db')
     await store.open()
-    slack = Slack(config(tmp_path, access_mode='allowlist', allowed_slack_users='T1:UOWNER,T1:UTIN'), store)
-    p = {'team': 'T1', 'channel': 'C1', 'user': 'UTIN'}
+    slack = Slack(config(tmp_path, allowed_slack_users='T1:UOWNER,T1:UMEMBER'), store)
+    p = {'team': 'T1', 'channel': 'C1', 'user': 'UMEMBER'}
     for info in [
-        {'is_mpim': True, 'is_member': True, 'creator': 'UTIN', 'created': 1},
+        {'is_mpim': True, 'is_member': True, 'creator': 'UMEMBER', 'created': 1},
         {'is_mpim': False, 'is_member': True, 'creator': 'UOWNER', 'created': 1},
         {'is_mpim': True, 'is_member': False, 'creator': 'UOWNER', 'created': 1},
     ]:

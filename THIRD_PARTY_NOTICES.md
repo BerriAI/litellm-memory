@@ -18,12 +18,12 @@ The portable image copies the **unmodified Ente Museum server executable and run
 
 - [LiteLLM](https://github.com/BerriAI/litellm) is an external OpenAI-compatible gateway configured by the operator; this image does not bundle a LiteLLM server.
 - [PyNaCl](https://github.com/pyca/pynacl) supplies the libsodium bindings used for encryption.
-- [LiteAgents SDK](https://github.com/BerriAI/liteagents) runs the query tool loop, including MCP client tools. Requests use the configured LiteLLM endpoint.
+- [LiteAgents SDK](https://github.com/BerriAI/liteagents) runs the query tool loop. Requests use the configured LiteLLM endpoint.
 - [Pydantic](https://github.com/pydantic/pydantic) validates data contracts; [Logfire](https://github.com/pydantic/logfire) provides optional operational tracing. The core does not require a Logfire cloud account.
 - [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk) supplies remote MCP transport.
 - [Marked](https://github.com/markedjs/marked) and [DOMPurify](https://github.com/cure53/DOMPurify) render sanitized Markdown. Their bundled licenses are in `static/vendor/marked.LICENSE` and `static/vendor/dompurify.LICENSE`.
 
-Python dependencies and exact resolved versions are in `uv.lock`; packages retain their own license metadata. The legacy vendored knowledge runtime's provenance is documented in `vendor/UPSTREAM.md`; the new application does not depend on it.
+Python dependencies and exact resolved versions are in `uv.lock`; packages retain their own license metadata.
 
 ## Interface assets
 

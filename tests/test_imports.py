@@ -5,7 +5,7 @@ import httpx
 from litellm_memory.imports import import_plan, legacy_plan
 
 
-def source(root, folder, name, *, actor='moe-berri', content='Original.  Two spaces.\n'):
+def source(root, folder, name, *, actor='sample-contributor', content='Original.  Two spaces.\n'):
     path = root / folder / (name + '.json')
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({'id': name, 'title': 'Original title', 'content': content, 'actor': actor,
@@ -21,13 +21,13 @@ def test_legacy_import_preserves_files_dates_metadata_and_uploader_scope(tmp_pat
     knowledge.mkdir()
     (knowledge / 'decision.md').write_text('---\nid: decision\ntitle: Shared decision\nupdated_at: 2025-05-01T00:00:00Z\n---\n\nOriginal shared text.\n')
     raw = original.read_bytes()
-    plan = legacy_plan(tmp_path, allowed_actors={'moe-berri'})
+    plan = legacy_plan(tmp_path, allowed_actors={'sample-contributor'})
     assert len(plan.records) == 2 and plan.skipped == 2 and plan.invalid == 0
     record = next(r for r in plan.records if r.title == 'Original title')
     assert record.content == 'Original.  Two spaces.\n' and record.historical
     assert record.occurred_at.year == 2025
     assert record.metadata['original_file'].encode() == raw
-    assert record.metadata['scope'] == 'test' and record.metadata['actor'] == 'moe-berri'
+    assert record.metadata['scope'] == 'test' and record.metadata['actor'] == 'sample-contributor'
     assert original.read_bytes() == raw
     assert plan.manifest()['sources'][0]['sha256']
 
@@ -35,7 +35,7 @@ def test_legacy_import_preserves_files_dates_metadata_and_uploader_scope(tmp_pat
 def test_import_retry_is_idempotent_and_auth_failures_leave_remaining_work(tmp_path):
     source(tmp_path, 'journal', 'one')
     source(tmp_path, 'journal', 'two')
-    plan = legacy_plan(tmp_path, allowed_actors={'moe-berri'})
+    plan = legacy_plan(tmp_path, allowed_actors={'sample-contributor'})
     seen = set()
     def handle(request):
         data = json.loads(request.content)
@@ -56,5 +56,5 @@ def test_import_does_not_follow_symlinks_outside_repository(tmp_path):
     (root / 'journal').mkdir(parents=True)
     external = source(tmp_path, 'outside', 'record')
     (root / 'journal' / 'link.json').symlink_to(external)
-    plan = legacy_plan(root, allowed_actors={'moe-berri'})
+    plan = legacy_plan(root, allowed_actors={'sample-contributor'})
     assert not plan.records and plan.skipped == 1

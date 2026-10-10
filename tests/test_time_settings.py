@@ -84,7 +84,7 @@ def test_setup_rejects_invalid_timezone_before_persisting_it(tmp_path):
 def test_failed_config_write_preserves_the_active_settings(tmp_path, monkeypatch):
     app = application(tmp_path, [])
     deployment = app.state.deployment
-    deployment.save(timezone='UTC', config={'allowed_email_domain': 'berri.ai'})
+    deployment.save(timezone='UTC', config={'allowed_email_domain': 'example.com'})
     before = deployment.path.read_bytes()
 
     def unavailable(*args):
@@ -92,10 +92,10 @@ def test_failed_config_write_preserves_the_active_settings(tmp_path, monkeypatch
 
     monkeypatch.setattr(deployment, '_atomic', unavailable)
     with pytest.raises(OSError):
-        deployment.save(timezone='Asia/Tokyo', config={'allowed_email_domain': 'example.com'})
+        deployment.save(timezone='Asia/Tokyo', config={'allowed_email_domain': 'other.example'})
     assert deployment.values['timezone'] == 'UTC'
-    assert deployment.values['settings']['allowed_email_domain'] == 'berri.ai'
-    assert app.state.settings.allowed_email_domain == 'berri.ai'
+    assert deployment.values['settings']['allowed_email_domain'] == 'example.com'
+    assert app.state.settings.allowed_email_domain == 'example.com'
     assert deployment.path.read_bytes() == before
 
 

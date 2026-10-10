@@ -110,7 +110,7 @@ async def test_leave_rejoin_retains_private_key_but_never_reactivates_grants(arc
 @pytest.mark.asyncio
 async def test_slack_requester_authorization_and_private_dm_boundary(archive):
     settings = Settings(_env_file=None, slack_team_id='T1', slack_bot_token='fake', slack_bot_user_id='BOT',
-                        registration_mode='domain', allowed_email_domain='berri.ai', access_mode='allowlist',
+                        registration_mode='domain', allowed_email_domain='example.com',
                         allowed_slack_users='T1:A,T1:B')
     store = AsyncMock()
     store.setting.return_value = None
@@ -119,7 +119,7 @@ async def test_slack_requester_authorization_and_private_dm_boundary(archive):
     assert not slack.explicitly_ineligible({'id': 'A', 'team_id': 'T1', 'profile': {'display_name': 'New name'}})
     assert slack.explicitly_ineligible({'id': 'A', 'deleted': True})
     assert slack.explicitly_ineligible({'id': 'A', 'profile': {'email': 'a@another.example'}})
-    users = {u: {'id': u, 'team_id': 'T1', 'profile': {'email': u + '@berri.ai'}} for u in ['A', 'B', 'C']}
+    users = {u: {'id': u, 'team_id': 'T1', 'profile': {'email': u + '@example.com'}} for u in ['A', 'B', 'C']}
     channel = {'is_im': True, 'user': 'A'}
     async def api(method, body):
         if method == 'users.info':

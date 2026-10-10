@@ -8,11 +8,11 @@ LiteLLM Memory records the work people do with AI and makes it easy to ask about
 
 This is a work archive you query deliberately. It does not search old memories or inject context into every coding turn.
 
-> **Release status:** the implementation is on `main` in `BerriAI/litellm-memory` and deployed at [litellm-memory.onrender.com](https://litellm-memory.onrender.com/). Repository access requires an authorized GitHub account. See the [release checklist](docs/release-checklist.md) for verified behavior and remaining rollout checks.
+> **Release status:** prerelease. Review the [release checklist](docs/release-checklist.md) before using real team history.
 
 ![The implemented LiteLLM Memory Activity view with Ask, a chronological feed and private lock labels](docs/assets/dashboard.jpg)
 
-The actual application, shown with synthetic local records. See [Ask](docs/assets/ask.png), [privacy settings](docs/assets/settings.png), and the [interface guide](docs/ui-review.md) for more screenshots and verification details.
+The actual application, shown with synthetic local records. See [Ask](docs/assets/ask.jpg), [privacy settings](docs/assets/settings.jpg), and the [interface guide](docs/ui-review.md) for more screenshots and verification details.
 
 ## What it does
 
@@ -29,7 +29,7 @@ See the [member guide](docs/member-guide.md) for filtering, privacy, exports and
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/BerriAI/litellm-memory/tree/main)
 
-The Blueprint provisions the web app, a persistent volume and PostgreSQL. Ente Museum runs privately alongside the app and is provisioned automatically. Review Render's charges before creating the deployment; durable hosting is not a free-tier promise. This repository currently requires GitHub access. Once published, others can fork and deploy it with their own infrastructure and gateway.
+The Blueprint provisions the web app, a persistent volume and PostgreSQL. Ente Museum runs privately alongside the app and is provisioned automatically. Review Render's charges before creating the deployment; durable hosting is not a free-tier promise. Fork and deploy it with your own infrastructure and gateway.
 
 **On any Docker host:**
 
@@ -45,7 +45,7 @@ Open the address shown by your deployment. Setup stays on one page:
 2. Connect your **LiteLLM URL and API key**. LiteLLM Memory discovers models, suggests defaults, and checks Jev through the gateway.
 3. Connect Slack and finish with your verified company identity. Slack returns you to the same setup page.
 
-Members then use **Sign in with Slack**. They do not handle encryption keys, recovery phrases or a separate LiteLLM Memory password. Eligibility is restricted to the configured Slack workspace and exact verified email domain; `berri.ai` is the initial default and self-hosters choose their own domain.
+Members then use **Sign in with Slack**. They do not handle encryption keys, recovery phrases or a separate LiteLLM Memory password. Eligibility is restricted to the configured Slack workspace and exact verified email domain. Choose your company domain during setup.
 
 **Jev is required.** Built-in support starts in LiteLLM **v1.103.0-rc**. Use a gateway release with the [TypeSafe integration](https://docs.litellm.ai/docs/pass_through/typesafe), and configure `TYPESAFE_API_KEY` on that gateway. Setup explains missing capabilities and retains your inputs. LiteLLM Memory never asks members for a TypeSafe key or bypasses the gateway. See [gateway setup](docs/self-hosting.md#connect-typesafe-jev-through-litellm).
 
