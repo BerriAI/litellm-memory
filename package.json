@@ -2,7 +2,7 @@
   "name": "litellm-memory-web-vendor",
   "private": true,
   "dependencies": {
-    "dompurify": "3.4.15",
+    "dompurify": "3.4.17",
     "marked": "18.0.13"
   }
 }
